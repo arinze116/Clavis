@@ -1,8 +1,16 @@
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { AuditEntry } from "../types";
 import { formatTimestamp, outcomeDetails } from "../utils/format";
+import { contractId } from "../utils/near";
+
+const nearBlocksUrl = "https://testnet.nearblocks.io";
+
+function explorerLink(entry: AuditEntry): string {
+  const transactionId = entry.transaction_id ?? entry.transaction_hash ?? entry.tx_hash;
+  return transactionId ? `${nearBlocksUrl}/txns/${transactionId}` : `${nearBlocksUrl}/address/${contractId}`;
+}
 
 type Filter = "all" | "approved" | "rejected";
 
@@ -49,7 +57,19 @@ export function PaymentHistory({ entries, pageSize = 8 }: { entries: AuditEntry[
           const outcome = outcomeDetails(entry.outcome);
           return (
             <div key={entry.payment_id} className="grid gap-3 px-6 py-4 sm:grid-cols-[90px_1fr_130px_1fr] sm:items-center lg:px-8">
-              <span className="font-mono text-xs text-ink/45">#{String(entry.payment_id).padStart(4, "0")}</span>
+              <span className="inline-flex items-center gap-2 font-mono text-xs text-ink/45">
+                #{String(entry.payment_id).padStart(4, "0")}
+                <a
+                  href={explorerLink(entry)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ink/35 transition hover:text-moss"
+                  aria-label={`Open payment ${entry.payment_id} on NEAR Explorer`}
+                  title="Open on NEAR Explorer"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              </span>
               <span className="text-sm text-ink/60">{formatTimestamp(entry.timestamp)}</span>
               <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${outcome.approved ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                 {outcome.approved ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

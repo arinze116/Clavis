@@ -1,5 +1,6 @@
 import { Eye, LockKeyhole, Route, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
 import { ChainPreference } from "../components/ChainPreference";
@@ -37,7 +38,7 @@ export default function WorkerDashboard() {
   if (walletLoading || loading) return <AppShell><LoadingState label="Opening your private payroll view" /></AppShell>;
   if (!accountId) return <AppShell><div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="panel p-10"><WalletCards className="mx-auto h-9 w-9 text-moss" /><h1 className="mt-5 font-display text-4xl">Your payroll, your view</h1><p className="mt-3 text-sm leading-6 text-ink/50">Connect the NEAR account registered by your employer. The address is hashed locally before lookup.</p><div className="mt-7"><WalletButton /></div></div></div></AppShell>;
   if (error) return <AppShell><div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="panel p-10"><LockKeyhole className="mx-auto h-9 w-9 text-red-600" /><h1 className="mt-5 font-display text-4xl">Private view unavailable</h1><p className="mt-3 text-sm text-ink/50">{error}</p></div></div></AppShell>;
-  if (!recipient) return <AppShell><div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="panel p-10"><LockKeyhole className="mx-auto h-9 w-9 text-amber-600" /><h1 className="mt-5 font-display text-4xl">No payroll profile found</h1><p className="mt-3 text-sm leading-6 text-ink/50">This connected account does not match an approved recipient commitment. Ask the contract owner to add it.</p></div></div></AppShell>;
+  if (!recipient) return <AppShell><div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="panel p-10"><LockKeyhole className="mx-auto h-9 w-9 text-amber-600" /><h1 className="mt-5 font-display text-4xl">No payroll profile found</h1><p className="mt-3 text-sm leading-6 text-ink/50">Your wallet is not yet on a payroll roster. Share your NEAR wallet address with your employer and ask them to add you via their Clavis dashboard.</p><Link to="/audit" className="button-secondary mt-7">View public audit</Link></div></div></AppShell>;
 
   const splits = recipient.payment_split.length ? recipient.payment_split : [{ chain: recipient.preferred_chain, token: recipient.preferred_token, percentage: 100 }];
   return (

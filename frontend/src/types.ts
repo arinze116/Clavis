@@ -28,6 +28,9 @@ export interface AuditEntry {
   timestamp: number;
   outcome: PaymentOutcome;
   block_height: number;
+  transaction_id?: string;
+  transaction_hash?: string;
+  tx_hash?: string;
 }
 
 export interface AnomalyEntry {

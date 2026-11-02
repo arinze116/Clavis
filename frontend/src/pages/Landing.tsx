@@ -1,8 +1,8 @@
-import { ArrowRight, Bot, Check, EyeOff, Globe2, KeyRound, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Bot, Check, EyeOff, Globe2, KeyRound, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Logo } from "../components/Logo";
-import { WalletButton } from "../components/WalletButton";
+import { MarketingHeader } from "../components/MarketingHeader";
+import { SiteFooter } from "../components/SiteFooter";
 
 const features = [
   { icon: EyeOff, title: "Private by design", text: "Public audit decisions reveal no salary, recipient address, or destination route." },
@@ -13,17 +13,12 @@ const features = [
 export default function Landing() {
   return (
     <div className="min-h-screen overflow-hidden bg-ink text-white">
-      <header className="relative z-20 mx-auto flex h-24 max-w-[1440px] items-center justify-between px-5 lg:px-10">
-        <Logo inverse />
-        <nav className="hidden items-center gap-8 text-sm text-white/60 md:flex"><a href="#architecture" className="hover:text-white">Architecture</a><Link to="/audit" className="hover:text-white">Public audit</Link><a href="#security" className="hover:text-white">Security</a></nav>
-        <WalletButton compact />
-      </header>
+      <MarketingHeader landing />
 
       <main>
         <section className="relative mx-auto grid min-h-[760px] max-w-[1440px] items-center gap-14 px-5 pb-24 pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:pb-28">
           <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-white/70"><Sparkles className="h-3.5 w-3.5 text-acid" /> Built for the NEAR Hackathon 2026</div>
-            <h1 className="mt-8 font-display text-[clamp(3.8rem,8vw,8rem)] font-medium leading-[0.86] tracking-[-0.055em]">Payroll that keeps its <span className="text-acid">promises.</span></h1>
+            <h1 className="font-display text-[clamp(3.8rem,8vw,8rem)] font-medium leading-[0.86] tracking-[-0.055em]">Payroll that keeps its <span className="text-acid">promises.</span></h1>
             <p className="mt-8 max-w-2xl text-lg leading-8 text-white/58 lg:text-xl">Give an AI agent enough authority to run payroll—and no authority to break the rules. Private amounts. Approved recipients. Cross-chain delivery.</p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row"><Link to="/setup" className="inline-flex items-center justify-center gap-2 rounded-full bg-acid px-6 py-3.5 text-sm font-bold text-ink transition hover:-translate-y-0.5">Configure Clavis <ArrowRight className="h-4 w-4" /></Link><Link to="/audit" className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/40">Inspect public audit</Link></div>
             <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-xs text-white/45"><span className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-acid" /> NEAR testnet</span><span className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-acid" /> Rule-bound agent</span><span className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-acid" /> Publicly verifiable</span></div>
@@ -56,7 +51,7 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-white/10 px-5 py-8 lg:px-10"><div className="mx-auto flex max-w-[1360px] flex-col gap-4 text-xs text-white/35 sm:flex-row sm:items-center sm:justify-between"><p>Clavis · Private cross-chain payroll on NEAR</p><p>Built by Arinze · Nigeria → the world</p></div></footer>
+      <SiteFooter />
     </div>
   );
 }
