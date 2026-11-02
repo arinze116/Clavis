@@ -1,0 +1,35 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.key
+
+# JavaScript
+node_modules/
+dist/
+.vite/
+coverage/
+npm-debug.log*
+*.tsbuildinfo
+
+# Rust
+contract/target/
+target/
+
+# Agent private state
+agent/config/payroll.local.json
+agent/data/
+agent/reports/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# NEAR build artifacts
+artifacts/
+*.wasm
+!frontend/public/*.wasm

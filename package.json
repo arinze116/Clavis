@@ -1,0 +1,23 @@
+{
+  "name": "clavis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private, rule-bound cross-chain payroll on NEAR",
+  "workspaces": [
+    "agent",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@clavis/agent && npm run build --workspace=@clavis/frontend",
+    "typecheck": "npm run typecheck --workspace=@clavis/agent && npm run typecheck --workspace=@clavis/frontend",
+    "test": "npm run test:agent && npm run test:contract",
+    "test:agent": "npm run test --workspace=@clavis/agent",
+    "test:contract": "cargo test --manifest-path contract/Cargo.toml",
+    "build:contract": "cargo build --manifest-path contract/Cargo.toml --target wasm32-unknown-unknown --release",
+    "dev:agent": "npm run dev --workspace=@clavis/agent",
+    "dev:frontend": "npm run dev --workspace=@clavis/frontend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
