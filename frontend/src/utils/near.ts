@@ -9,7 +9,7 @@ const configuredNetwork = envValue(import.meta.env.VITE_NEAR_NETWORK, "testnet")
 export const networkId: NetworkId = configuredNetwork === "mainnet" ? "mainnet" : "testnet";
 export const rpcUrl = envValue(
   import.meta.env.VITE_NEAR_RPC_URL,
-  "https://rpc.testnet.near.org",
+  "https://rpc.testnet.fastnear.com",
 );
 export const rpcEndpoint = import.meta.env.DEV ? "/near-rpc" : rpcUrl;
 export const contractId = envValue(import.meta.env.VITE_CONTRACT_ID, "clavis.testnet");

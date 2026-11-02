@@ -2,6 +2,8 @@ import { keyStores, KeyPair, Near, type Account } from "near-api-js";
 
 import type { AuditEntry, PaymentResult, RecipientView } from "./types.js";
 
+export const DEFAULT_TESTNET_RPC_URL = "https://rpc.testnet.fastnear.com";
+
 interface RpcResponse<T> {
   result?: T;
   error?: { message?: string; data?: unknown };
@@ -42,7 +44,10 @@ export class NearClient {
   #account: Account | null = null;
 
   constructor(options: NearClientOptions) {
-    this.#options = options;
+    this.#options = {
+      ...options,
+      rpcUrl: options.rpcUrl.trim() || DEFAULT_TESTNET_RPC_URL,
+    };
     this.#keyPair = KeyPair.fromString(
       options.privateKey as `ed25519:${string}` | `secp256k1:${string}`,
     );

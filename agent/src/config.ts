@@ -27,7 +27,7 @@ const schema = z.object({
   NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/),
   CONTRACT_ID: z.string().min(2),
   NEAR_NETWORK: z.string().default("testnet"),
-  NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.near.org"),
+  NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.fastnear.com"),
   INTENTS_CONTRACT_ID: z.string().default("intents.near"),
   CONFIDENTIAL_EXECUTOR_URL: optionalUrl,
   INTENTS_API_KEY: optionalSecret,

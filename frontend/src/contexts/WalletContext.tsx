@@ -43,25 +43,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const pathNeedsWallet = !["/", "/audit"].includes(window.location.pathname);
-    const hasPreviousWallet = window.localStorage.getItem("selectedWalletId") !== null;
-    if (pathNeedsWallet || hasPreviousWallet) {
-      void initialize();
-    } else {
-      setLoading(false);
-    }
+    let active = true;
+
+    // Warm the selector and wallet modules before the connect button becomes interactive.
+    void initialize().catch(() => {
+      if (active) {
+        setLoading(false);
+      }
+    });
 
     return () => {
+      active = false;
       subscriptionRef.current?.unsubscribe();
       subscriptionRef.current = null;
     };
   }, [initialize]);
 
   const connect = useCallback(async () => {
-    setLoading(true);
     await initialize();
     await showWalletModal();
-    setLoading(false);
   }, [initialize]);
 
   const disconnect = useCallback(async () => {
