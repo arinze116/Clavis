@@ -1,12 +1,22 @@
 import type { NetworkId, WalletSelector } from "@near-wallet-selector/core";
 import type { WalletSelectorModal } from "@near-wallet-selector/modal-ui";
 
-const configuredNetwork = import.meta.env.VITE_NEAR_NETWORK ?? "testnet";
+function envValue(value: string | undefined, fallback: string): string {
+  return value?.trim() || fallback;
+}
+
+const configuredNetwork = envValue(import.meta.env.VITE_NEAR_NETWORK, "testnet");
 export const networkId: NetworkId = configuredNetwork === "mainnet" ? "mainnet" : "testnet";
-export const rpcUrl = import.meta.env.VITE_NEAR_RPC_URL ?? "https://rpc.testnet.near.org";
-export const contractId = import.meta.env.VITE_CONTRACT_ID ?? "clavis.testnet";
-export const explorerUrl =
-  import.meta.env.VITE_EXPLORER_URL ?? "https://testnet.nearblocks.io";
+export const rpcUrl = envValue(
+  import.meta.env.VITE_NEAR_RPC_URL,
+  "https://rpc.testnet.near.org",
+);
+export const rpcEndpoint = import.meta.env.DEV ? "/near-rpc" : rpcUrl;
+export const contractId = envValue(import.meta.env.VITE_CONTRACT_ID, "clavis.testnet");
+export const explorerUrl = envValue(
+  import.meta.env.VITE_EXPLORER_URL,
+  "https://testnet.nearblocks.io",
+);
 
 let selectorPromise: Promise<WalletSelector> | null = null;
 let modal: WalletSelectorModal | null = null;
@@ -17,17 +27,31 @@ export function getWalletSelector(): Promise<WalletSelector> {
       import("@near-wallet-selector/core"),
       import("@near-wallet-selector/modal-ui"),
       import("@near-wallet-selector/my-near-wallet"),
-    ]).then(async ([core, modalUi, myNearWallet]) => {
-      const selector = await core.setupWalletSelector({
-        network: networkId,
-        modules: [myNearWallet.setupMyNearWallet()],
+      import("@near-wallet-selector/meteor-wallet"),
+      import("@near-wallet-selector/here-wallet"),
+      import("@near-wallet-selector/sender"),
+    ])
+      .then(async ([core, modalUi, myNearWallet, meteorWallet, hereWallet, sender]) => {
+        const selector = await core.setupWalletSelector({
+          network: networkId,
+          modules: [
+            myNearWallet.setupMyNearWallet(),
+            meteorWallet.setupMeteorWallet(),
+            hereWallet.setupHereWallet(),
+            sender.setupSender(),
+          ],
+        });
+        modal = modalUi.setupModal(selector, {
+          contractId,
+          description: "Connect a NEAR testnet wallet to manage Clavis.",
+        });
+        return selector;
+      })
+      .catch((error: unknown) => {
+        // Allow a transient wallet initialization failure to be retried.
+        selectorPromise = null;
+        throw error;
       });
-      modal = modalUi.setupModal(selector, {
-        contractId,
-        description: "Connect a NEAR testnet wallet to manage Clavis.",
-      });
-      return selector;
-    });
   }
   return selectorPromise;
 }

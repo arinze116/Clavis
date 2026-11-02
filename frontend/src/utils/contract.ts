@@ -1,3 +1,4 @@
+import { JsonRpcProvider } from "@near-js/providers";
 import type { Wallet } from "@near-wallet-selector/core";
 import { actionCreators } from "@near-js/transactions";
 
@@ -8,43 +9,32 @@ import type {
   Recipient,
   RecipientDraft,
 } from "../types";
-import { contractId, rpcUrl } from "./near";
+import { contractId, rpcEndpoint, rpcUrl } from "./near";
 import { nearToYocto } from "./format";
 
-interface RpcResponse<T> {
-  result?: T;
-  error?: { message?: string };
-}
+type RpcViewResult = string | number | boolean | object;
 
-interface CallResult {
-  result: number[];
-}
+const provider = new JsonRpcProvider(
+  { url: rpcEndpoint },
+  { retries: 3, wait: 300, backoff: 1.5 },
+);
 
-export async function view<T>(methodName: string, args: Record<string, unknown> = {}): Promise<T> {
-  const response = await fetch(rpcUrl, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: `clavis-${methodName}`,
-      method: "query",
-      params: {
-        request_type: "call_function",
-        finality: "final",
-        account_id: contractId,
-        method_name: methodName,
-        args_base64: btoa(JSON.stringify(args)),
-      },
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`NEAR RPC returned HTTP ${response.status}`);
+export async function view<T>(
+  methodName: string,
+  args: Record<string, unknown> = {},
+): Promise<T> {
+  try {
+    const result = await provider.callFunction<RpcViewResult>(contractId, methodName, args, {
+      finality: "final",
+    });
+    if (result === undefined) {
+      throw new Error("The contract returned an empty response");
+    }
+    return result as T;
+  } catch (reason) {
+    const detail = reason instanceof Error ? reason.message : "Unknown RPC error";
+    throw new Error(`Unable to read ${contractId}.${methodName} via ${rpcUrl}: ${detail}`);
   }
-  const body = (await response.json()) as RpcResponse<CallResult>;
-  if (!body.result || body.error) {
-    throw new Error(body.error?.message ?? "Unable to read the Clavis contract");
-  }
-  return JSON.parse(new TextDecoder().decode(new Uint8Array(body.result.result))) as T;
 }
 
 export async function loadContractSnapshot(): Promise<ContractSnapshot> {
