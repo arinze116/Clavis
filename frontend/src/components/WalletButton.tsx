@@ -36,7 +36,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <span
-        className="inline-flex min-h-11 max-w-[190px] items-center gap-2 rounded-full border border-ink/10 bg-white px-4"
+        className="inline-flex min-h-11 max-w-[190px] items-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-ink"
         title={accountId}
       >
         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
