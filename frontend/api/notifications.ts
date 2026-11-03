@@ -65,7 +65,11 @@ export default async function handler(
     response.status(upstream.status);
     response.setHeader("content-type", upstream.contentType);
     response.send(upstream.body);
-  } catch {
+  } catch (error) {
+    console.error(
+      "notification_proxy.failed",
+      error instanceof Error ? error.message : "Unknown notification proxy error",
+    );
     response.status(502).json({ error: "Notification service is temporarily unavailable" });
   }
 }
@@ -187,7 +191,10 @@ function forwardOverSsh(
             ].join("\r\n"),
             "utf8",
           );
-          stream.end(Buffer.concat([requestHead, requestBody]));
+          // Keep the SSH channel writable while the agent performs RPC-backed
+          // authorization. Sending SSH EOF here can close the forwarded TCP
+          // socket before an asynchronous response is ready.
+          stream.write(Buffer.concat([requestHead, requestBody]));
         });
       })
       .once("error", finish)
@@ -206,7 +213,9 @@ function forwardOverSsh(
 
 function parseHttpResponse(value: Buffer): UpstreamResponse {
   const headerEnd = value.indexOf("\r\n\r\n");
-  if (headerEnd < 0) throw new Error("Notification bridge returned an invalid HTTP response");
+  if (headerEnd < 0) {
+    throw new Error(`Notification bridge returned an invalid HTTP response (${value.length} bytes)`);
+  }
   const headerLines = value.subarray(0, headerEnd).toString("latin1").split("\r\n");
   const statusMatch = headerLines[0]?.match(/^HTTP\/1\.[01] (\d{3})/);
   if (!statusMatch?.[1]) throw new Error("Notification bridge returned an invalid status");
