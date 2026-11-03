@@ -31,6 +31,32 @@ function manager(): NotificationManager {
 }
 
 describe("NotificationManager", () => {
+  it("sends a one-time email code before storing the address", async () => {
+    let requestBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+        requestBody = String(init?.body ?? "");
+        return new Response(JSON.stringify({ id: "email-id" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+
+    await manager().sendEmailVerification({
+      accountId: "owner.testnet",
+      email: "owner@example.com",
+      code: "123456",
+    });
+
+    expect(JSON.parse(requestBody)).toMatchObject({
+      to: "owner@example.com",
+      subject: expect.stringContaining("123456"),
+      text: expect.stringContaining("owner.testnet"),
+    });
+  });
+
   it("fans a finalized transaction alert out to linked email and Telegram channels", async () => {
     const requests: Array<{ url: string; body: string }> = [];
     vi.stubGlobal(

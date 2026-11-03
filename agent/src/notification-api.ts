@@ -10,6 +10,7 @@ import {
 } from "./notification-auth.js";
 import {
   notificationPreferenceValidation,
+  type NotificationPreference,
   type NotificationPreferenceStore,
 } from "./notification-preferences.js";
 import { NearRpcClient } from "./near.js";
@@ -17,33 +18,73 @@ import type { NotificationManager } from "./notifications/index.js";
 
 const MAX_BODY_BYTES = 32 * 1_024;
 const MAX_EVENTS_PER_WINDOW = 30;
+const MAX_LINK_CHANGES_PER_WINDOW = 10;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
+const EMAIL_CHALLENGE_TTL_MS = 10 * 60 * 1_000;
+const TELEGRAM_PAIRING_TTL_MS = 10 * 60 * 1_000;
+
+const signedActionSchema = z.enum([
+  "begin_email_link",
+  "begin_telegram_link",
+  "unlink_notification_channel",
+]);
 
 const authorizationSchema = z.object({
   accountId: z.string().regex(notificationPreferenceValidation.accountIdPattern),
-  action: z.literal("save_preferences"),
+  action: signedActionSchema,
   issuedAt: z.string().datetime(),
   nonce: z.string().min(40).max(64),
   payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
   message: z.string().min(20).max(2_000),
   recipient: z.string().min(2).max(64),
-  callbackUrl: z.string().url(),
+  callbackUrl: z.string().url().max(2_048),
   publicKey: z.string().regex(/^(ed25519|secp256k1):/),
   signature: z.string().min(40).max(256),
 });
 
-const preferencesPayloadSchema = z.object({
-  email: z.string().trim().email().max(254).nullable(),
-  telegramChatId: z
-    .string()
-    .trim()
-    .regex(notificationPreferenceValidation.telegramChatIdPattern)
-    .nullable(),
+const beginEmailLinkSchema = z.object({
+  action: z.literal("begin_email_link"),
+  payload: z.object({
+    email: notificationPreferenceValidation.emailSchema,
+  }),
+  authorization: authorizationSchema,
 });
 
-const savePreferencesSchema = z.object({
-  action: z.literal("save_preferences"),
-  payload: preferencesPayloadSchema,
+const confirmEmailLinkSchema = z.object({
+  action: z.literal("confirm_email_link"),
+  payload: z.object({
+    challengeId: z.string().min(20).max(100),
+    code: z.string().regex(/^\d{6}$/),
+  }),
+});
+
+const beginTelegramLinkSchema = z.object({
+  action: z.literal("begin_telegram_link"),
+  payload: z.object({}).strict(),
+  authorization: authorizationSchema,
+});
+
+const telegramLinkStatusSchema = z.object({
+  action: z.literal("telegram_link_status"),
+  payload: z.object({
+    pairingId: z.string().min(20).max(100),
+    pollToken: z.string().min(32).max(128),
+  }),
+});
+
+const cancelTelegramLinkSchema = z.object({
+  action: z.literal("cancel_telegram_link"),
+  payload: z.object({
+    pairingId: z.string().min(20).max(100),
+    pollToken: z.string().min(32).max(128),
+  }),
+});
+
+const unlinkChannelSchema = z.object({
+  action: z.literal("unlink_notification_channel"),
+  payload: z.object({
+    channel: z.enum(["email", "telegram", "all"]),
+  }),
   authorization: authorizationSchema,
 });
 
@@ -59,9 +100,17 @@ const transactionEventSchema = z.object({
   }),
 });
 
-type NotificationRequest =
-  | z.infer<typeof savePreferencesSchema>
-  | z.infer<typeof transactionEventSchema>;
+interface SignedRequest {
+  action: z.infer<typeof signedActionSchema>;
+  payload: unknown;
+  authorization: z.infer<typeof authorizationSchema>;
+}
+
+interface PreferenceResponse {
+  preference: NotificationPreference;
+  sessionToken: string | null;
+  sessionExpiresAt: string | null;
+}
 
 export interface TransactionResult {
   status: { Failure?: unknown; SuccessValue?: string; SuccessReceiptId?: string };
@@ -104,6 +153,7 @@ export class NotificationApiServer {
   readonly #store: NotificationPreferenceStore;
   readonly #notifications: NotificationManager;
   readonly #rpc: NearRpcClient;
+  readonly #telegramBotUsername: string | undefined;
   readonly #rates = new Map<string, number[]>();
   readonly #inFlightEvents = new Set<string>();
   #lastRatePruneAt = 0;
@@ -119,6 +169,7 @@ export class NotificationApiServer {
     sessionTtlMs: number;
     store: NotificationPreferenceStore;
     notifications: NotificationManager;
+    telegramBotUsername?: string;
   }) {
     this.#host = options.host;
     this.#port = options.port;
@@ -129,6 +180,9 @@ export class NotificationApiServer {
     this.#store = options.store;
     this.#notifications = options.notifications;
     this.#rpc = new NearRpcClient(options.nearRpcUrl);
+    const username = options.telegramBotUsername?.replace(/^@/, "");
+    this.#telegramBotUsername =
+      username && /^[A-Za-z0-9_]{5,32}$/.test(username) ? username : undefined;
   }
 
   async start(): Promise<void> {
@@ -174,8 +228,18 @@ export class NotificationApiServer {
           ? (value as { action?: unknown }).action
           : undefined;
       let result: unknown;
-      if (action === "save_preferences") {
-        result = await this.savePreferences(savePreferencesSchema.parse(value));
+      if (action === "begin_email_link") {
+        result = await this.beginEmailLink(beginEmailLinkSchema.parse(value));
+      } else if (action === "confirm_email_link") {
+        result = await this.confirmEmailLink(confirmEmailLinkSchema.parse(value));
+      } else if (action === "begin_telegram_link") {
+        result = await this.beginTelegramLink(beginTelegramLinkSchema.parse(value));
+      } else if (action === "telegram_link_status") {
+        result = await this.telegramLinkStatus(telegramLinkStatusSchema.parse(value));
+      } else if (action === "cancel_telegram_link") {
+        result = await this.cancelTelegramLink(cancelTelegramLinkSchema.parse(value));
+      } else if (action === "unlink_notification_channel") {
+        result = await this.unlinkChannel(unlinkChannelSchema.parse(value));
       } else if (action === "transaction_event") {
         result = await this.transactionEvent(transactionEventSchema.parse(value));
       } else {
@@ -194,7 +258,107 @@ export class NotificationApiServer {
     }
   }
 
-  private async savePreferences(request: z.infer<typeof savePreferencesSchema>): Promise<unknown> {
+  private async beginEmailLink(
+    request: z.infer<typeof beginEmailLinkSchema>,
+  ): Promise<unknown> {
+    return this.withAuthorization(request, async (accountId) => {
+      const challenge = await this.#store.createEmailChallenge(
+        accountId,
+        request.payload.email,
+        EMAIL_CHALLENGE_TTL_MS,
+      );
+      try {
+        await this.#notifications.sendEmailVerification({
+          accountId,
+          email: request.payload.email,
+          code: challenge.code,
+        });
+      } catch (error) {
+        await this.#store.cancelEmailChallenge(challenge.challengeId);
+        throw error;
+      }
+      return {
+        challengeId: challenge.challengeId,
+        email: request.payload.email,
+        expiresAt: challenge.expiresAt,
+      };
+    });
+  }
+
+  private async confirmEmailLink(
+    request: z.infer<typeof confirmEmailLinkSchema>,
+  ): Promise<unknown> {
+    const preference = await this.#store.confirmEmailChallenge(
+      request.payload.challengeId,
+      request.payload.code,
+    );
+    this.enforceRateLimit(`link:${preference.accountId}`, MAX_LINK_CHANGES_PER_WINDOW);
+    return this.preferenceResponse(preference);
+  }
+
+  private async beginTelegramLink(
+    request: z.infer<typeof beginTelegramLinkSchema>,
+  ): Promise<unknown> {
+    if (!this.#telegramBotUsername) {
+      throw new HttpError(503, "Telegram linking is not configured by the Clavis operator");
+    }
+    return this.withAuthorization(request, async (accountId) => {
+      const pairing = await this.#store.createTelegramPairing(
+        accountId,
+        TELEGRAM_PAIRING_TTL_MS,
+      );
+      return {
+        pairingId: pairing.pairingId,
+        pollToken: pairing.pollToken,
+        expiresAt: pairing.expiresAt,
+        connectUrl:
+          `https://t.me/${this.#telegramBotUsername}` +
+          `?start=${encodeURIComponent(pairing.startToken)}`,
+      };
+    });
+  }
+
+  private async telegramLinkStatus(
+    request: z.infer<typeof telegramLinkStatusSchema>,
+  ): Promise<unknown> {
+    const status = this.#store.getTelegramPairingStatus(
+      request.payload.pairingId,
+      request.payload.pollToken,
+    );
+    if (status.status === "PENDING") return status;
+    this.enforceRateLimit(`link:${status.accountId}`, MAX_LINK_CHANGES_PER_WINDOW);
+    return {
+      status: "CONNECTED",
+      ...(await this.preferenceResponse(status.preference)),
+    };
+  }
+
+  private async cancelTelegramLink(
+    request: z.infer<typeof cancelTelegramLinkSchema>,
+  ): Promise<unknown> {
+    await this.#store.cancelTelegramPairing(
+      request.payload.pairingId,
+      request.payload.pollToken,
+    );
+    return { cancelled: true };
+  }
+
+  private async unlinkChannel(
+    request: z.infer<typeof unlinkChannelSchema>,
+  ): Promise<unknown> {
+    return this.withAuthorization(request, async (accountId) => {
+      const preference = await this.#store.clearChannel(
+        accountId,
+        request.payload.channel,
+      );
+      return this.preferenceResponse(preference);
+    });
+  }
+
+  private async withAuthorization<T>(
+    request: SignedRequest,
+    work: (accountId: string) => Promise<T>,
+  ): Promise<T> {
     const authorizationId = `auth:${request.authorization.accountId}:${request.authorization.nonce}`;
     if (this.#store.hasProcessedEvent(authorizationId)) {
       throw new HttpError(409, "Notification authorization was already used");
@@ -212,33 +376,29 @@ export class NotificationApiServer {
         allowedOrigins: this.#allowedOrigins,
         rpc: this.#rpc,
       });
-      this.enforceRateLimit(request.authorization.accountId);
-      const candidate = {
-        accountId: request.authorization.accountId,
-        email: request.payload.email,
-        telegramChatId: request.payload.telegramChatId,
-        updatedAt: new Date().toISOString(),
-      };
-      const linked = Boolean(candidate.email || candidate.telegramChatId);
-      if (linked) await this.#notifications.verifyPreference({ preference: candidate });
-      const preference = await this.#store.set({
-        accountId: request.authorization.accountId,
-        email: request.payload.email,
-        telegramChatId: request.payload.telegramChatId,
-      });
-      await this.#store.revokeSessions(preference.accountId);
-      const session = linked
-        ? await this.#store.issueSession(preference.accountId, this.#sessionTtlMs)
-        : null;
+      const accountId = request.authorization.accountId;
+      this.enforceRateLimit(`link:${accountId}`, MAX_LINK_CHANGES_PER_WINDOW);
+      const result = await work(accountId);
       await this.#store.markEventProcessed(authorizationId);
-      return {
-        preference,
-        sessionToken: session?.token ?? null,
-        sessionExpiresAt: session?.expiresAt ?? null,
-      };
+      return result;
     } finally {
       this.#inFlightEvents.delete(authorizationId);
     }
+  }
+
+  private async preferenceResponse(
+    preference: NotificationPreference,
+  ): Promise<PreferenceResponse> {
+    await this.#store.revokeSessions(preference.accountId);
+    const linked = Boolean(preference.email || preference.telegramChatId);
+    const session = linked
+      ? await this.#store.issueSession(preference.accountId, this.#sessionTtlMs)
+      : null;
+    return {
+      preference,
+      sessionToken: session?.token ?? null,
+      sessionExpiresAt: session?.expiresAt ?? null,
+    };
   }
 
   private async transactionEvent(
@@ -246,7 +406,7 @@ export class NotificationApiServer {
   ): Promise<unknown> {
     const accountId = this.#store.authenticateSession(request.sessionToken);
     if (!accountId) throw new HttpError(401, "Notification session is invalid or expired");
-    this.enforceRateLimit(accountId);
+    this.enforceRateLimit(`event:${accountId}`, MAX_EVENTS_PER_WINDOW);
 
     const eventId = `${accountId}:${request.payload.transactionHash}`;
     if (this.#store.hasProcessedEvent(eventId)) return { duplicate: true };
@@ -280,7 +440,7 @@ export class NotificationApiServer {
     }
   }
 
-  private enforceRateLimit(accountId: string): void {
+  private enforceRateLimit(key: string, maximum: number): void {
     const now = Date.now();
     const cutoff = now - RATE_LIMIT_WINDOW_MS;
     if (now - this.#lastRatePruneAt >= RATE_LIMIT_WINDOW_MS) {
@@ -291,12 +451,12 @@ export class NotificationApiServer {
       }
       this.#lastRatePruneAt = now;
     }
-    const recent = (this.#rates.get(accountId) ?? []).filter((value) => value > cutoff);
-    if (recent.length >= MAX_EVENTS_PER_WINDOW) {
-      throw new HttpError(429, "Too many notification events; try again later");
+    const recent = (this.#rates.get(key) ?? []).filter((value) => value > cutoff);
+    if (recent.length >= maximum) {
+      throw new HttpError(429, "Too many notification requests; try again later");
     }
     recent.push(now);
-    this.#rates.set(accountId, recent);
+    this.#rates.set(key, recent);
   }
 }
 

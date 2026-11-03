@@ -1,9 +1,10 @@
-import { Buffer } from "buffer";
 import type { Wallet } from "@near-wallet-selector/core";
+import { Buffer } from "buffer";
 
 import { factoryContractId } from "./near";
 
 const STORAGE_PREFIX = "clavis.notificationPreferences.";
+const TELEGRAM_LINK_PREFIX = "clavis.pendingTelegramLink.";
 const DEFAULT_NOTIFICATION_API = "/api/notifications";
 const MAX_EVENT_ATTEMPTS = 4;
 
@@ -16,7 +17,20 @@ export interface LinkedNotificationSettings {
   updatedAt: string;
 }
 
-interface LinkResponse {
+export interface EmailLinkChallenge {
+  challengeId: string;
+  email: string;
+  expiresAt: string;
+}
+
+export interface PendingTelegramLink {
+  pairingId: string;
+  pollToken: string;
+  connectUrl: string;
+  expiresAt: string;
+}
+
+interface PreferenceResponse {
   preference: {
     accountId: string;
     email: string | null;
@@ -27,8 +41,25 @@ interface LinkResponse {
   sessionExpiresAt: string | null;
 }
 
+interface SignedAuthorization {
+  accountId: string;
+  action: string;
+  issuedAt: string;
+  nonce: string;
+  payloadHash: string;
+  message: string;
+  recipient: string;
+  callbackUrl: string;
+  publicKey: string;
+  signature: string;
+}
+
 function storageKey(accountId: string): string {
   return `${STORAGE_PREFIX}${accountId}`;
+}
+
+function telegramLinkKey(accountId: string): string {
+  return `${TELEGRAM_LINK_PREFIX}${accountId}`;
 }
 
 function notificationApiUrl(): string {
@@ -88,46 +119,28 @@ async function responseError(response: Response): Promise<Error> {
     const body = (await response.json()) as { error?: unknown };
     if (typeof body.error === "string") return new Error(body.error);
   } catch {
-    // Use the status fallback below when the proxy did not return JSON.
+    // Use the status fallback when the proxy did not return JSON.
   }
   return new Error(`Notification service returned HTTP ${response.status}`);
 }
 
-export function getLinkedNotificationSettings(
-  accountId: string,
-): LinkedNotificationSettings | null {
-  try {
-    const source = window.localStorage.getItem(storageKey(accountId));
-    if (!source) return null;
-    const value = JSON.parse(source) as LinkedNotificationSettings;
-    return value.accountId === accountId ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function linkNotificationSettings(options: {
+async function signAuthorization(options: {
   wallet: Wallet;
   accountId: string;
-  email: string | null;
-  telegramChatId: string | null;
-}): Promise<LinkedNotificationSettings> {
+  action: "begin_email_link" | "begin_telegram_link" | "unlink_notification_channel";
+  payload: unknown;
+}): Promise<SignedAuthorization> {
   if (!options.wallet.signMessage) {
-    throw new Error("This wallet cannot sign the message required to link notifications");
+    throw new Error("This wallet cannot sign the message required to manage notifications");
   }
 
-  const payload = {
-    email: options.email?.trim() || null,
-    telegramChatId: options.telegramChatId?.trim() || null,
-  };
-  const action = "save_preferences";
   const issuedAt = new Date().toISOString();
   const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
   const nonce = nonceBase64(nonceBytes);
-  const payloadHash = await sha256(stableJson(payload));
+  const payloadHash = await sha256(stableJson(options.payload));
   const message = authorizationMessage({
     accountId: options.accountId,
-    action,
+    action: options.action,
     issuedAt,
     nonce,
     payloadHash,
@@ -140,38 +153,168 @@ export async function linkNotificationSettings(options: {
     callbackUrl,
   });
   if (!signed || signed.accountId !== options.accountId) {
-    throw new Error("The connected wallet did not authorize notification linking");
+    throw new Error("The connected wallet did not authorize this notification change");
   }
+  return {
+    accountId: signed.accountId,
+    action: options.action,
+    issuedAt,
+    nonce,
+    payloadHash,
+    message,
+    recipient: factoryContractId,
+    callbackUrl,
+    publicKey: signed.publicKey,
+    signature: signed.signature,
+  };
+}
 
-  const response = await postNotificationApi({
-    action,
-    payload,
-    authorization: {
-      accountId: signed.accountId,
-      action,
-      issuedAt,
-      nonce,
-      payloadHash,
-      message,
-      recipient: factoryContractId,
-      callbackUrl,
-      publicKey: signed.publicKey,
-      signature: signed.signature,
-    },
-  });
-  if (!response.ok) throw await responseError(response);
-  const result = (await response.json()) as LinkResponse;
+function storePreferenceResponse(
+  accountId: string,
+  result: PreferenceResponse,
+): LinkedNotificationSettings {
+  if (result.preference.accountId !== accountId) {
+    throw new Error("Notification service returned settings for another wallet");
+  }
   const settings: LinkedNotificationSettings = {
-    accountId: result.preference.accountId,
+    accountId,
     email: result.preference.email,
     telegramChatId: result.preference.telegramChatId,
     sessionToken: result.sessionToken,
     sessionExpiresAt: result.sessionExpiresAt,
     updatedAt: result.preference.updatedAt,
   };
-  window.localStorage.setItem(storageKey(options.accountId), JSON.stringify(settings));
+  window.localStorage.setItem(storageKey(accountId), JSON.stringify(settings));
   window.dispatchEvent(new CustomEvent("clavis:notification-preferences"));
   return settings;
+}
+
+export function getLinkedNotificationSettings(
+  accountId: string,
+): LinkedNotificationSettings | null {
+  try {
+    const source = window.localStorage.getItem(storageKey(accountId));
+    if (!source) return null;
+    const value = JSON.parse(source) as LinkedNotificationSettings;
+    return value.accountId === accountId ? value : null;
+  } catch {
+    window.localStorage.removeItem(storageKey(accountId));
+    return null;
+  }
+}
+
+export async function beginEmailNotificationLink(options: {
+  wallet: Wallet;
+  accountId: string;
+  email: string;
+}): Promise<EmailLinkChallenge> {
+  const payload = { email: options.email.trim() };
+  const action = "begin_email_link" as const;
+  const authorization = await signAuthorization({ ...options, action, payload });
+  const response = await postNotificationApi({ action, payload, authorization });
+  if (!response.ok) throw await responseError(response);
+  return (await response.json()) as EmailLinkChallenge;
+}
+
+export async function confirmEmailNotificationLink(options: {
+  accountId: string;
+  challengeId: string;
+  code: string;
+}): Promise<LinkedNotificationSettings> {
+  const response = await postNotificationApi({
+    action: "confirm_email_link",
+    payload: {
+      challengeId: options.challengeId,
+      code: options.code.trim(),
+    },
+  });
+  if (!response.ok) throw await responseError(response);
+  return storePreferenceResponse(options.accountId, (await response.json()) as PreferenceResponse);
+}
+
+export async function beginTelegramNotificationLink(options: {
+  wallet: Wallet;
+  accountId: string;
+}): Promise<PendingTelegramLink> {
+  const payload = {};
+  const action = "begin_telegram_link" as const;
+  const authorization = await signAuthorization({ ...options, action, payload });
+  const response = await postNotificationApi({ action, payload, authorization });
+  if (!response.ok) throw await responseError(response);
+  const pending = (await response.json()) as PendingTelegramLink;
+  window.sessionStorage.setItem(telegramLinkKey(options.accountId), JSON.stringify(pending));
+  return pending;
+}
+
+export function getPendingTelegramLink(accountId: string): PendingTelegramLink | null {
+  try {
+    const source = window.sessionStorage.getItem(telegramLinkKey(accountId));
+    if (!source) return null;
+    const pending = JSON.parse(source) as PendingTelegramLink;
+    if (Date.parse(pending.expiresAt) <= Date.now()) {
+      window.sessionStorage.removeItem(telegramLinkKey(accountId));
+      return null;
+    }
+    return pending;
+  } catch {
+    window.sessionStorage.removeItem(telegramLinkKey(accountId));
+    return null;
+  }
+}
+
+export function clearPendingTelegramLink(accountId: string): void {
+  window.sessionStorage.removeItem(telegramLinkKey(accountId));
+}
+
+export async function checkTelegramNotificationLink(options: {
+  accountId: string;
+  pending: PendingTelegramLink;
+}): Promise<LinkedNotificationSettings | null> {
+  const response = await postNotificationApi({
+    action: "telegram_link_status",
+    payload: {
+      pairingId: options.pending.pairingId,
+      pollToken: options.pending.pollToken,
+    },
+  });
+  if (!response.ok) throw await responseError(response);
+  const result = (await response.json()) as
+    | { status: "PENDING" }
+    | ({ status: "CONNECTED" } & PreferenceResponse);
+  if (result.status === "PENDING") return null;
+  clearPendingTelegramLink(options.accountId);
+  return storePreferenceResponse(options.accountId, result);
+}
+
+export async function cancelTelegramNotificationLink(options: {
+  accountId: string;
+  pending: PendingTelegramLink;
+}): Promise<void> {
+  const response = await postNotificationApi({
+    action: "cancel_telegram_link",
+    payload: {
+      pairingId: options.pending.pairingId,
+      pollToken: options.pending.pollToken,
+    },
+  });
+  if (!response.ok) throw await responseError(response);
+  clearPendingTelegramLink(options.accountId);
+}
+
+export async function unlinkNotificationChannel(options: {
+  wallet: Wallet;
+  accountId: string;
+  channel: "email" | "telegram" | "all";
+}): Promise<LinkedNotificationSettings> {
+  const payload = { channel: options.channel };
+  const action = "unlink_notification_channel" as const;
+  const authorization = await signAuthorization({ ...options, action, payload });
+  const response = await postNotificationApi({ action, payload, authorization });
+  if (!response.ok) throw await responseError(response);
+  if (options.channel === "telegram" || options.channel === "all") {
+    clearPendingTelegramLink(options.accountId);
+  }
+  return storePreferenceResponse(options.accountId, (await response.json()) as PreferenceResponse);
 }
 
 export function hasActiveNotificationSession(accountId: string): boolean {

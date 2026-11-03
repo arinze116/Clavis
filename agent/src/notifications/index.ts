@@ -4,10 +4,7 @@ import type {
   BusinessPayroll,
   DailyReportSummary,
 } from "../types.js";
-import type {
-  NotificationPreference,
-  NotificationPreferenceStore,
-} from "../notification-preferences.js";
+import type { NotificationPreferenceStore } from "../notification-preferences.js";
 import { EmailNotifier } from "./email.js";
 import { TelegramNotifier } from "./telegram.js";
 
@@ -171,40 +168,22 @@ export class NotificationManager {
     });
   }
 
-  async verifyPreference(options: {
-    preference: NotificationPreference;
+  async sendEmailVerification(options: {
+    accountId: string;
+    email: string;
+    code: string;
   }): Promise<void> {
-    const attempts: Array<Promise<"sent" | "skipped">> = [];
-    if (options.preference.email) {
-      attempts.push(
-        this.#email.send({
-          to: options.preference.email,
-          subject: "Clavis notifications linked",
-          text:
-            `Clavis linked this email channel to ${options.preference.accountId}. ` +
-            `No transaction was submitted and no gas was spent.`,
-        }),
-      );
-    }
-    if (options.preference.telegramChatId) {
-      attempts.push(
-        this.#telegram.send(
-          `🔔 Clavis notifications linked · ${options.preference.accountId}`,
-          options.preference.telegramChatId,
-          false,
-        ),
-      );
-    }
-    const results = await Promise.allSettled(attempts);
-    const failure = results.find(
-      (result) => result.status === "rejected" || result.value === "skipped",
-    );
-    if (failure) {
-      throw new Error(
-        failure.status === "rejected"
-          ? `Unable to verify notification channel: ${errorMessage(failure.reason)}`
-          : "The requested notification channel is not configured",
-      );
+    const result = await this.#email.send({
+      to: options.email,
+      subject: `${options.code} is your Clavis verification code`,
+      text: [
+        `Enter ${options.code} in Clavis to link email notifications to ${options.accountId}.`,
+        "This code expires in 10 minutes.",
+        "If you did not request this, you can ignore this email.",
+      ].join("\n\n"),
+    });
+    if (result === "skipped") {
+      throw new Error("Email notifications are not configured by the Clavis operator");
     }
   }
 

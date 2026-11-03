@@ -58,19 +58,19 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
       <button
         type="button"
         className="inline-flex min-h-11 max-w-[210px] items-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-ink transition hover:border-ink/30 hover:bg-canvas"
-        title={accountId}
+        title={`Wallet & notification settings · ${accountId}`}
         aria-label={`Open wallet and notification settings for ${accountId}`}
         onClick={() => setSettingsOpen(true)}
       >
         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
         <WalletCards className="h-4 w-4 shrink-0 text-moss" />
         <span className="truncate font-mono text-xs">{maskAccount(accountId)}</span>
-        {notificationsActive && (
-          <BellRing
-            className="h-3.5 w-3.5 shrink-0 text-emerald-600"
-            aria-label="Notifications linked"
-          />
-        )}
+        <BellRing
+          className={`h-3.5 w-3.5 shrink-0 ${
+            notificationsActive ? "text-emerald-600" : "text-ink/35"
+          }`}
+          aria-label={notificationsActive ? "Notifications linked" : "Set up notifications"}
+        />
       </button>
       <button
         type="button"

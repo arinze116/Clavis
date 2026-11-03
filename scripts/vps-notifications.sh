@@ -14,7 +14,7 @@ sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
 sudo tee /etc/nginx/sites-available/clavis-notifications >/dev/null <<EOF
-limit_req_zone \$binary_remote_addr zone=clavis_notifications:10m rate=300r/m;
+limit_req_zone \$binary_remote_addr zone=clavis_notifications:10m rate=3000r/m;
 
 server {
     listen 80;
@@ -29,7 +29,7 @@ server {
     }
 
     location = /v1/notifications {
-        limit_req zone=clavis_notifications burst=50 nodelay;
+        limit_req zone=clavis_notifications burst=500 nodelay;
         proxy_pass http://127.0.0.1:$API_PORT/v1/notifications;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;

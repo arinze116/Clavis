@@ -31,7 +31,7 @@ function authorization(payload: unknown): NotificationAuthorization {
   const payloadHash = notificationPayloadHash(payload);
   const message = buildNotificationAuthorizationMessage({
     accountId: "owner.testnet",
-    action: "save_preferences",
+    action: "begin_email_link",
     issuedAt,
     nonce,
     payloadHash,
@@ -48,7 +48,7 @@ function authorization(payload: unknown): NotificationAuthorization {
   const signature = keyPair.sign(digest).signature;
   return {
     accountId: "owner.testnet",
-    action: "save_preferences",
+    action: "begin_email_link",
     issuedAt,
     nonce,
     payloadHash,
@@ -62,7 +62,7 @@ function authorization(payload: unknown): NotificationAuthorization {
 
 describe("notification authorization", () => {
   it("verifies an NEP-413 signature and full-access key", async () => {
-    const payload = { email: "owner@example.com", telegramChatId: "123456789" };
+    const payload = { email: "owner@example.com" };
     const signed = authorization(payload);
     expect(verifyNotificationSignature(signed)).toBe(true);
 
@@ -72,7 +72,7 @@ describe("notification authorization", () => {
     await expect(
       verifyNotificationAuthorization({
         authorization: signed,
-        action: "save_preferences",
+        action: "begin_email_link",
         payload,
         expectedRecipient: "factory.clavis.testnet",
         allowedOrigins: new Set(["https://clavisapp.vercel.app"]),
@@ -83,7 +83,7 @@ describe("notification authorization", () => {
   });
 
   it("rejects a payload changed after signing", async () => {
-    const payload = { email: "owner@example.com", telegramChatId: null };
+    const payload = { email: "owner@example.com" };
     const signed = authorization(payload);
     const rpc = {
       rpc: async () => ({ permission: "FullAccess" }),
@@ -91,8 +91,8 @@ describe("notification authorization", () => {
     await expect(
       verifyNotificationAuthorization({
         authorization: signed,
-        action: "save_preferences",
-        payload: { email: "attacker@example.com", telegramChatId: null },
+        action: "begin_email_link",
+        payload: { email: "attacker@example.com" },
         expectedRecipient: "factory.clavis.testnet",
         allowedOrigins: new Set(["https://clavisapp.vercel.app"]),
         rpc,

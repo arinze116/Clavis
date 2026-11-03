@@ -9,7 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_NEARBLOCKS_API_URL?: string;
   readonly VITE_PRIVATE_API_URL?: string;
   readonly VITE_NOTIFICATION_API_URL?: string;
-  readonly VITE_TELEGRAM_BOT_USERNAME?: string;
 }
 
 interface ImportMeta {

@@ -7,6 +7,7 @@ import { NotificationApiServer } from "./notification-api.js";
 import { NotificationPreferenceStore } from "./notification-preferences.js";
 import { NotificationManager } from "./notifications/index.js";
 import { Scheduler } from "./scheduler.js";
+import { TelegramLinkPoller } from "./telegram-link-poller.js";
 
 async function main(): Promise<void> {
   const transferClient =
@@ -56,9 +57,23 @@ async function main(): Promise<void> {
         sessionTtlMs: config.notificationSessionTtlMs,
         store: notificationPreferences,
         notifications,
+        ...(!config.runOnce && config.telegramBotToken && config.telegramBotUsername
+          ? { telegramBotUsername: config.telegramBotUsername }
+          : {}),
       })
     : null;
   await notificationApi?.start();
+  const telegramLinkPoller =
+    config.notificationApiEnabled &&
+    !config.runOnce &&
+    config.telegramBotToken &&
+    config.telegramBotUsername
+      ? new TelegramLinkPoller({
+          botToken: config.telegramBotToken,
+          store: notificationPreferences,
+        })
+      : null;
+  telegramLinkPoller?.start();
   const scheduler = new Scheduler({
     config,
     factory,
@@ -70,6 +85,7 @@ async function main(): Promise<void> {
   const shutdown = (signal: string): void => {
     logger.info("agent.shutdown_requested", { signal });
     scheduler.stop();
+    telegramLinkPoller?.stop();
     void notificationApi?.stop().catch((error: unknown) => {
       logger.error("notification_api.shutdown_failed", { error: errorMessage(error) });
     });

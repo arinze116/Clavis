@@ -195,11 +195,15 @@ The settlement key must never be exposed to the browser.
 
 Notification failures are isolated with `Promise.allSettled`; email or Telegram downtime never stops payroll.
 
+The Resend, Telegram, VPS, and Vercel values below are configured once by the Clavis
+operator. End users never receive or edit those credentials.
+
 Connected users can click their wallet pill in the app header to link an email address,
-a Telegram chat ID, or both. Contact details stay in the private VPS data store and are
-never written on-chain. Linking requires an NEP-413 wallet signature, verifies that the
-signing key is a full-access key for the account, sends a confirmation through each
-requested channel, and issues a revocable notification session.
+Telegram, or both without touching VPS or Vercel settings. Email is confirmed with a
+six-digit code. Telegram opens the Clavis bot with a short-lived pairing token and the web
+popup confirms automatically after the user presses Start. Contact details stay in the
+private VPS data store and are never written on-chain. NEP-413 wallet signatures bind each
+setup change to the connected account and issue a revocable notification session.
 
 The following events are covered:
 
@@ -227,12 +231,14 @@ RESEND_FROM_EMAIL=Clavis Testnet <onboarding@resend.dev>
 ### Telegram
 
 1. Create a bot with `@BotFather` and copy its token.
-2. Send the bot a message.
-3. Read the chat ID from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
-4. Configure:
+2. Copy the bot username shown by BotFather.
+3. Configure the dedicated bot on the agent. The agent polls `/start` pairing messages and
+   securely resolves each user's chat ID; users never copy or paste IDs.
 
 ```dotenv
 TELEGRAM_BOT_TOKEN=123456:...
+TELEGRAM_BOT_USERNAME=ClavisNotificationsBot
+# Optional fallback destination for legacy per-business notifications:
 TELEGRAM_CHAT_ID=123456789
 ```
 
@@ -268,9 +274,8 @@ CLAVIS_AGENT_API_URL=https://notifications.example.com/v1/notifications
 CLAVIS_AGENT_API_KEY=the-same-private-shared-key
 ```
 
-Optionally set `VITE_TELEGRAM_BOT_USERNAME` so the wallet popup can link directly to the
-bot. Local frontend development can override `VITE_NOTIFICATION_API_URL`; production uses
-the same-origin `/api/notifications` Vercel proxy. Add an active preview URL to
+Local frontend development can override `VITE_NOTIFICATION_API_URL`; production uses the
+same-origin `/api/notifications` Vercel proxy. Add an active preview URL to
 `NOTIFICATION_ALLOWED_ORIGINS` before testing signed linking on that preview.
 
 ## Oracle Cloud VPS deployment
