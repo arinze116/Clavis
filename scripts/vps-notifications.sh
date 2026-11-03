@@ -13,6 +13,23 @@ fi
 sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
+# Oracle Ubuntu images reject inbound traffic after the SSH rule by default.
+# Open only HTTP/HTTPS before that reject rule and persist the exact addition.
+if command -v iptables >/dev/null && command -v netfilter-persistent >/dev/null; then
+  if ! sudo iptables -C INPUT -p tcp -m state --state NEW \
+    -m multiport --dports 80,443 -j ACCEPT 2>/dev/null; then
+    REJECT_LINE="$(sudo iptables -L INPUT --line-numbers -n | \
+      awk '$2 == "REJECT" { print $1; exit }')"
+    if [[ -z "$REJECT_LINE" ]]; then
+      echo "Unable to locate the INPUT reject rule; open TCP 80/443 manually."
+      exit 1
+    fi
+    sudo iptables -I INPUT "$REJECT_LINE" -p tcp -m state --state NEW \
+      -m multiport --dports 80,443 -j ACCEPT
+    sudo netfilter-persistent save
+  fi
+fi
+
 sudo tee /etc/nginx/sites-available/clavis-notifications >/dev/null <<EOF
 limit_req_zone \$binary_remote_addr zone=clavis_notifications:10m rate=3000r/m;
 

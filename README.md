@@ -258,7 +258,9 @@ NOTIFICATION_PREFERENCES_PATH=./data/notification-preferences.json
 NOTIFICATION_ALLOWED_ORIGINS=https://clavisapp.vercel.app
 ```
 
-Expose the loopback API through HTTPS after pointing a domain at the VPS:
+Expose the loopback API through HTTPS after pointing a domain at the VPS. In the
+Oracle Cloud subnet security list (or attached NSG), first allow inbound TCP 80
+and 443 from `0.0.0.0/0`; the script also adds the matching host firewall rule.
 
 ```bash
 CLAVIS_NOTIFICATION_DOMAIN=notifications.example.com \
