@@ -27,7 +27,8 @@ const VIEW_CACHE_TTL_MS = 10_000;
 const VIEW_DEBOUNCE_MS = 50;
 const MAX_VIEW_ATTEMPTS = 3;
 const INITIAL_BACKOFF_MS = 500;
-const DEPLOYMENT_DEPOSIT = 6_000_000_000_000_000_000_000_000n;
+// Required by the factory to create, fund, deploy, and initialize the payroll sub-account.
+const FACTORY_DEPLOYMENT_DEPOSIT_YOCTO = 6000000000000000000000000n;
 const DEPLOYMENT_TIMEOUT_MS = 90_000;
 const AUDIT_LINK_CACHE_TTL_MS = 30_000;
 
@@ -400,7 +401,7 @@ export async function createPayroll(options: {
           per_payment_limit: nearToYocto(options.perPaymentLimitNear),
         },
         300_000_000_000_000n,
-        DEPLOYMENT_DEPOSIT,
+        FACTORY_DEPLOYMENT_DEPOSIT_YOCTO,
       ),
     ],
   });
