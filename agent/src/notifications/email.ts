@@ -10,11 +10,15 @@ export class EmailNotifier {
   }
 
   async send(options: {
-    to: string;
+    to: string | undefined;
     subject: string;
     text: string;
   }): Promise<"sent" | "skipped"> {
-    if (!this.#client || options.to === "notifications-disabled@example.com") {
+    if (
+      !this.#client ||
+      !options.to ||
+      options.to === "notifications-disabled@example.com"
+    ) {
       return "skipped";
     }
 

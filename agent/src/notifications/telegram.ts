@@ -13,8 +13,9 @@ export class TelegramNotifier {
   async send(
     message: string,
     chatId: string | undefined,
+    allowDefault = true,
   ): Promise<"sent" | "skipped"> {
-    const destination = chatId ?? this.#defaultChatId;
+    const destination = chatId ?? (allowDefault ? this.#defaultChatId : undefined);
     if (!this.#botToken || !destination) return "skipped";
 
     const response = await fetch(

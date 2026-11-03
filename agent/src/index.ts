@@ -3,6 +3,8 @@ import { IntentStore } from "./intent-store.js";
 import { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
 import { FactoryClient, NearTransferClient } from "./near.js";
+import { NotificationApiServer } from "./notification-api.js";
+import { NotificationPreferenceStore } from "./notification-preferences.js";
 import { NotificationManager } from "./notifications/index.js";
 import { Scheduler } from "./scheduler.js";
 
@@ -24,6 +26,10 @@ async function main(): Promise<void> {
   });
   const intentStore = new IntentStore(config.intentStatePath);
   await intentStore.load();
+  const notificationPreferences = new NotificationPreferenceStore(
+    config.notificationPreferencesPath,
+  );
+  await notificationPreferences.load();
   const intents = new IntentClient({
     solverRelayUrl: config.solverRelayUrl,
     apiKey: config.intentsApiKey,
@@ -37,7 +43,22 @@ async function main(): Promise<void> {
     resendFromEmail: config.resendFromEmail,
     telegramBotToken: config.telegramBotToken,
     telegramChatId: config.telegramChatId,
+    preferences: notificationPreferences,
   });
+  const notificationApi = config.notificationApiEnabled
+    ? new NotificationApiServer({
+        host: config.notificationApiHost,
+        port: config.notificationApiPort,
+        apiKey: config.notificationApiKey!,
+        factoryContractId: config.factoryContractId,
+        nearRpcUrl: config.nearRpcUrl,
+        allowedOrigins: config.notificationAllowedOrigins,
+        sessionTtlMs: config.notificationSessionTtlMs,
+        store: notificationPreferences,
+        notifications,
+      })
+    : null;
+  await notificationApi?.start();
   const scheduler = new Scheduler({
     config,
     factory,
@@ -49,6 +70,9 @@ async function main(): Promise<void> {
   const shutdown = (signal: string): void => {
     logger.info("agent.shutdown_requested", { signal });
     scheduler.stop();
+    void notificationApi?.stop().catch((error: unknown) => {
+      logger.error("notification_api.shutdown_failed", { error: errorMessage(error) });
+    });
   };
   process.once("SIGINT", () => shutdown("SIGINT"));
   process.once("SIGTERM", () => shutdown("SIGTERM"));
@@ -57,6 +81,7 @@ async function main(): Promise<void> {
     network: config.nearNetwork,
     factoryContractId: config.factoryContractId,
     pollIntervalMs: config.pollIntervalMs,
+    notificationApiEnabled: config.notificationApiEnabled,
   });
   await scheduler.start();
 }

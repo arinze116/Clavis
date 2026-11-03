@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@fastnear/intents": "^2.5.0",
+    "borsh": "^1.0.0",
     "dotenv": "^16.4.7",
     "near-api-js": "6.5.1",
     "resend": "^6.5.2",

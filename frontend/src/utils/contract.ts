@@ -19,6 +19,7 @@ import {
   rpcUrl,
 } from "./near";
 import { nearToYocto } from "./format";
+import { notifyTransaction } from "./notifications";
 
 type RpcViewResult = string | number | boolean | object;
 
@@ -376,7 +377,13 @@ export async function change(
     actions: [actionCreators.functionCall(methodName, args, 100_000_000_000_000n, 0n)],
   });
   invalidateViewCache();
-  return transactionSubmission(outcome, targetContractId);
+  const submission = transactionSubmission(outcome, targetContractId);
+  void notifyTransaction({
+    accountId,
+    receiverId: targetContractId,
+    transactionHash: submission.hash,
+  });
+  return submission;
 }
 
 export async function createPayroll(options: {
@@ -406,7 +413,13 @@ export async function createPayroll(options: {
     ],
   });
   invalidateViewCache();
-  return transactionSubmission(outcome, factoryContractId);
+  const submission = transactionSubmission(outcome, factoryContractId);
+  void notifyTransaction({
+    accountId: options.accountId,
+    receiverId: factoryContractId,
+    transactionHash: submission.hash,
+  });
+  return submission;
 }
 
 export async function addRecipients(
@@ -433,7 +446,13 @@ export async function addRecipients(
       receiverId: targetContractId,
       actions,
     });
-    submissions.push(transactionSubmission(outcome, targetContractId));
+    const submission = transactionSubmission(outcome, targetContractId);
+    submissions.push(submission);
+    void notifyTransaction({
+      accountId,
+      receiverId: targetContractId,
+      transactionHash: submission.hash,
+    });
   }
   invalidateViewCache();
   return submissions;

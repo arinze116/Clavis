@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Wallet, WalletSelector } from "@near-wallet-selector/core";
 
 import { getWalletSelector, showWalletModal } from "../utils/near";
+import { notifyWalletCallbackTransactions } from "../utils/notifications";
 
 interface WalletContextValue {
   selector: WalletSelector | null;
@@ -30,6 +31,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const activeAccount = accounts.find((account) => account.active) ?? accounts[0];
       setAccountId(activeAccount?.accountId ?? null);
       setWallet(activeAccount ? await nextSelector.wallet() : null);
+      if (activeAccount) notifyWalletCallbackTransactions(activeAccount.accountId);
       setLoading(false);
     };
 

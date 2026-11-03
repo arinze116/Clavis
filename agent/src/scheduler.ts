@@ -124,7 +124,11 @@ export class Scheduler {
       });
       const fingerprint = `${anomaly.type}:${anomaly.description}`;
       if (await state.shouldNotifyAnomaly(fingerprint, anomaly.timestamp)) {
-        await this.#notifications.anomalyDetected({ business, anomaly });
+        await this.#notifications.anomalyDetected({
+          business,
+          anomaly,
+          ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
+        });
       }
     }
     await state.setRouteFingerprints(anomalyResult.routeFingerprints);
@@ -138,6 +142,7 @@ export class Scheduler {
       business,
       recipients,
       notifications: this.#notifications,
+      ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
       intentRetryDelayMs: this.#config.intentRetryDelayMs,
       now,
     });
@@ -155,6 +160,7 @@ export class Scheduler {
         business,
         reportDate: report.reportDate,
         summary: report.summary,
+        ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
       });
     }
     logger.info("scheduler.cycle_complete", {

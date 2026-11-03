@@ -72,14 +72,18 @@ export class NearRpcClient {
   }
 
   async rpc<T>(query: Record<string, unknown>): Promise<T> {
+    return this.jsonRpc<T>("query", query);
+  }
+
+  async jsonRpc<T>(method: string, params: unknown): Promise<T> {
     const response = await fetch(this.rpcUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: "clavis-agent",
-        method: "query",
-        params: query,
+        method,
+        params,
       }),
       signal: AbortSignal.timeout(20_000),
     });

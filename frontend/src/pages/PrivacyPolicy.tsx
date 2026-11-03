@@ -6,8 +6,12 @@ const sections: LegalSection[] = [
     content: (
       <p>
         Clavis does not operate user accounts, analytics profiles, or an advertising
-        database. The browser stores your selected contract and worker preferences locally
-        on your device so the interface can restore them.
+        database. If you opt into notifications, Clavis stores the email address and/or
+        Telegram chat ID you provide in the private VPS agent data store. The browser also
+        stores your selected contract, notification session, and worker preferences locally
+        on your device so the interface can restore them. Notification contact details are
+        never written to the NEAR blockchain and are removed from the private store when you
+        unlink notifications.
       </p>
     ),
   },

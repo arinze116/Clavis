@@ -38,6 +38,7 @@ export async function triggerDuePayments(options: {
   intentStore: IntentStore;
   state: StateStore;
   business: BusinessPayroll;
+  ownerAccountId?: string;
   recipients: RecipientView[];
   notifications: NotificationManager;
   intentRetryDelayMs: number;
@@ -85,6 +86,10 @@ export async function triggerDuePayments(options: {
           business: options.business,
           paymentId: result.payment_id,
           reason,
+          ...(options.ownerAccountId
+            ? { ownerAccountId: options.ownerAccountId }
+            : {}),
+          workerAccountId: plan.nearAddress,
         });
         continue;
       }
@@ -122,6 +127,10 @@ export async function triggerDuePayments(options: {
         business: options.business,
         paymentId: result.payment_id,
         workerName: plan.name,
+        ...(options.ownerAccountId
+          ? { ownerAccountId: options.ownerAccountId }
+          : {}),
+        workerAccountId: plan.nearAddress,
       });
     } catch (error) {
       logger.error("payment.request_failed", {
@@ -136,6 +145,9 @@ export async function triggerDuePayments(options: {
     intents: options.intents,
     intentStore: options.intentStore,
     state: options.state,
+    business: options.business,
+    notifications: options.notifications,
+    ...(options.ownerAccountId ? { ownerAccountId: options.ownerAccountId } : {}),
     retryDelayMs: options.intentRetryDelayMs,
     now,
   });
@@ -146,6 +158,9 @@ export async function submitPendingIntents(options: {
   intents: IntentClient;
   intentStore: IntentStore;
   state: StateStore;
+  business: BusinessPayroll;
+  ownerAccountId?: string;
+  notifications: NotificationManager;
   retryDelayMs: number;
   now?: Date;
 }): Promise<void> {
@@ -154,6 +169,10 @@ export async function submitPendingIntents(options: {
     let record = await options.intentStore.ensurePending(envelope);
 
     if (record.status === "FILLED") {
+      await options.notifications.deliveryFilled({
+        ...deliveryDetails(options, envelope),
+        ...(record.transactionHash ? { transactionHash: record.transactionHash } : {}),
+      });
       await options.state.markIntentFilled(envelope.intentId);
       continue;
     }
@@ -163,6 +182,10 @@ export async function submitPendingIntents(options: {
         const status = await options.intents.getStatus(record.reference);
         if (status === "FILLED") {
           await options.intentStore.markStatus(envelope.intentId, "FILLED");
+          await options.notifications.deliveryFilled({
+            ...deliveryDetails(options, envelope),
+            ...(record.transactionHash ? { transactionHash: record.transactionHash } : {}),
+          });
           await options.state.markIntentFilled(envelope.intentId);
           logger.info("intent.filled", {
             contractId: options.contractId,
@@ -170,6 +193,7 @@ export async function submitPendingIntents(options: {
             intentId: envelope.intentId,
             reference: record.reference,
           });
+          continue;
         } else if (status === "FAILED") {
           record = await options.intentStore.markRelayFailed(
             envelope.intentId,
@@ -189,6 +213,10 @@ export async function submitPendingIntents(options: {
     }
 
     if (record.attempts >= MAX_SUBMISSION_ATTEMPTS) {
+      await options.notifications.deliveryFailed({
+        ...deliveryDetails(options, envelope),
+        reason: record.lastError ?? "Delivery retries were exhausted",
+      });
       await options.state.markIntentTerminalFailure(envelope.intentId);
       logger.error("intent.retry_exhausted", {
         contractId: options.contractId,
@@ -212,7 +240,15 @@ export async function submitPendingIntents(options: {
         reference: result.reference,
         fallback: result.fallback,
       });
+      await options.notifications.deliverySubmitted({
+        ...deliveryDetails(options, envelope),
+        fallback: result.fallback,
+      });
       if (record.status === "FILLED") {
+        await options.notifications.deliveryFilled({
+          ...deliveryDetails(options, envelope),
+          ...(record.transactionHash ? { transactionHash: record.transactionHash } : {}),
+        });
         await options.state.markIntentFilled(envelope.intentId);
       }
     } catch (error) {
@@ -230,8 +266,35 @@ export async function submitPendingIntents(options: {
         error: message,
       });
       if (record.attempts >= MAX_SUBMISSION_ATTEMPTS) {
+        await options.notifications.deliveryFailed({
+          ...deliveryDetails(options, envelope),
+          reason: message,
+        });
         await options.state.markIntentTerminalFailure(envelope.intentId);
       }
     }
   }
+}
+
+function deliveryDetails(
+  options: {
+    business: BusinessPayroll;
+    ownerAccountId?: string;
+  },
+  envelope: {
+    paymentId: number;
+    recipientName: string;
+    nearRecipient: string;
+    destination: { chain: string; token: string };
+  },
+) {
+  return {
+    business: options.business,
+    paymentId: envelope.paymentId,
+    workerName: envelope.recipientName,
+    workerAccountId: envelope.nearRecipient,
+    chain: envelope.destination.chain,
+    token: envelope.destination.token,
+    ...(options.ownerAccountId ? { ownerAccountId: options.ownerAccountId } : {}),
+  };
 }

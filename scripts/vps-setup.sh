@@ -31,6 +31,7 @@ if [[ ! -f agent/.env ]]; then
 fi
 
 mkdir -p agent/config/payrolls agent/data/contracts agent/reports
+chmod 700 agent/data
 if [[ ! -f agent/config/payroll.local.json ]]; then
   printf '{\n  "businesses": []\n}\n' > agent/config/payroll.local.json
   chmod 600 agent/config/payroll.local.json
@@ -38,3 +39,4 @@ fi
 
 echo "Edit $INSTALL_DIR/agent/.env with testnet and notification credentials."
 echo "Then run: cd $INSTALL_DIR && pm2 start ecosystem.config.cjs && pm2 save && pm2 startup"
+echo "For wallet-linked notifications, configure HTTPS with scripts/vps-notifications.sh."

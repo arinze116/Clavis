@@ -18,6 +18,11 @@ const optionalSecret = z.preprocess(
   z.string().min(1).optional(),
 );
 
+const optionalStrongSecret = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().min(32).optional(),
+);
+
 const schema = z.object({
   NEAR_ACCOUNT_ID: z.string().min(2),
   NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/),
@@ -43,6 +48,21 @@ const schema = z.object({
   RESEND_FROM_EMAIL: z.string().default("Clavis Testnet <onboarding@resend.dev>"),
   TELEGRAM_BOT_TOKEN: optionalSecret,
   TELEGRAM_CHAT_ID: optionalSecret,
+  NOTIFICATION_API_ENABLED: booleanFromEnvironment.default(false),
+  NOTIFICATION_API_KEY: optionalStrongSecret,
+  NOTIFICATION_API_HOST: z.string().default("127.0.0.1"),
+  NOTIFICATION_API_PORT: z.coerce.number().int().min(1).max(65_535).default(8_787),
+  NOTIFICATION_PREFERENCES_PATH: z
+    .string()
+    .default("./data/notification-preferences.json"),
+  NOTIFICATION_SESSION_TTL_MS: z.coerce
+    .number()
+    .int()
+    .min(60_000)
+    .default(30 * 24 * 60 * 60 * 1_000),
+  NOTIFICATION_ALLOWED_ORIGINS: z
+    .string()
+    .default("https://clavisapp.vercel.app,http://localhost:5173"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -62,6 +82,21 @@ if (Boolean(parsed.data.SETTLEMENT_ACCOUNT_ID) !== Boolean(parsed.data.SETTLEMEN
 
 if (parsed.data.ALLOW_FULL_ACCESS_AGENT && parsed.data.NEAR_NETWORK !== "testnet") {
   throw new Error("ALLOW_FULL_ACCESS_AGENT is permitted only on NEAR testnet");
+}
+
+if (parsed.data.NOTIFICATION_API_ENABLED && !parsed.data.NOTIFICATION_API_KEY) {
+  throw new Error("NOTIFICATION_API_KEY is required when NOTIFICATION_API_ENABLED=true");
+}
+
+const notificationAllowedOrigins = new Set(
+  parsed.data.NOTIFICATION_ALLOWED_ORIGINS.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+if (parsed.data.NOTIFICATION_API_ENABLED && notificationAllowedOrigins.size === 0) {
+  throw new Error(
+    "NOTIFICATION_ALLOWED_ORIGINS must include at least one trusted frontend origin",
+  );
 }
 
 function resolveAgentPath(value: string): string {
@@ -93,4 +128,11 @@ export const config = {
   resendFromEmail: parsed.data.RESEND_FROM_EMAIL,
   telegramBotToken: parsed.data.TELEGRAM_BOT_TOKEN,
   telegramChatId: parsed.data.TELEGRAM_CHAT_ID,
+  notificationApiEnabled: parsed.data.NOTIFICATION_API_ENABLED,
+  notificationApiKey: parsed.data.NOTIFICATION_API_KEY,
+  notificationApiHost: parsed.data.NOTIFICATION_API_HOST,
+  notificationApiPort: parsed.data.NOTIFICATION_API_PORT,
+  notificationPreferencesPath: resolveAgentPath(parsed.data.NOTIFICATION_PREFERENCES_PATH),
+  notificationSessionTtlMs: parsed.data.NOTIFICATION_SESSION_TTL_MS,
+  notificationAllowedOrigins,
 } as const;

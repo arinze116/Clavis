@@ -195,6 +195,24 @@ The settlement key must never be exposed to the browser.
 
 Notification failures are isolated with `Promise.allSettled`; email or Telegram downtime never stops payroll.
 
+Connected users can click their wallet pill in the app header to link an email address,
+a Telegram chat ID, or both. Contact details stay in the private VPS data store and are
+never written on-chain. Linking requires an NEP-413 wallet signature, verifies that the
+signing key is a full-access key for the account, sends a confirmation through each
+requested channel, and issues a revocable notification session.
+
+The following events are covered:
+
+- payroll deployment and every owner-submitted contract transaction;
+- worker creation, removal, suspension, and reinstatement;
+- limit, agent, pause, resume, anomaly-review, and emergency-withdrawal changes;
+- payment approvals and rejections;
+- intent submission, delivery completion, and terminal delivery failure;
+- anomaly detection and daily reports.
+
+Transaction alerts are derived from the finalized NEAR transaction rather than trusting
+labels supplied by the browser. Duplicate transaction hashes are suppressed.
+
 ### Resend
 
 1. Create a Resend API key.
@@ -218,7 +236,42 @@ TELEGRAM_BOT_TOKEN=123456:...
 TELEGRAM_CHAT_ID=123456789
 ```
 
-Per-business `telegram_chat_id` values override the global default. Approvals, rejections, anomalies, and midnight UTC reports are sent to both channels.
+Wallet-linked preferences take precedence over per-business values; per-business
+`telegram_chat_id` values otherwise override the global default.
+
+### Wallet-linked notification API
+
+Generate a strong shared key (`openssl rand -base64 48`) and configure the VPS agent:
+
+```dotenv
+NOTIFICATION_API_ENABLED=true
+NOTIFICATION_API_KEY=replace-with-at-least-32-random-bytes
+NOTIFICATION_API_HOST=127.0.0.1
+NOTIFICATION_API_PORT=8787
+NOTIFICATION_PREFERENCES_PATH=./data/notification-preferences.json
+NOTIFICATION_ALLOWED_ORIGINS=https://clavisapp.vercel.app
+```
+
+Expose the loopback API through HTTPS after pointing a domain at the VPS:
+
+```bash
+CLAVIS_NOTIFICATION_DOMAIN=notifications.example.com \
+CLAVIS_LETSENCRYPT_EMAIL=ops@example.com \
+bash scripts/vps-notifications.sh
+```
+
+Add these server-side variables to the Vercel project that owns `clavisapp.vercel.app`
+and to any separate preview project. They must not use the `VITE_` prefix:
+
+```dotenv
+CLAVIS_AGENT_API_URL=https://notifications.example.com/v1/notifications
+CLAVIS_AGENT_API_KEY=the-same-private-shared-key
+```
+
+Optionally set `VITE_TELEGRAM_BOT_USERNAME` so the wallet popup can link directly to the
+bot. Local frontend development can override `VITE_NOTIFICATION_API_URL`; production uses
+the same-origin `/api/notifications` Vercel proxy. Add an active preview URL to
+`NOTIFICATION_ALLOWED_ORIGINS` before testing signed linking on that preview.
 
 ## Oracle Cloud VPS deployment
 
