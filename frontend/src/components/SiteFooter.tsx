@@ -8,13 +8,14 @@ const productLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/audit", label: "Audit Log" },
   { to: "/setup", label: "Setup" },
+  { to: "/worker", label: "Worker Portal" },
 ];
 
 const resourceLinks = [
   { href: "https://github.com/arinze116/Clavis", label: "Source code" },
   { href: "https://testnet.nearblocks.io/address/clavis.testnet", label: "Contract on testnet" },
-  { href: "https://x.com/useClavis_", label: "Follow @useClavis_" },
-  { href: "https://nearhackathon.com", label: "NEAR Hackathon 2026" },
+  { href: "https://x.com/useClavis_", label: "Follow on X" },
+  { href: "https://nearhackathon.com", label: "NEAR Hackathon" },
 ];
 
 export function SiteFooter() {
@@ -59,17 +60,13 @@ export function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto grid max-w-[1360px] gap-3 py-5 text-xs text-white/35 md:grid-cols-[1fr_auto_1fr] md:items-center">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>© 2026 Clavis · MIT License</span>
-            <span className="hidden text-white/15 sm:inline">|</span>
-            <span>
-              <Link to="/privacy" className="transition hover:text-white">Privacy</Link>
-              {" · "}
-              <Link to="/terms" className="transition hover:text-white">Terms</Link>
-            </span>
-          </div>
-          <p>Built on NEAR Protocol · Testnet</p>
-          <p className="md:text-right">Tracks: privacy · realworld · security · agents · business</p>
+          <p>© 2026 Clavis · MIT License</p>
+          <p>Running on NEAR Testnet · Not financial advice</p>
+          <p className="md:text-right">
+            <Link to="/privacy" className="transition hover:text-white">Privacy</Link>
+            {" · "}
+            <Link to="/terms" className="transition hover:text-white">Terms</Link>
+          </p>
         </div>
       </div>
     </footer>

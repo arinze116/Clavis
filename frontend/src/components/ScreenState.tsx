@@ -1,11 +1,18 @@
-import { AlertTriangle, LoaderCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export function LoadingState({ label = "Loading contract state" }: { label?: string }) {
   return (
-    <div className="grid min-h-[50vh] place-items-center px-5">
-      <div className="text-center">
-        <LoaderCircle className="mx-auto h-8 w-8 animate-spin text-moss" />
-        <p className="mt-4 text-sm text-ink/55">{label}</p>
+    <div className="mx-auto min-h-[50vh] max-w-[1180px] px-5 py-14 lg:px-10">
+      <p className="sr-only">{label}</p>
+      <div className="animate-pulse space-y-6" aria-hidden="true">
+        <div className="h-4 w-28 rounded-full bg-ink/10" />
+        <div className="h-14 max-w-xl rounded-2xl bg-ink/10" />
+        <div className="grid gap-5 md:grid-cols-3">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-36 rounded-[28px] bg-white/65" />
+          ))}
+        </div>
+        <div className="h-80 rounded-[28px] bg-white/65" />
       </div>
     </div>
   );

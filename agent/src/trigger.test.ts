@@ -13,6 +13,7 @@ function state(completedMilestone?: string): AgentState {
     completedMilestones: completedMilestone
       ? { [recipientHash]: completedMilestone }
       : {},
+    anomalyNotifications: {},
     requests: [],
     payments: [],
     pendingIntents: [],
@@ -35,6 +36,8 @@ const milestoneRecipient: RecipientView = {
 function plan(milestoneId: string): PayrollRecipient {
   return {
     recipientHash,
+    name: "Chidi",
+    nearAddress: "chidi.testnet",
     amountYocto: "50",
     milestoneReady: true,
     milestoneId,

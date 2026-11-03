@@ -12,10 +12,21 @@ export const rpcUrl = envValue(
   "https://rpc.testnet.fastnear.com",
 );
 export const rpcEndpoint = import.meta.env.DEV ? "/near-rpc" : rpcUrl;
-export const contractId = envValue(import.meta.env.VITE_CONTRACT_ID, "clavis.testnet");
+export const rootContractId = envValue(
+  import.meta.env.VITE_ROOT_CONTRACT_ID,
+  "clavis.testnet",
+);
+export const factoryContractId = envValue(
+  import.meta.env.VITE_FACTORY_CONTRACT_ID,
+  "factory.clavis.testnet",
+);
 export const explorerUrl = envValue(
   import.meta.env.VITE_EXPLORER_URL,
   "https://testnet.nearblocks.io",
+);
+export const nearBlocksApiUrl = envValue(
+  import.meta.env.VITE_NEARBLOCKS_API_URL,
+  "https://api-testnet.nearblocks.io",
 );
 
 let selectorPromise: Promise<WalletSelector> | null = null;
@@ -27,22 +38,18 @@ export function getWalletSelector(): Promise<WalletSelector> {
       import("@near-wallet-selector/core"),
       import("@near-wallet-selector/modal-ui"),
       import("@near-wallet-selector/my-near-wallet"),
-      import("@near-wallet-selector/meteor-wallet"),
-      import("@near-wallet-selector/here-wallet"),
       import("@near-wallet-selector/sender"),
     ])
-      .then(async ([core, modalUi, myNearWallet, meteorWallet, hereWallet, sender]) => {
+      .then(async ([core, modalUi, myNearWallet, sender]) => {
         const selector = await core.setupWalletSelector({
           network: networkId,
           modules: [
             myNearWallet.setupMyNearWallet(),
-            meteorWallet.setupMeteorWallet(),
-            hereWallet.setupHereWallet(),
             sender.setupSender(),
           ],
         });
         modal = modalUi.setupModal(selector, {
-          contractId,
+          contractId: factoryContractId,
           description: "Connect a NEAR testnet wallet to manage Clavis.",
         });
         return selector;

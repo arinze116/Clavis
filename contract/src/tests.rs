@@ -216,3 +216,43 @@ fn validates_payment_splits() {
     contract.add_recipient(RECIPIENT_HASH.to_string(), config);
     assert_eq!(contract.get_recipient_count(), 1);
 }
+
+#[test]
+fn reports_near_worker_registration_from_plaintext_name() {
+    testing_env!(context("owner.testnet", DAY_NS).build());
+    let mut contract = Clavis::new(
+        account("owner.testnet"),
+        account("agent.testnet"),
+        U128(1_000),
+        U128(500),
+    );
+    let mut config = recipient(400, PaymentSchedule::Weekly);
+    config.name = "Ada · ada-worker.testnet".to_string();
+    config.preferred_chain = "near".to_string();
+    config.preferred_token = "NEAR".to_string();
+    contract.add_recipient(RECIPIENT_HASH.to_string(), config);
+
+    assert!(contract.is_registered(account("ada-worker.testnet")));
+    assert!(!contract.is_registered(account("unknown.testnet")));
+}
+
+#[test]
+fn reports_registration_from_hashed_near_account() {
+    testing_env!(context("owner.testnet", DAY_NS).build());
+    let mut contract = Clavis::new(
+        account("owner.testnet"),
+        account("agent.testnet"),
+        U128(1_000),
+        U128(500),
+    );
+    let mut config = recipient(400, PaymentSchedule::Weekly);
+    config.preferred_chain = "near".to_string();
+    config.preferred_token = "NEAR".to_string();
+    let worker_hash = near_sdk::env::sha256(b"hash-worker.testnet")
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    contract.add_recipient(worker_hash, config);
+
+    assert!(contract.is_registered(account("hash-worker.testnet")));
+}

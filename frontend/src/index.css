@@ -22,9 +22,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 75% -20%, rgba(200, 255, 98, 0.22), transparent 34rem),
-    #f3f0e8;
+  background: #f3f0e8;
 }
 
 button,

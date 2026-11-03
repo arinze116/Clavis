@@ -2,6 +2,13 @@ export type Chain = "near" | "ethereum" | "bnb";
 export type Token = "NEAR" | "USDC" | "BUSD";
 export type PaymentSchedule = "Weekly" | "Biweekly" | "Milestone";
 
+export interface ContractRecord {
+  name: string;
+  contract_id: string;
+  owner: string;
+  created_at: number;
+}
+
 export interface SplitConfig {
   chain: Chain;
   token: Token;
@@ -43,6 +50,7 @@ export interface AnomalyEntry {
 }
 
 export interface ContractSnapshot {
+  contractId: string;
   owner: string;
   agent: string;
   dailyLimit: string;
@@ -63,4 +71,12 @@ export interface RecipientDraft {
   preferredChain: Chain;
   preferredToken: Token;
   schedule: PaymentSchedule;
+}
+
+export interface WorkerPreferences {
+  displayName: string;
+  preferredChain: Chain;
+  preferredToken: Token;
+  walletAddress: string;
+  paymentSplit: SplitConfig[];
 }

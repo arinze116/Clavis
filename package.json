@@ -2,6 +2,7 @@
   "name": "clavis",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Private, rule-bound cross-chain payroll on NEAR",
   "workspaces": [
     "agent",
@@ -14,10 +15,32 @@
     "test:agent": "npm run test --workspace=@clavis/agent",
     "test:contract": "cargo test --manifest-path contract/Cargo.toml",
     "build:contract": "cargo build --manifest-path contract/Cargo.toml --target wasm32-unknown-unknown --release",
+    "demo:narration": "node --experimental-strip-types scripts/generate-demo-narration.ts",
+    "demo:record": "node --experimental-strip-types scripts/record-demo.ts",
+    "demo:record:smoke": "node --experimental-strip-types scripts/record-demo.ts --smoke",
+    "demo:record:browser-smoke": "node --experimental-strip-types scripts/record-demo.ts --browser-smoke",
+    "demo:register-recording": "node --experimental-strip-types scripts/register-demo-recording.ts",
+    "demo:studio": "remotion studio demo/remotion/src/index.ts",
+    "demo:render": "remotion render demo/remotion/src/index.ts ClavisDemo demo/output/clavis-demo-1080p.mp4 --codec=h264 --crf=16 --audio-codec=aac --pixel-format=yuv420p",
+    "demo:typecheck": "tsc -p demo/tsconfig.json --noEmit",
     "dev:agent": "npm run dev --workspace=@clavis/agent",
     "dev:frontend": "npm run dev --workspace=@clavis/frontend"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.540",
+    "@remotion/transitions": "4.0.540",
+    "@types/node": "22.10.5",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "obs-websocket-js": "5.0.8",
+    "playwright": "1.64.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.540",
+    "tsx": "4.23.15",
+    "typescript": "5.7.3"
   }
 }

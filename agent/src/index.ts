@@ -1,30 +1,50 @@
 import { config } from "./config.js";
+import { IntentStore } from "./intent-store.js";
 import { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
-import { NearClient } from "./near.js";
+import { FactoryClient, NearTransferClient } from "./near.js";
+import { NotificationManager } from "./notifications/index.js";
 import { Scheduler } from "./scheduler.js";
-import { StateStore } from "./state.js";
 
 async function main(): Promise<void> {
-  const near = new NearClient({
-    networkId: config.nearNetwork,
-    rpcUrl: config.nearRpcUrl,
-    accountId: config.nearAccountId,
-    privateKey: config.nearPrivateKey,
-    contractId: config.contractId,
-  });
-  await near.connect();
-  await near.verifyRestrictedKey();
+  const transferClient =
+    config.settlementAccountId && config.settlementPrivateKey
+      ? new NearTransferClient({
+          networkId: config.nearNetwork,
+          rpcUrl: config.nearRpcUrl,
+          accountId: config.settlementAccountId,
+          privateKey: config.settlementPrivateKey,
+        })
+      : undefined;
+  if (transferClient) await transferClient.connect();
 
-  const state = new StateStore(config.statePath);
-  await state.load();
+  const factory = new FactoryClient({
+    rpcUrl: config.nearRpcUrl,
+    factoryContractId: config.factoryContractId,
+  });
+  const intentStore = new IntentStore(config.intentStatePath);
+  await intentStore.load();
   const intents = new IntentClient({
-    dryRun: config.dryRunIntents,
-    confidentialExecutorUrl: config.confidentialExecutorUrl,
+    solverRelayUrl: config.solverRelayUrl,
     apiKey: config.intentsApiKey,
     intentsContractId: config.intentsContractId,
+    signerAccountId: config.settlementAccountId,
+    signerPrivateKey: config.settlementPrivateKey,
+    transferClient,
   });
-  const scheduler = new Scheduler({ config, near, intents, state });
+  const notifications = new NotificationManager({
+    resendApiKey: config.resendApiKey,
+    resendFromEmail: config.resendFromEmail,
+    telegramBotToken: config.telegramBotToken,
+    telegramChatId: config.telegramChatId,
+  });
+  const scheduler = new Scheduler({
+    config,
+    factory,
+    intents,
+    intentStore,
+    notifications,
+  });
 
   const shutdown = (signal: string): void => {
     logger.info("agent.shutdown_requested", { signal });
@@ -35,8 +55,8 @@ async function main(): Promise<void> {
 
   logger.info("agent.started", {
     network: config.nearNetwork,
-    contract: config.contractId,
-    dryRunIntents: config.dryRunIntents,
+    factoryContractId: config.factoryContractId,
+    pollIntervalMs: config.pollIntervalMs,
   });
   await scheduler.start();
 }

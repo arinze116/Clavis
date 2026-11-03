@@ -13,12 +13,11 @@
     "@near-js/providers": "^2.5.1",
     "@near-js/transactions": "^2.5.1",
     "@near-wallet-selector/core": "^10.1.4",
-    "@near-wallet-selector/here-wallet": "^10.1.4",
-    "@near-wallet-selector/meteor-wallet": "^10.1.4",
     "@near-wallet-selector/modal-ui": "^10.1.4",
     "@near-wallet-selector/my-near-wallet": "^10.1.4",
     "@near-wallet-selector/sender": "^10.1.4",
     "lucide-react": "^0.468.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.1"

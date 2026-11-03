@@ -25,7 +25,6 @@ export default function Landing() {
           </div>
 
           <div className="relative mx-auto w-full max-w-[580px] lg:mr-0">
-            <div className="absolute -inset-24 rounded-full bg-acid/10 blur-3xl" />
             <div className="relative rotate-[2deg] rounded-[34px] border border-white/15 bg-[#1a1d17] p-5 shadow-2xl sm:p-7">
               <div className="flex items-center justify-between border-b border-white/10 pb-5"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-acid">Live policy engine</p><p className="mt-2 text-lg font-semibold">Payroll cycle #048</p></div><span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">Protected</span></div>
               <div className="mt-6 space-y-3">

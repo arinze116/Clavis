@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": [
+    "../scripts/generate-demo-narration.ts",
+    "../scripts/record-demo.ts",
+    "../scripts/register-demo-recording.ts",
+    "../remotion.config.ts",
+    "remotion/src/**/*.ts",
+    "remotion/src/**/*.tsx"
+  ]
+}

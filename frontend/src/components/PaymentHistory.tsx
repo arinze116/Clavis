@@ -3,18 +3,28 @@ import { useMemo, useState } from "react";
 
 import type { AuditEntry } from "../types";
 import { formatTimestamp, outcomeDetails } from "../utils/format";
-import { contractId } from "../utils/near";
 
 const nearBlocksUrl = "https://testnet.nearblocks.io";
 
-function explorerLink(entry: AuditEntry): string {
+function explorerLink(entry: AuditEntry, contractId: string): string {
   const transactionId = entry.transaction_id ?? entry.transaction_hash ?? entry.tx_hash;
-  return transactionId ? `${nearBlocksUrl}/txns/${transactionId}` : `${nearBlocksUrl}/address/${contractId}`;
+  if (transactionId) return `${nearBlocksUrl}/txns/${transactionId}`;
+  return entry.block_height
+    ? `${nearBlocksUrl}/blocks/${entry.block_height}`
+    : `${nearBlocksUrl}/address/${contractId}`;
 }
 
 type Filter = "all" | "approved" | "rejected";
 
-export function PaymentHistory({ entries, pageSize = 8 }: { entries: AuditEntry[]; pageSize?: number }) {
+export function PaymentHistory({
+  entries,
+  contractId,
+  pageSize = 8,
+}: {
+  entries: AuditEntry[];
+  contractId: string;
+  pageSize?: number;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(0);
   const filtered = useMemo(
@@ -60,7 +70,7 @@ export function PaymentHistory({ entries, pageSize = 8 }: { entries: AuditEntry[
               <span className="inline-flex items-center gap-2 font-mono text-xs text-ink/45">
                 #{String(entry.payment_id).padStart(4, "0")}
                 <a
-                  href={explorerLink(entry)}
+                  href={explorerLink(entry, contractId)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-ink/35 transition hover:text-moss"

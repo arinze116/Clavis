@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/clavis-mvp]
   pull_request:
 
 permissions:
@@ -30,5 +30,7 @@ jobs:
         run: npm run build
       - name: Test and build contract
         run: |
+          cargo fmt --manifest-path contract/Cargo.toml --all -- --check
           cargo test --manifest-path contract/Cargo.toml
-          cargo build --manifest-path contract/Cargo.toml --target wasm32-unknown-unknown --release
+          bash scripts/build-contracts.sh
+          cargo test --manifest-path contract/Cargo.toml --package clavis-factory
