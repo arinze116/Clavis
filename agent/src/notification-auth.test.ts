@@ -23,7 +23,13 @@ const schema = {
   },
 } as const;
 
-function authorization(payload: unknown): NotificationAuthorization {
+function authorization(
+  payload: unknown,
+  options: { callbackUrl?: string; origin?: string } = {
+    callbackUrl: "https://clavisapp.vercel.app/dashboard",
+    origin: "https://clavisapp.vercel.app",
+  },
+): NotificationAuthorization {
   const keyPair = KeyPair.fromRandom("ED25519");
   const nonceBytes = randomBytes(32);
   const nonce = nonceBytes.toString("base64");
@@ -35,14 +41,14 @@ function authorization(payload: unknown): NotificationAuthorization {
     issuedAt,
     nonce,
     payloadHash,
+    origin: options.origin,
   });
-  const callbackUrl = "https://clavisapp.vercel.app/dashboard";
   const serialized = serialize(schema, {
     tag: 2_147_484_061,
     message,
     nonce: nonceBytes,
     recipient: "factory.clavis.testnet",
-    callbackUrl,
+    callbackUrl: options.callbackUrl,
   });
   const digest = createHash("sha256").update(serialized).digest();
   const signature = keyPair.sign(digest).signature;
@@ -53,17 +59,65 @@ function authorization(payload: unknown): NotificationAuthorization {
     nonce,
     payloadHash,
     message,
+    ...(options.origin ? { origin: options.origin } : {}),
     recipient: "factory.clavis.testnet",
-    callbackUrl,
+    ...(options.callbackUrl ? { callbackUrl: options.callbackUrl } : {}),
     publicKey: keyPair.getPublicKey().toString(),
     signature: Buffer.from(signature).toString("base64"),
   };
 }
 
 describe("notification authorization", () => {
-  it("verifies an NEP-413 signature and full-access key", async () => {
+  it("verifies an NEP-413 signature with a callback URL", async () => {
     const payload = { email: "owner@example.com" };
     const signed = authorization(payload);
+    expect(verifyNotificationSignature(signed)).toBe(true);
+
+    const rpc = {
+      rpc: async () => ({ permission: "FullAccess" }),
+    } as unknown as NearRpcClient;
+    await expect(
+      verifyNotificationAuthorization({
+        authorization: signed,
+        action: "begin_email_link",
+        payload,
+        expectedRecipient: "factory.clavis.testnet",
+        allowedOrigins: new Set(["https://clavisapp.vercel.app"]),
+        rpc,
+        now: new Date("2026-11-03T08:01:00.000Z"),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("verifies a Meteor signature with no callback URL", async () => {
+    const payload = { email: "owner@example.com" };
+    const signed = authorization(payload, {
+      origin: "https://clavisapp.vercel.app",
+    });
+    expect(signed.callbackUrl).toBeUndefined();
+    expect(verifyNotificationSignature(signed)).toBe(true);
+
+    const rpc = {
+      rpc: async () => ({ permission: "FullAccess" }),
+    } as unknown as NearRpcClient;
+    await expect(
+      verifyNotificationAuthorization({
+        authorization: signed,
+        action: "begin_email_link",
+        payload,
+        expectedRecipient: "factory.clavis.testnet",
+        allowedOrigins: new Set(["https://clavisapp.vercel.app"]),
+        rpc,
+        now: new Date("2026-11-03T08:01:00.000Z"),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("accepts a legacy version 1 authorization during rollout", async () => {
+    const payload = { email: "owner@example.com" };
+    const signed = authorization(payload, {
+      callbackUrl: "https://clavisapp.vercel.app/dashboard",
+    });
     expect(verifyNotificationSignature(signed)).toBe(true);
 
     const rpc = {
@@ -99,5 +153,26 @@ describe("notification authorization", () => {
         now: new Date("2026-11-03T08:01:00.000Z"),
       }),
     ).rejects.toThrow("payload does not match");
+  });
+
+  it("rejects a signed origin outside the allowlist", async () => {
+    const payload = { email: "owner@example.com" };
+    const signed = authorization(payload, {
+      origin: "https://phishing.example",
+    });
+    const rpc = {
+      rpc: async () => ({ permission: "FullAccess" }),
+    } as unknown as NearRpcClient;
+    await expect(
+      verifyNotificationAuthorization({
+        authorization: signed,
+        action: "begin_email_link",
+        payload,
+        expectedRecipient: "factory.clavis.testnet",
+        allowedOrigins: new Set(["https://clavisapp.vercel.app"]),
+        rpc,
+        now: new Date("2026-11-03T08:01:00.000Z"),
+      }),
+    ).rejects.toThrow("origin is not allowed");
   });
 });

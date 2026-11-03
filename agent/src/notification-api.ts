@@ -36,8 +36,9 @@ const authorizationSchema = z.object({
   nonce: z.string().min(40).max(64),
   payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
   message: z.string().min(20).max(2_000),
+  origin: z.string().url().max(2_048).optional(),
   recipient: z.string().min(2).max(64),
-  callbackUrl: z.string().url().max(2_048),
+  callbackUrl: z.string().url().max(2_048).optional(),
   publicKey: z.string().regex(/^(ed25519|secp256k1):/),
   signature: z.string().min(40).max(256),
 });

@@ -25,8 +25,9 @@ export interface NotificationAuthorization {
   nonce: string;
   payloadHash: string;
   message: string;
+  origin?: string;
   recipient: string;
-  callbackUrl: string;
+  callbackUrl?: string;
   publicKey: string;
   signature: string;
 }
@@ -56,15 +57,17 @@ export function buildNotificationAuthorizationMessage(options: {
   issuedAt: string;
   nonce: string;
   payloadHash: string;
+  origin?: string;
 }): string {
   return [
     "Clavis notification authorization",
-    "version=1",
+    `version=${options.origin ? "2" : "1"}`,
     `account_id=${options.accountId}`,
     `action=${options.action}`,
     `issued_at=${options.issuedAt}`,
     `nonce=${options.nonce}`,
     `payload_hash=${options.payloadHash}`,
+    ...(options.origin ? [`origin=${options.origin}`] : []),
   ].join("\n");
 }
 
@@ -79,7 +82,7 @@ export function verifyNotificationSignature(
     message: authorization.message,
     nonce,
     recipient: authorization.recipient,
-    callbackUrl: authorization.callbackUrl || undefined,
+    callbackUrl: authorization.callbackUrl,
   });
   const digest = createHash("sha256").update(payload).digest();
   const signature = Buffer.from(authorization.signature, "base64");
@@ -112,8 +115,19 @@ export async function verifyNotificationAuthorization(options: {
   if (authorization.recipient !== options.expectedRecipient) {
     throw new Error("Notification authorization recipient does not match");
   }
-  const callbackOrigin = new URL(authorization.callbackUrl).origin;
-  if (options.allowedOrigins.size > 0 && !options.allowedOrigins.has(callbackOrigin)) {
+  // Version 2 signs the browser origin inside the human-readable message, so
+  // injected wallets such as Meteor can omit NEP-413's optional callback URL.
+  // Version 1 remains accepted for already-open clients that supplied a
+  // callback URL before this protocol revision.
+  const authorizationOrigin = authorization.origin
+    ? canonicalOrigin(authorization.origin)
+    : authorization.callbackUrl
+      ? new URL(authorization.callbackUrl).origin
+      : null;
+  if (!authorizationOrigin) {
+    throw new Error("Notification authorization origin is missing");
+  }
+  if (options.allowedOrigins.size > 0 && !options.allowedOrigins.has(authorizationOrigin)) {
     throw new Error("Notification authorization origin is not allowed");
   }
 
@@ -127,6 +141,7 @@ export async function verifyNotificationAuthorization(options: {
     issuedAt: authorization.issuedAt,
     nonce: authorization.nonce,
     payloadHash,
+    ...(authorization.origin ? { origin: authorization.origin } : {}),
   });
   if (expectedMessage !== authorization.message || !verifyNotificationSignature(authorization)) {
     throw new Error("Notification authorization signature is invalid");
@@ -141,4 +156,12 @@ export async function verifyNotificationAuthorization(options: {
   if (accessKey.permission !== "FullAccess") {
     throw new Error("Notification linking requires a full-access wallet key");
   }
+}
+
+function canonicalOrigin(value: string): string {
+  const parsed = new URL(value);
+  if (parsed.origin !== value) {
+    throw new Error("Notification authorization origin is invalid");
+  }
+  return parsed.origin;
 }
