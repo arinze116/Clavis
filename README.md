@@ -276,6 +276,25 @@ CLAVIS_AGENT_API_URL=https://notifications.example.com/v1/notifications
 CLAVIS_AGENT_API_KEY=the-same-private-shared-key
 ```
 
+If Oracle ingress cannot be changed, omit `CLAVIS_AGENT_API_URL` and configure
+the Vercel proxy with a dedicated SSH key instead:
+
+```dotenv
+CLAVIS_AGENT_API_KEY=the-same-private-shared-key
+CLAVIS_AGENT_SSH_HOST=203.0.113.10
+CLAVIS_AGENT_SSH_PORT=22
+CLAVIS_AGENT_SSH_USER=ubuntu
+CLAVIS_AGENT_SSH_PRIVATE_KEY=-----BEGIN OPENSSH PRIVATE KEY-----...
+CLAVIS_AGENT_SSH_HOST_KEY_SHA256=64-character-sha256-hex-digest
+```
+
+The corresponding `authorized_keys` entry must use a forced command and only
+allow forwarding to the loopback notification port:
+
+```text
+command="/bin/false",no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc,permitopen="127.0.0.1:8787" ssh-ed25519 ... vercel-clavis-notifications
+```
+
 Local frontend development can override `VITE_NOTIFICATION_API_URL`; production uses the
 same-origin `/api/notifications` Vercel proxy. Add an active preview URL to
 `NOTIFICATION_ALLOWED_ORIGINS` before testing signed linking on that preview.

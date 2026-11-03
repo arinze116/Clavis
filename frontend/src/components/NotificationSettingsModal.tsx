@@ -458,7 +458,9 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
         <div className="mt-5 flex items-start gap-3 rounded-2xl bg-acid/45 p-4">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-moss" />
           <p className="text-xs leading-5 text-ink/55">
-            Wallet signatures authorize setup. Email codes and the Telegram bot verify that each channel belongs to you. No gas is spent.
+            The wallet prompt is a security signature, not another sign-in or a transaction.
+            Email codes and the Telegram bot verify that each channel belongs to you. No gas
+            is spent.
           </p>
         </div>
 
