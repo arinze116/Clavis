@@ -48,8 +48,9 @@ interface SignedAuthorization {
   nonce: string;
   payloadHash: string;
   message: string;
+  origin: string;
   recipient: string;
-  callbackUrl: string;
+  callbackUrl?: string;
   publicKey: string;
   signature: string;
 }
@@ -92,15 +93,17 @@ function authorizationMessage(options: {
   issuedAt: string;
   nonce: string;
   payloadHash: string;
+  origin: string;
 }): string {
   return [
     "Clavis notification authorization",
-    "version=1",
+    "version=2",
     `account_id=${options.accountId}`,
     `action=${options.action}`,
     `issued_at=${options.issuedAt}`,
     `nonce=${options.nonce}`,
     `payload_hash=${options.payloadHash}`,
+    `origin=${options.origin}`,
   ].join("\n");
 }
 
@@ -138,19 +141,25 @@ async function signAuthorization(options: {
   const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
   const nonce = nonceBase64(nonceBytes);
   const payloadHash = await sha256(stableJson(options.payload));
+  const origin = window.location.origin;
   const message = authorizationMessage({
     accountId: options.accountId,
     action: options.action,
     issuedAt,
     nonce,
     payloadHash,
+    origin,
   });
-  const callbackUrl = window.location.href;
+  // The wallet-selector Meteor adapter currently drops callbackUrl before it
+  // reaches Meteor. Omitting it here keeps the payload we verify byte-for-byte
+  // identical to the NEP-413 payload Meteor signs. Redirect wallets still need
+  // the callback to return their signature to this page.
+  const callbackUrl = options.wallet.id === "meteor-wallet" ? undefined : window.location.href;
   const signed = await options.wallet.signMessage({
     message,
     recipient: factoryContractId,
     nonce: Buffer.from(nonceBytes),
-    callbackUrl,
+    ...(callbackUrl ? { callbackUrl } : {}),
   });
   if (!signed || signed.accountId !== options.accountId) {
     throw new Error("The connected wallet did not authorize this notification change");
@@ -162,8 +171,9 @@ async function signAuthorization(options: {
     nonce,
     payloadHash,
     message,
+    origin,
     recipient: factoryContractId,
-    callbackUrl,
+    ...(callbackUrl ? { callbackUrl } : {}),
     publicKey: signed.publicKey,
     signature: signed.signature,
   };
