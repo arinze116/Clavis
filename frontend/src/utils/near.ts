@@ -37,13 +37,15 @@ export function getWalletSelector(): Promise<WalletSelector> {
     selectorPromise = Promise.all([
       import("@near-wallet-selector/core"),
       import("@near-wallet-selector/modal-ui"),
+      import("@near-wallet-selector/meteor-wallet"),
       import("@near-wallet-selector/my-near-wallet"),
       import("@near-wallet-selector/sender"),
     ])
-      .then(async ([core, modalUi, myNearWallet, sender]) => {
+      .then(async ([core, modalUi, meteorWallet, myNearWallet, sender]) => {
         const selector = await core.setupWalletSelector({
           network: networkId,
           modules: [
+            meteorWallet.setupMeteorWallet(),
             myNearWallet.setupMyNearWallet(),
             sender.setupSender(),
           ],

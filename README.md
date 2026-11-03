@@ -123,6 +123,8 @@ The call requires a 6 NEAR testnet deployment deposit. One owner can have one de
 npm run dev:frontend
 ```
 
+Wallet connection supports Meteor Wallet, MyNearWallet, and Sender through NEAR Wallet Selector.
+
 Routes:
 
 - `/` — product landing page
