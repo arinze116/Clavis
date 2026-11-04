@@ -156,10 +156,26 @@ export function storeContractId(contractId: string): void {
   window.localStorage.setItem(ACTIVE_CONTRACT_KEY, contractId);
 }
 
-export async function getContractByOwner(owner: string): Promise<ContractRecord | null> {
-  return view<ContractRecord | null>(factoryContractId, "get_contract_by_owner", {
+export async function getContractByOwner(
+  owner: string,
+  fallbackToRootContract = true,
+): Promise<ContractRecord | null> {
+  const businessContract = await view<ContractRecord | null>(
+    factoryContractId,
+    "get_contract_by_owner",
+    {
+      owner,
+    },
+  );
+  if (businessContract || !fallbackToRootContract) return businessContract;
+
+  // The original singleton deployment is not indexed by the factory.
+  return {
+    name: rootContractId,
+    contract_id: rootContractId,
     owner,
-  });
+    created_at: 0,
+  };
 }
 
 export async function waitForPayrollDeployment(

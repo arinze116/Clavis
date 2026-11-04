@@ -46,7 +46,7 @@ export function useContractState(contractId: string | null) {
   return { data, loading, showLoading, error, refresh };
 }
 
-export function useOwnerContract(accountId: string | null) {
+export function useOwnerContract(accountId: string | null, fallbackToRootContract = true) {
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [loading, setLoading] = useState(Boolean(accountId));
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function useOwnerContract(accountId: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const value = await getContractByOwner(accountId);
+      const value = await getContractByOwner(accountId, fallbackToRootContract);
       setContract(value);
       if (value) storeContractId(value.contract_id);
     } catch (reason) {
@@ -69,7 +69,7 @@ export function useOwnerContract(accountId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, fallbackToRootContract]);
 
   useEffect(() => {
     void refresh();

@@ -45,7 +45,8 @@ export default function SetupWizard() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { accountId, wallet, loading: walletLoading } = useWallet();
-  const ownerContract = useOwnerContract(accountId);
+  // Only factory deployments should block a wallet from creating a new business contract.
+  const ownerContract = useOwnerContract(accountId, false);
   const [step, setStep] = useState(0);
   const [businessName, setBusinessName] = useState("");
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);

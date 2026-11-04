@@ -5,19 +5,28 @@ import { PaymentHistory } from "../components/PaymentHistory";
 import { ErrorState, LoadingState } from "../components/ScreenState";
 import { useWallet } from "../contexts/WalletContext";
 import { useContractState, useOwnerContract } from "../hooks/useContractState";
-import { getStoredContractId } from "../utils/contract";
-import { explorerUrl } from "../utils/near";
+import { explorerUrl, rootContractId } from "../utils/near";
 
 export default function AuditLog() {
   const { accountId, loading: walletLoading } = useWallet();
   const ownerContract = useOwnerContract(accountId);
-  const contractId = ownerContract.contract?.contract_id ?? getStoredContractId();
+  const contractId = ownerContract.contract?.contract_id ?? rootContractId;
   const { data, loading, showLoading, error, refresh } = useContractState(contractId);
 
   if (walletLoading || ownerContract.loading) {
     return (
       <AppShell>
         <LoadingState label="Resolving the audit contract" />
+      </AppShell>
+    );
+  }
+  if (ownerContract.error) {
+    return (
+      <AppShell>
+        <ErrorState
+          message={ownerContract.error}
+          retry={() => void ownerContract.refresh()}
+        />
       </AppShell>
     );
   }
@@ -91,13 +100,13 @@ export default function AuditLog() {
             <div className="min-w-0">
               <p className="text-sm font-semibold">Verify independently</p>
               <p className="mt-1 truncate font-mono text-[11px] text-ink/40">
-                {data.contractId}
+                {contractId}
               </p>
             </div>
           </div>
           <a
             className="button-secondary"
-            href={`${explorerUrl}/address/${data.contractId}`}
+            href={`${explorerUrl}/address/${contractId}`}
             target="_blank"
             rel="noreferrer"
           >
