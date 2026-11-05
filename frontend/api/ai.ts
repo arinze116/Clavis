@@ -118,11 +118,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   } catch (error) {
     const clientError = error instanceof ClientInputError;
     if (!clientError) {
+      const upstreamError = error instanceof NearAiUpstreamError ? error : null;
       // Do not log prompts, upstream bodies, credentials, or payroll data.
       console.error("near_ai.failed", {
         request_id: requestId,
         task,
         error_type: error instanceof Error ? error.name : "UnknownError",
+        ...(upstreamError
+          ? {
+              upstream_status: upstreamError.status,
+              upstream_category: upstreamError.category,
+            }
+          : {}),
       });
     }
     response.status(clientError ? 400 : 502).json({
@@ -135,6 +142,16 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 }
 
 class ClientInputError extends Error {}
+
+class NearAiUpstreamError extends Error {
+  constructor(
+    readonly status: number,
+    readonly category: string,
+  ) {
+    super(`NEAR AI request failed with ${category}`);
+    this.name = "NearAiUpstreamError";
+  }
+}
 
 function parseRequest(value: unknown): AiRequestBody {
   const parsed = typeof value === "string" ? parseClientJson(value) : value;
@@ -266,8 +283,9 @@ async function callNearAi(
   });
 
   if (!upstream.ok) {
-    const detail = (await upstream.text()).slice(0, 400);
-    throw new Error(`NEAR AI returned HTTP ${upstream.status}: ${detail}`);
+    // Consume and discard the body so provider responses never reach logs or clients.
+    await upstream.text();
+    throw new NearAiUpstreamError(upstream.status, classifyUpstreamStatus(upstream.status));
   }
   let payload: NearAiResponse;
   try {
@@ -280,6 +298,15 @@ async function callNearAi(
     throw new Error("NEAR AI returned an invalid response");
   }
   return content;
+}
+
+function classifyUpstreamStatus(status: number): string {
+  if (status === 401 || status === 403) return "authorization";
+  if (status === 429) return "rate_limit_or_quota";
+  if (status === 400 || status === 422) return "request_rejected";
+  if (status === 404) return "model_or_endpoint_not_found";
+  if (status >= 500) return "provider_unavailable";
+  return "unexpected_status";
 }
 
 function normalizeResult(task: AiTask, content: string): unknown {
