@@ -1,11 +1,11 @@
-import type { AgentState, Anomaly, AuditEntry, PayrollFile } from "./types.js";
+import type { AgentState, Anomaly, AuditEntry, BusinessPayroll } from "./types.js";
 import { routeFingerprint } from "./intents.js";
 
 export interface AnomalyInput {
   auditLog: AuditEntry[];
   dailySpent: bigint;
   dailyLimit: bigint;
-  payroll: PayrollFile;
+  payroll: BusinessPayroll;
   state: Readonly<AgentState>;
   now?: Date;
 }

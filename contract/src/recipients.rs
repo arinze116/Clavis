@@ -202,6 +202,23 @@ impl Clavis {
     pub fn get_recipient_count(&self) -> u64 {
         self.recipient_count
     }
+
+    pub fn is_registered(&self, account_id: AccountId) -> bool {
+        let account = account_id.to_string().to_lowercase();
+        let account_hash = near_sdk::env::sha256(account.as_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        if self.recipients.get(&account_hash).is_some() {
+            return true;
+        }
+
+        // Compatibility fallback for early records that included a NEAR
+        // account in the display label.
+        self.recipients.iter().any(|(_, config)| {
+            config.preferred_chain == "near" && config.name.to_lowercase().contains(&account)
+        })
+    }
 }
 
 impl Clavis {

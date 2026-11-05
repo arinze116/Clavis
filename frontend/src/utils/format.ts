@@ -9,6 +9,36 @@ export function nearToYocto(value: string): string {
   return (BigInt(whole) * YOCTO + BigInt(fraction.padEnd(24, "0") || "0")).toString();
 }
 
+export function isPositiveNearAmount(value: string): boolean {
+  try {
+    return BigInt(nearToYocto(value)) > 0n;
+  } catch {
+    return false;
+  }
+}
+
+export function yoctoToNearInput(value: string): string {
+  try {
+    const yocto = BigInt(value);
+    const whole = yocto / YOCTO;
+    const fraction = (yocto % YOCTO)
+      .toString()
+      .padStart(24, "0")
+      .replace(/0+$/, "");
+    return fraction ? `${whole}.${fraction}` : whole.toString();
+  } catch {
+    return "";
+  }
+}
+
+export function isValidNearAccountId(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === value.trim() &&
+    /^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(normalized)
+  );
+}
+
 export function formatNear(yocto: string, maximumFractionDigits = 2): string {
   try {
     const value = BigInt(yocto);

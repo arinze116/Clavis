@@ -10,10 +10,10 @@ async function simulateAttack(): Promise<void> {
     rpcUrl: config.nearRpcUrl,
     accountId: config.nearAccountId,
     privateKey: config.nearPrivateKey,
-    contractId: config.contractId,
+    contractId: process.env.CONTRACT_ID?.trim() || "clavis.testnet",
   });
   await near.connect();
-  await near.verifyRestrictedKey();
+  await near.verifyAgentKey(config.allowFullAccessAgent);
 
   const result = await near.requestPayment({
     recipientHash: UNAPPROVED_RECIPIENT,

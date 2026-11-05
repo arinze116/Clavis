@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build --workspace=@clavis/frontend",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/dashboard", "destination": "/dashboard/index.html" },
+    { "source": "/worker", "destination": "/worker/index.html" },
+    { "source": "/audit", "destination": "/audit/index.html" },
+    { "source": "/setup", "destination": "/setup/index.html" },
+    { "source": "/guide", "destination": "/guide/index.html" },
+    { "source": "/guide/business", "destination": "/guide/business/index.html" },
+    { "source": "/guide/worker", "destination": "/guide/worker/index.html" },
+    { "source": "/guide/developer", "destination": "/guide/developer/index.html" },
+    { "source": "/privacy", "destination": "/privacy/index.html" },
+    { "source": "/terms", "destination": "/terms/index.html" },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

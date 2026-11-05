@@ -2,7 +2,18 @@ import { Plus, Save, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { RecipientDraft } from "../types";
-import { formatNear } from "../utils/format";
+import {
+  isPositiveNearAmount,
+  isValidNearAccountId,
+  nearToYocto,
+  yoctoToNearInput,
+} from "../utils/format";
+import { validateAgentRecipientDraft } from "../utils/payrollPlans";
+import { Modal } from "./Modal";
+import {
+  isSupportedRecipientRoute,
+  RecipientFormFields,
+} from "./RecipientFormFields";
 
 interface RulesPanelProps {
   dailyLimit: string;
@@ -18,55 +29,102 @@ const initialRecipient: RecipientDraft = {
   name: "",
   walletAddress: "",
   personalCapNear: "",
+  paymentAmountNear: "",
+  destinationAddress: "",
   preferredChain: "near",
   preferredToken: "NEAR",
   schedule: "Weekly",
 };
 
 export function RulesPanel(props: RulesPanelProps) {
-  const [daily, setDaily] = useState("");
-  const [perPayment, setPerPayment] = useState("");
+  const [daily, setDaily] = useState(() => yoctoToNearInput(props.dailyLimit));
+  const [perPayment, setPerPayment] = useState(() => yoctoToNearInput(props.perPaymentLimit));
   const [agent, setAgent] = useState(props.agent);
-  const [showRecipient, setShowRecipient] = useState(false);
+  const [recipientOpen, setRecipientOpen] = useState(false);
   const [recipient, setRecipient] = useState<RecipientDraft>(initialRecipient);
-  const [message, setMessage] = useState<string | null>(null);
+  const [limitsError, setLimitsError] = useState<string | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [recipientError, setRecipientError] = useState<string | null>(null);
 
+  useEffect(() => setDaily(yoctoToNearInput(props.dailyLimit)), [props.dailyLimit]);
+  useEffect(
+    () => setPerPayment(yoctoToNearInput(props.perPaymentLimit)),
+    [props.perPaymentLimit],
+  );
   useEffect(() => setAgent(props.agent), [props.agent]);
 
   async function submitLimits(event: React.FormEvent) {
     event.preventDefault();
-    setMessage(null);
+    setLimitsError(null);
+    if (!isPositiveNearAmount(daily) || !isPositiveNearAmount(perPayment)) {
+      setLimitsError("Both limits must be positive NEAR amounts.");
+      return;
+    }
+    if (BigInt(nearToYocto(perPayment)) >= BigInt(nearToYocto(daily))) {
+      setLimitsError("The per-payment limit must be less than the daily limit.");
+      return;
+    }
     try {
       await props.onUpdateLimits(daily, perPayment);
-      setDaily("");
-      setPerPayment("");
-      setMessage("Limits updated successfully.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update limits");
+      setLimitsError(error instanceof Error ? error.message : "Unable to update limits");
     }
   }
 
   async function submitAgent(event: React.FormEvent) {
     event.preventDefault();
-    setMessage(null);
+    setAgentError(null);
+    const normalized = agent.trim();
+    if (!isValidNearAccountId(normalized)) {
+      setAgentError("Enter a valid lowercase NEAR testnet account ID.");
+      return;
+    }
     try {
-      await props.onUpdateAgent(agent);
-      setMessage("Agent address updated.");
+      await props.onUpdateAgent(normalized);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update agent");
+      setAgentError(error instanceof Error ? error.message : "Unable to update agent");
     }
   }
 
   async function submitRecipient(event: React.FormEvent) {
     event.preventDefault();
-    setMessage(null);
+    setRecipientError(null);
+    const walletAddress = recipient.walletAddress.trim().toLowerCase();
+    if (!recipient.name.trim()) {
+      setRecipientError("Enter the recipient's display name.");
+      return;
+    }
+    if (!isValidNearAccountId(walletAddress)) {
+      setRecipientError("Enter a valid lowercase NEAR testnet wallet address.");
+      return;
+    }
+    if (!isPositiveNearAmount(recipient.personalCapNear)) {
+      setRecipientError("The personal cap must be a positive NEAR amount.");
+      return;
+    }
+    if (!isSupportedRecipientRoute(recipient)) {
+      setRecipientError("Choose a supported chain and token pair.");
+      return;
+    }
+    const agentValidationError = validateAgentRecipientDraft(
+      recipient,
+      yoctoToNearInput(props.perPaymentLimit),
+    );
+    if (agentValidationError) {
+      setRecipientError(agentValidationError);
+      return;
+    }
     try {
-      await props.onAddRecipient(recipient);
+      await props.onAddRecipient({
+        ...recipient,
+        name: recipient.name.trim(),
+        walletAddress,
+        ...(recipient.region?.trim() ? { region: recipient.region.trim() } : {}),
+      });
       setRecipient(initialRecipient);
-      setShowRecipient(false);
-      setMessage("Recipient added to the allowlist.");
+      setRecipientOpen(false);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to add recipient");
+      setRecipientError(error instanceof Error ? error.message : "Unable to add recipient");
     }
   }
 
@@ -77,18 +135,42 @@ export function RulesPanel(props: RulesPanelProps) {
           <p className="eyebrow">Policy controls</p>
           <h2 className="mt-2 font-display text-2xl font-semibold">Rules engine</h2>
         </div>
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-canvas"><Shield className="h-5 w-5 text-moss" /></span>
+        <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-canvas">
+          <Shield className="h-4 w-4 text-moss" />
+        </span>
       </div>
 
-      <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submitLimits(event)}>
+      <form
+        className="mt-7 grid gap-4 sm:grid-cols-2"
+        onSubmit={(event) => void submitLimits(event)}
+      >
         <label className="text-xs font-semibold text-ink/55">
-          Daily limit
-          <input className="field mt-2" value={daily} onChange={(event) => setDaily(event.target.value)} placeholder={formatNear(props.dailyLimit).replace(" NEAR", "")} inputMode="decimal" required />
+          Daily limit (NEAR)
+          <input
+            className="field mt-2"
+            value={daily}
+            onChange={(event) => setDaily(event.target.value)}
+            inputMode="decimal"
+            disabled={props.busy}
+            required
+          />
         </label>
         <label className="text-xs font-semibold text-ink/55">
-          Per-payment limit
-          <input className="field mt-2" value={perPayment} onChange={(event) => setPerPayment(event.target.value)} placeholder={formatNear(props.perPaymentLimit).replace(" NEAR", "")} inputMode="decimal" required />
+          Per-payment limit (NEAR)
+          <input
+            className="field mt-2"
+            value={perPayment}
+            onChange={(event) => setPerPayment(event.target.value)}
+            inputMode="decimal"
+            disabled={props.busy}
+            required
+          />
         </label>
+        {limitsError && (
+          <p className="text-xs leading-5 text-red-700 sm:col-span-2" role="alert">
+            {limitsError}
+          </p>
+        )}
         <button type="submit" className="button-secondary sm:col-span-2" disabled={props.busy}>
           <Save className="h-4 w-4" /> Save treasury limits
         </button>
@@ -99,37 +181,80 @@ export function RulesPanel(props: RulesPanelProps) {
       <form onSubmit={(event) => void submitAgent(event)}>
         <label className="text-xs font-semibold text-ink/55">
           Authorized agent account
-          <input className="field mt-2 font-mono text-xs" value={agent} onChange={(event) => setAgent(event.target.value)} required />
+          <input
+            className="field mt-2 font-mono text-xs"
+            value={agent}
+            onChange={(event) => setAgent(event.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={props.busy}
+            required
+          />
         </label>
-        <button type="submit" className="button-secondary mt-3 w-full" disabled={props.busy || agent === props.agent}>Update agent address</button>
+        {agentError && (
+          <p className="mt-2 text-xs leading-5 text-red-700" role="alert">
+            {agentError}
+          </p>
+        )}
+        <button
+          type="submit"
+          className="button-secondary mt-3 w-full"
+          disabled={props.busy || agent.trim() === props.agent}
+        >
+          Update agent address
+        </button>
       </form>
 
-      <button type="button" className="button-primary mt-4 w-full" onClick={() => setShowRecipient((value) => !value)}>
+      <button
+        type="button"
+        className="button-primary mt-4 w-full"
+        onClick={() => {
+          setRecipientError(null);
+          setRecipientOpen(true);
+        }}
+      >
         <Plus className="h-4 w-4" /> Add recipient
       </button>
 
-      {showRecipient && (
-        <form className="mt-5 grid gap-3 rounded-2xl border border-line bg-canvas/60 p-4" onSubmit={(event) => void submitRecipient(event)}>
-          <input className="field" placeholder="Display name" value={recipient.name} onChange={(event) => setRecipient({ ...recipient, name: event.target.value })} required />
-          <input className="field font-mono text-xs" placeholder="Wallet address (hashed locally)" value={recipient.walletAddress} onChange={(event) => setRecipient({ ...recipient, walletAddress: event.target.value })} required />
-          <input className="field" placeholder="Personal cap in NEAR" inputMode="decimal" value={recipient.personalCapNear} onChange={(event) => setRecipient({ ...recipient, personalCapNear: event.target.value })} required />
-          <div className="grid grid-cols-2 gap-3">
-            <select className="field" value={recipient.preferredChain} onChange={(event) => {
-              const chain = event.target.value as RecipientDraft["preferredChain"];
-              const token = chain === "near" ? "NEAR" : chain === "ethereum" ? "USDC" : "BUSD";
-              setRecipient({ ...recipient, preferredChain: chain, preferredToken: token });
-            }}>
-              <option value="near">NEAR</option><option value="ethereum">Ethereum</option><option value="bnb">BNB Chain</option>
-            </select>
-            <select className="field" value={recipient.schedule} onChange={(event) => setRecipient({ ...recipient, schedule: event.target.value as RecipientDraft["schedule"] })}>
-              <option value="Weekly">Weekly</option><option value="Biweekly">Biweekly</option><option value="Milestone">Milestone</option>
-            </select>
-          </div>
-          <button type="submit" className="button-primary" disabled={props.busy}>Hash & add recipient</button>
-        </form>
+      {recipientOpen && (
+        <Modal
+          title="Add a payroll recipient"
+          description="Wallet addresses are hashed locally before the recipient policy is written on-chain."
+          onClose={() => setRecipientOpen(false)}
+          size="lg"
+        >
+          <form onSubmit={(event) => void submitRecipient(event)}>
+            <RecipientFormFields
+              value={recipient}
+              onChange={setRecipient}
+              disabled={props.busy}
+              idPrefix="dashboard-recipient"
+            />
+            {recipientError && (
+              <p
+                className="mt-4 rounded-[10px] bg-red-50 px-4 py-3 text-sm text-red-700"
+                role="alert"
+              >
+                {recipientError}
+              </p>
+            )}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setRecipientOpen(false)}
+                disabled={props.busy}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="button-primary" disabled={props.busy}>
+                Add recipient
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
-
-      {message && <p className="mt-4 rounded-xl bg-canvas px-3 py-2 text-xs text-ink/60" role="status">{message}</p>}
     </section>
   );
 }

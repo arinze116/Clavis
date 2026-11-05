@@ -2,6 +2,13 @@ export type Chain = "near" | "ethereum" | "bnb";
 export type Token = "NEAR" | "USDC" | "BUSD";
 export type PaymentSchedule = "Weekly" | "Biweekly" | "Milestone";
 
+export interface ContractRecord {
+  name: string;
+  contract_id: string;
+  owner: string;
+  created_at: number;
+}
+
 export interface SplitConfig {
   chain: Chain;
   token: Token;
@@ -45,15 +52,23 @@ export interface Destination {
 
 export interface PayrollRecipient {
   recipientHash: string;
+  name: string;
+  nearAddress: string;
   amountYocto: string;
   milestoneReady: boolean;
   milestoneId?: string;
   destinations: Destination[];
 }
 
-export interface PayrollFile {
-  version: 1;
+export interface BusinessPayroll {
+  contract_id: string;
+  owner_email: string;
+  telegram_chat_id: string | undefined;
   recipients: PayrollRecipient[];
+}
+
+export interface PayrollFile {
+  businesses: BusinessPayroll[];
 }
 
 export type AnomalyType =
@@ -88,6 +103,7 @@ export interface AgentState {
   lastReportDate: string | null;
   routeFingerprints: Record<string, string>;
   completedMilestones: Record<string, string>;
+  anomalyNotifications: Record<string, number>;
   requests: RequestRecord[];
   payments: PaymentRecord[];
   pendingIntents: IntentEnvelope[];
@@ -95,18 +111,41 @@ export interface AgentState {
 
 export interface IntentEnvelope {
   intentId: string;
+  contractId: string;
   paymentId: number;
   recipientHash: string;
+  recipientName: string;
+  nearRecipient: string;
   sourceAsset: "NEAR";
   sourceAmountYocto: string;
   destination: Destination;
   createdAt: string;
+}
+
+export type IntentStatus = "PENDING" | "FILLED" | "FAILED";
+
+export interface IntentRecord extends IntentEnvelope {
+  status: IntentStatus;
   attempts: number;
+  reference?: string;
+  transactionHash?: string;
+  fallback?: boolean;
   lastError?: string;
+  nextRetryAt?: string;
+  updatedAt: string;
 }
 
 export interface IntentSubmission {
   intentId: string;
-  status: "SIMULATED" | "SUBMITTED";
+  status: "PENDING" | "FILLED";
   reference: string;
+  transactionHash?: string;
+  fallback: boolean;
+}
+
+export interface DailyReportSummary {
+  approvedPayments: number;
+  deliveredPayments: number;
+  deliveryFailures: number;
+  authorizedAmountYocto: string;
 }

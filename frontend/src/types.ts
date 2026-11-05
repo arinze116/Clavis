@@ -2,6 +2,13 @@ export type Chain = "near" | "ethereum" | "bnb";
 export type Token = "NEAR" | "USDC" | "BUSD";
 export type PaymentSchedule = "Weekly" | "Biweekly" | "Milestone";
 
+export interface ContractRecord {
+  name: string;
+  contract_id: string;
+  owner: string;
+  created_at: number;
+}
+
 export interface SplitConfig {
   chain: Chain;
   token: Token;
@@ -28,6 +35,9 @@ export interface AuditEntry {
   timestamp: number;
   outcome: PaymentOutcome;
   block_height: number;
+  transaction_id?: string;
+  transaction_hash?: string;
+  tx_hash?: string;
 }
 
 export interface AnomalyEntry {
@@ -39,7 +49,22 @@ export interface AnomalyEntry {
   reviewed: boolean;
 }
 
+export type SecurityAuditScenario =
+  | "UNAPPROVED_RECIPIENT"
+  | "OVER_LIMIT_PAYMENT"
+  | "SUSPENDED_RECIPIENT"
+  | "DAILY_LIMIT_BREACH"
+  | "OFF_HOURS_PAYMENT";
+
+export interface SecurityAuditResult {
+  scenario: SecurityAuditScenario;
+  blocked: boolean;
+  reason: string;
+  payment_id: number;
+}
+
 export interface ContractSnapshot {
+  contractId: string;
   owner: string;
   agent: string;
   dailyLimit: string;
@@ -56,8 +81,31 @@ export interface ContractSnapshot {
 export interface RecipientDraft {
   name: string;
   walletAddress: string;
+  region?: string;
   personalCapNear: string;
+  paymentAmountNear: string;
+  destinationAddress: string;
   preferredChain: Chain;
   preferredToken: Token;
   schedule: PaymentSchedule;
+}
+
+export interface RecipientUpdateDraft {
+  personalCapNear: string;
+  walletAddress: string;
+  paymentAmountNear: string;
+  destinationAddress: string;
+  preferredChain: Chain;
+  preferredToken: Token;
+  schedule: PaymentSchedule;
+  active: boolean;
+  updatePrivatePlan: boolean;
+}
+
+export interface WorkerPreferences {
+  displayName: string;
+  preferredChain: Chain;
+  preferredToken: Token;
+  walletAddress: string;
+  paymentSplit: SplitConfig[];
 }

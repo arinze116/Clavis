@@ -97,6 +97,25 @@ pub struct PaymentResult {
     pub reason: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(crate = "near_sdk::serde", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SecurityAuditScenario {
+    UnapprovedRecipient,
+    OverLimitPayment,
+    SuspendedRecipient,
+    DailyLimitBreach,
+    OffHoursPayment,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SecurityAuditResult {
+    pub scenario: SecurityAuditScenario,
+    pub blocked: bool,
+    pub reason: String,
+    pub payment_id: u64,
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AnomalyEntry {

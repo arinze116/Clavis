@@ -1,7 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { isPaymentDue } from "./trigger.js";
-import type { AgentState, PayrollRecipient, RecipientView } from "./types.js";
+import type { IntentStore } from "./intent-store.js";
+import type { IntentClient } from "./intents.js";
+import type { NotificationManager } from "./notifications/index.js";
+import type { StateStore } from "./state.js";
+import type { NearClient } from "./near.js";
+import {
+  isPaymentDue,
+  isPaymentSubmissionAllowed,
+  submitPendingIntents,
+  triggerDuePayments,
+} from "./trigger.js";
+import type {
+  AgentState,
+  BusinessPayroll,
+  IntentEnvelope,
+  IntentRecord,
+  PayrollRecipient,
+  RecipientView,
+} from "./types.js";
 
 const recipientHash = "a".repeat(64);
 
@@ -13,6 +30,7 @@ function state(completedMilestone?: string): AgentState {
     completedMilestones: completedMilestone
       ? { [recipientHash]: completedMilestone }
       : {},
+    anomalyNotifications: {},
     requests: [],
     payments: [],
     pendingIntents: [],
@@ -35,6 +53,8 @@ const milestoneRecipient: RecipientView = {
 function plan(milestoneId: string): PayrollRecipient {
   return {
     recipientHash,
+    name: "Chidi",
+    nearAddress: "chidi.testnet",
     amountYocto: "50",
     milestoneReady: true,
     milestoneId,
@@ -68,5 +88,182 @@ describe("isPaymentDue", () => {
         0n,
       ),
     ).toBe(true);
+  });
+});
+
+describe("triggerDuePayments", () => {
+  it("skips new contract submissions at 01:00 UTC but still processes pending intents", async () => {
+    const now = new Date("2026-11-03T01:00:00.000Z");
+    const envelope: IntentEnvelope = {
+      intentId: "intent-off-hours",
+      contractId: "acme.clavis.testnet",
+      paymentId: 7,
+      recipientHash,
+      recipientName: "Chidi",
+      nearRecipient: "chidi.testnet",
+      sourceAsset: "NEAR",
+      sourceAmountYocto: "50",
+      destination: plan("delivery-1").destinations[0]!,
+      createdAt: "2026-11-03T00:30:00.000Z",
+    };
+    const record: IntentRecord = {
+      ...envelope,
+      status: "FILLED",
+      attempts: 1,
+      reference: "relay-reference",
+      updatedAt: "2026-11-03T00:31:00.000Z",
+    };
+    const requestPayment = vi.fn();
+    const markIntentFilled = vi.fn(async () => undefined);
+    const deliveryFilled = vi.fn(async () => undefined);
+
+    await triggerDuePayments({
+      contractId: "acme.clavis.testnet",
+      near: { requestPayment } as unknown as NearClient,
+      intents: {} as IntentClient,
+      intentStore: {
+        ensurePending: vi.fn(async () => record),
+      } as unknown as IntentStore,
+      state: {
+        value: { ...state(), pendingIntents: [envelope] },
+        markIntentFilled,
+      } as unknown as StateStore,
+      business: {
+        contract_id: "acme.clavis.testnet",
+        owner_email: "owner@example.com",
+        telegram_chat_id: undefined,
+        recipients: [plan("delivery-1")],
+      },
+      recipients: [milestoneRecipient],
+      notifications: { deliveryFilled } as unknown as NotificationManager,
+      intentRetryDelayMs: 30_000,
+      now,
+    });
+
+    expect(isPaymentSubmissionAllowed(now)).toBe(false);
+    expect(requestPayment).not.toHaveBeenCalled();
+    expect(markIntentFilled).toHaveBeenCalledWith(envelope.intentId);
+    expect(deliveryFilled).toHaveBeenCalledOnce();
+  });
+
+  it("submits a due payment from 06:00 UTC onward", async () => {
+    const now = new Date("2026-11-03T06:00:00.000Z");
+    const requestPayment = vi.fn(async () => ({
+      approved: true,
+      payment_id: 8,
+      reason: null,
+    }));
+    const recordRequest = vi.fn(async () => undefined);
+    const recordPayment = vi.fn(async () => undefined);
+    const paymentApproved = vi.fn(async () => undefined);
+
+    await triggerDuePayments({
+      contractId: "acme.clavis.testnet",
+      near: { requestPayment } as unknown as NearClient,
+      intents: {} as IntentClient,
+      intentStore: {
+        ensurePending: vi.fn(async () => ({ status: "PENDING" })),
+      } as unknown as IntentStore,
+      state: {
+        value: state(),
+        recordRequest,
+        recordPayment,
+      } as unknown as StateStore,
+      business: {
+        contract_id: "acme.clavis.testnet",
+        owner_email: "owner@example.com",
+        telegram_chat_id: undefined,
+        recipients: [plan("delivery-1")],
+      },
+      recipients: [milestoneRecipient],
+      notifications: { paymentApproved } as unknown as NotificationManager,
+      intentRetryDelayMs: 30_000,
+      now,
+    });
+
+    expect(isPaymentSubmissionAllowed(now)).toBe(true);
+    expect(requestPayment).toHaveBeenCalledOnce();
+    expect(recordRequest).toHaveBeenCalledOnce();
+    expect(recordPayment).toHaveBeenCalledOnce();
+    expect(paymentApproved).toHaveBeenCalledOnce();
+  });
+});
+
+describe("submitPendingIntents", () => {
+  it("alerts and removes a filled intent without submitting it again", async () => {
+    const envelope: IntentEnvelope = {
+      intentId: "intent-1",
+      contractId: "acme.clavis.testnet",
+      paymentId: 7,
+      recipientHash,
+      recipientName: "Chidi",
+      nearRecipient: "chidi.testnet",
+      sourceAsset: "NEAR",
+      sourceAmountYocto: "50",
+      destination: {
+        chain: "near",
+        token: "NEAR",
+        address: "chidi.testnet",
+        percentage: 100,
+      },
+      createdAt: "2026-11-03T08:00:00.000Z",
+    };
+    const record: IntentRecord = {
+      ...envelope,
+      status: "PENDING",
+      attempts: 1,
+      reference: "relay-reference",
+      updatedAt: "2026-11-03T08:00:00.000Z",
+    };
+    let submissions = 0;
+    let filledAlerts = 0;
+    let removed = 0;
+    const intents = {
+      getStatus: async () => "FILLED",
+      submit: async () => {
+        submissions += 1;
+        throw new Error("should not submit");
+      },
+    } as unknown as IntentClient;
+    const intentStore = {
+      ensurePending: async () => record,
+      markStatus: async () => {
+        record.status = "FILLED";
+        return record;
+      },
+    } as unknown as IntentStore;
+    const stateStore = {
+      value: { ...state(), pendingIntents: [envelope] },
+      markIntentFilled: async () => {
+        removed += 1;
+      },
+    } as unknown as StateStore;
+    const notifications = {
+      deliveryFilled: async () => {
+        filledAlerts += 1;
+      },
+    } as unknown as NotificationManager;
+    const business: BusinessPayroll = {
+      contract_id: "acme.clavis.testnet",
+      owner_email: "owner@example.com",
+      telegram_chat_id: undefined,
+      recipients: [plan("delivery-1")],
+    };
+
+    await submitPendingIntents({
+      contractId: business.contract_id,
+      intents,
+      intentStore,
+      state: stateStore,
+      business,
+      ownerAccountId: "owner.testnet",
+      notifications,
+      retryDelayMs: 30_000,
+      now: new Date("2026-11-03T08:01:00.000Z"),
+    });
+
+    expect(filledAlerts).toBe(1);
+    expect(removed).toBe(1);
+    expect(submissions).toBe(0);
   });
 });

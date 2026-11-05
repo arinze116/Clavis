@@ -1,0 +1,13 @@
+Meet Clavis: private, rule-bound payroll on NEAR.
+
+Employers set approved workers, schedules, caps, treasury limits, and delivery routes once.
+
+A restricted AI agent runs each cycle. Its Function Call Key can request payment on one contract—and nothing else.
+
+The contract checks identity, timing, caps, daily spend, and route onchain.
+
+Approved requests become cross-chain intents. Any violation fails closed, even if the agent is compromised.
+
+The public audit proves every decision without exposing salaries, names, wallets, or chains. Workers see only their own schedule and route.
+
+Clavis gives automation enough authority to work, and none to break the rules.

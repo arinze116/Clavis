@@ -1,42 +1,104 @@
 import { config } from "./config.js";
+import { IntentStore } from "./intent-store.js";
 import { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
-import { NearClient } from "./near.js";
+import { FactoryClient, NearTransferClient } from "./near.js";
+import { NotificationApiServer } from "./notification-api.js";
+import { NotificationPreferenceStore } from "./notification-preferences.js";
+import { NotificationManager } from "./notifications/index.js";
 import { Scheduler } from "./scheduler.js";
-import { StateStore } from "./state.js";
+import { TelegramLinkPoller } from "./telegram-link-poller.js";
 
 async function main(): Promise<void> {
-  const near = new NearClient({
-    networkId: config.nearNetwork,
-    rpcUrl: config.nearRpcUrl,
-    accountId: config.nearAccountId,
-    privateKey: config.nearPrivateKey,
-    contractId: config.contractId,
-  });
-  await near.connect();
-  await near.verifyRestrictedKey();
+  const transferClient =
+    config.settlementAccountId && config.settlementPrivateKey
+      ? new NearTransferClient({
+          networkId: config.nearNetwork,
+          rpcUrl: config.nearRpcUrl,
+          accountId: config.settlementAccountId,
+          privateKey: config.settlementPrivateKey,
+        })
+      : undefined;
+  if (transferClient) await transferClient.connect();
 
-  const state = new StateStore(config.statePath);
-  await state.load();
+  const factory = new FactoryClient({
+    rpcUrl: config.nearRpcUrl,
+    factoryContractId: config.factoryContractId,
+  });
+  const intentStore = new IntentStore(config.intentStatePath);
+  await intentStore.load();
+  const notificationPreferences = new NotificationPreferenceStore(
+    config.notificationPreferencesPath,
+  );
+  await notificationPreferences.load();
   const intents = new IntentClient({
-    dryRun: config.dryRunIntents,
-    confidentialExecutorUrl: config.confidentialExecutorUrl,
+    solverRelayUrl: config.solverRelayUrl,
     apiKey: config.intentsApiKey,
     intentsContractId: config.intentsContractId,
+    signerAccountId: config.settlementAccountId,
+    signerPrivateKey: config.settlementPrivateKey,
+    transferClient,
   });
-  const scheduler = new Scheduler({ config, near, intents, state });
+  const notifications = new NotificationManager({
+    resendApiKey: config.resendApiKey,
+    resendFromEmail: config.resendFromEmail,
+    telegramBotToken: config.telegramBotToken,
+    telegramChatId: config.telegramChatId,
+    preferences: notificationPreferences,
+  });
+  const notificationApi = config.notificationApiEnabled
+    ? new NotificationApiServer({
+        host: config.notificationApiHost,
+        port: config.notificationApiPort,
+        apiKey: config.notificationApiKey!,
+        factoryContractId: config.factoryContractId,
+        nearRpcUrl: config.nearRpcUrl,
+        allowedOrigins: config.notificationAllowedOrigins,
+        sessionTtlMs: config.notificationSessionTtlMs,
+        payrollDirectory: config.payrollDirectory,
+        store: notificationPreferences,
+        notifications,
+        ...(!config.runOnce && config.telegramBotToken && config.telegramBotUsername
+          ? { telegramBotUsername: config.telegramBotUsername }
+          : {}),
+      })
+    : null;
+  await notificationApi?.start();
+  const telegramLinkPoller =
+    config.notificationApiEnabled &&
+    !config.runOnce &&
+    config.telegramBotToken &&
+    config.telegramBotUsername
+      ? new TelegramLinkPoller({
+          botToken: config.telegramBotToken,
+          store: notificationPreferences,
+        })
+      : null;
+  telegramLinkPoller?.start();
+  const scheduler = new Scheduler({
+    config,
+    factory,
+    intents,
+    intentStore,
+    notifications,
+  });
 
   const shutdown = (signal: string): void => {
     logger.info("agent.shutdown_requested", { signal });
     scheduler.stop();
+    telegramLinkPoller?.stop();
+    void notificationApi?.stop().catch((error: unknown) => {
+      logger.error("notification_api.shutdown_failed", { error: errorMessage(error) });
+    });
   };
   process.once("SIGINT", () => shutdown("SIGINT"));
   process.once("SIGTERM", () => shutdown("SIGTERM"));
 
   logger.info("agent.started", {
     network: config.nearNetwork,
-    contract: config.contractId,
-    dryRunIntents: config.dryRunIntents,
+    factoryContractId: config.factoryContractId,
+    pollIntervalMs: config.pollIntervalMs,
+    notificationApiEnabled: config.notificationApiEnabled,
   });
   await scheduler.start();
 }

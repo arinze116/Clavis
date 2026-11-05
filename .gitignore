@@ -19,6 +19,7 @@ target/
 
 # Agent private state
 agent/config/payroll.local.json
+agent/config/payrolls/
 agent/data/
 agent/reports/
 
@@ -28,8 +29,20 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.playwright-mcp/
+
+# Demo production outputs (preserve locally, do not commit large media)
+demo/browser-profiles/
+demo/inspection/
+demo/obs/
+demo/output/
+demo/remotion/public/audio/
+demo/remotion/public/data/
+demo/remotion/public/video/
 
 # NEAR build artifacts
 artifacts/
 *.wasm
 !frontend/public/*.wasm
+
+.vercel/

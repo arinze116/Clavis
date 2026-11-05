@@ -8,6 +8,7 @@ const EMPTY_STATE: AgentState = {
   lastReportDate: null,
   routeFingerprints: {},
   completedMilestones: {},
+  anomalyNotifications: {},
   requests: [],
   payments: [],
   pendingIntents: [],
@@ -37,6 +38,7 @@ export class StateStore {
         ...value,
         routeFingerprints: value.routeFingerprints ?? {},
         completedMilestones: value.completedMilestones ?? {},
+        anomalyNotifications: value.anomalyNotifications ?? {},
         requests: value.requests ?? [],
         payments: value.payments ?? [],
         pendingIntents: value.pendingIntents ?? [],
@@ -69,7 +71,7 @@ export class StateStore {
     await this.save();
   }
 
-  async markIntentSubmitted(intentId: string): Promise<void> {
+  async markIntentFilled(intentId: string): Promise<void> {
     const completedIntent = this.#state.pendingIntents.find(
       (intent) => intent.intentId === intentId,
     );
@@ -86,24 +88,37 @@ export class StateStore {
     );
     if (!stillPending) {
       const payment = this.#state.payments.find((item) => item.paymentId === paymentId);
-      if (payment) {
+      if (payment && payment.status !== "DELIVERY_FAILED") {
         payment.status = "DELIVERED";
       }
     }
     await this.save();
   }
 
-  async markIntentFailed(intentId: string, message: string): Promise<void> {
-    const intent = this.#state.pendingIntents.find((item) => item.intentId === intentId);
-    if (intent) {
-      intent.attempts += 1;
-      intent.lastError = message.slice(0, 240);
-      const payment = this.#state.payments.find((item) => item.paymentId === intent.paymentId);
-      if (payment) {
-        payment.status = "DELIVERY_FAILED";
-      }
-    }
+  async markIntentTerminalFailure(intentId: string): Promise<void> {
+    const failedIntent = this.#state.pendingIntents.find(
+      (intent) => intent.intentId === intentId,
+    );
+    this.#state.pendingIntents = this.#state.pendingIntents.filter(
+      (intent) => intent.intentId !== intentId,
+    );
+    const payment = this.#state.payments.find(
+      (item) => item.paymentId === failedIntent?.paymentId,
+    );
+    if (payment) payment.status = "DELIVERY_FAILED";
     await this.save();
+  }
+
+  async shouldNotifyAnomaly(
+    fingerprint: string,
+    timestamp: number,
+    cooldownMs = 300_000,
+  ): Promise<boolean> {
+    const previous = this.#state.anomalyNotifications[fingerprint] ?? 0;
+    if (timestamp - previous < cooldownMs) return false;
+    this.#state.anomalyNotifications[fingerprint] = timestamp;
+    await this.save();
+    return true;
   }
 
   async setRouteFingerprints(fingerprints: Record<string, string>): Promise<void> {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { detectAnomalies } from "./anomaly.js";
-import type { AgentState, AuditEntry, PayrollFile } from "./types.js";
+import type { AgentState, AuditEntry, BusinessPayroll } from "./types.js";
 import { routeFingerprint } from "./intents.js";
 
 const recipientHash = "a".repeat(64);
@@ -13,6 +13,7 @@ function state(overrides: Partial<AgentState> = {}): AgentState {
     lastReportDate: null,
     routeFingerprints: {},
     completedMilestones: {},
+    anomalyNotifications: {},
     requests: [],
     payments: [],
     pendingIntents: [],
@@ -20,12 +21,15 @@ function state(overrides: Partial<AgentState> = {}): AgentState {
   };
 }
 
-function payroll(): PayrollFile {
+function payroll(): BusinessPayroll {
   return {
-    version: 1,
+    contract_id: "acme.clavis.testnet",
+    owner_email: "owner@example.com",
     recipients: [
       {
         recipientHash,
+        name: "Worker",
+        nearAddress: "worker.testnet",
         amountYocto: "100",
         milestoneReady: false,
         destinations: [

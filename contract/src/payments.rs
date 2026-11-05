@@ -4,6 +4,11 @@ use crate::types::{PaymentOutcome, PaymentResult, RuleResult};
 use crate::{Clavis, ClavisExt, HOUR_NS, MINUTE_NS};
 
 impl Clavis {
+    pub(crate) fn is_off_hours_at(timestamp: u64) -> bool {
+        let utc_hour = (timestamp / HOUR_NS) % 24;
+        utc_hour < 6
+    }
+
     pub(crate) fn is_registered_route(
         recipient: &crate::types::RecipientConfig,
         chain: &str,
@@ -19,7 +24,10 @@ impl Clavis {
             .any(|split| split.chain == chain && split.token == token)
     }
 
-    pub(crate) fn is_schedule_due(recipient: &crate::types::RecipientConfig) -> bool {
+    pub(crate) fn is_schedule_due_at(
+        recipient: &crate::types::RecipientConfig,
+        timestamp: u64,
+    ) -> bool {
         if recipient.last_paid == 0 {
             return true;
         }
@@ -30,7 +38,7 @@ impl Clavis {
             crate::types::PaymentSchedule::Milestone => return true,
         };
 
-        env::block_timestamp().saturating_sub(recipient.last_paid) >= interval
+        timestamp.saturating_sub(recipient.last_paid) >= interval
     }
 
     pub(crate) fn next_payment_at(recipient: &crate::types::RecipientConfig) -> Option<u64> {
@@ -71,12 +79,11 @@ impl Clavis {
             );
         }
 
-        let utc_hour = (now / 1_000_000_000 / 3_600) % 24;
-        if utc_hour < 4 {
+        if Self::is_off_hours_at(now) {
             self.append_anomaly(
                 "OFF_HOURS",
                 "MEDIUM",
-                "Payment activity between 00:00 and 04:00 UTC".to_string(),
+                "Payment activity between 00:00 and 06:00 UTC".to_string(),
             );
         }
 
