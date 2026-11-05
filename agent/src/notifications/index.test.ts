@@ -11,11 +11,11 @@ afterEach(() => {
 function manager(): NotificationManager {
   const preferences = {
     get: (accountId: string) =>
-      accountId === "owner.testnet"
+      accountId === "owner.testnet" || accountId === "worker.testnet"
         ? {
             accountId,
-            email: "owner@example.com",
-            telegramChatId: "123456789",
+            email: accountId === "owner.testnet" ? "owner@example.com" : "worker@example.com",
+            telegramChatId: accountId === "owner.testnet" ? "123456789" : "987654321",
             updatedAt: "2026-11-03T08:00:00.000Z",
           }
         : null,
@@ -122,5 +122,36 @@ describe("NotificationManager", () => {
         succeeded: true,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("notifies a linked worker after their confirmed roster addition", async () => {
+    const requests: Array<{ url: string; body: string }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        requests.push({ url, body: String(init?.body ?? "") });
+        return url.includes("api.resend.com")
+          ? new Response(JSON.stringify({ id: "email-id" }), { status: 200 })
+          : new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }),
+    );
+
+    await manager().recipientAdded({
+      contractId: "acme.clavis.testnet",
+      workerAccountId: "worker.testnet",
+      workerName: "Ada",
+    });
+
+    const email = requests.find((request) => request.url.includes("api.resend.com"));
+    expect(JSON.parse(email?.body ?? "{}")).toMatchObject({
+      to: "worker@example.com",
+      subject: expect.stringContaining("added"),
+    });
+    const telegram = requests.find((request) => request.url.includes("api.telegram.org"));
+    expect(JSON.parse(telegram?.body ?? "{}")).toMatchObject({
+      chat_id: "987654321",
+      text: expect.stringContaining("Added to payroll"),
+    });
   });
 });

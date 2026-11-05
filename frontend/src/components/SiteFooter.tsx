@@ -9,6 +9,7 @@ const productLinks = [
   { to: "/audit", label: "Audit Log" },
   { to: "/setup", label: "Setup" },
   { to: "/worker", label: "Worker Portal" },
+  { to: "/guide", label: "Guide" },
 ];
 
 const resourceLinks = [

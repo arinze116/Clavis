@@ -1,4 +1,4 @@
-import { BellRing, LogOut, WalletCards } from "lucide-react";
+import { LogOut, Settings2, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useToast } from "../contexts/ToastContext";
@@ -65,7 +65,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
         <WalletCards className="h-4 w-4 shrink-0 text-moss" />
         <span className="truncate font-mono text-xs">{maskAccount(accountId)}</span>
-        <BellRing
+        <Settings2
           className={`h-3.5 w-3.5 shrink-0 ${
             notificationsActive ? "text-emerald-600" : "text-ink/35"
           }`}

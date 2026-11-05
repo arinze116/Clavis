@@ -44,3 +44,5 @@ demo/remotion/public/video/
 artifacts/
 *.wasm
 !frontend/public/*.wasm
+
+.vercel/

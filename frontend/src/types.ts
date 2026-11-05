@@ -49,6 +49,20 @@ export interface AnomalyEntry {
   reviewed: boolean;
 }
 
+export type SecurityAuditScenario =
+  | "UNAPPROVED_RECIPIENT"
+  | "OVER_LIMIT_PAYMENT"
+  | "SUSPENDED_RECIPIENT"
+  | "DAILY_LIMIT_BREACH"
+  | "OFF_HOURS_PAYMENT";
+
+export interface SecurityAuditResult {
+  scenario: SecurityAuditScenario;
+  blocked: boolean;
+  reason: string;
+  payment_id: number;
+}
+
 export interface ContractSnapshot {
   contractId: string;
   owner: string;
@@ -67,10 +81,25 @@ export interface ContractSnapshot {
 export interface RecipientDraft {
   name: string;
   walletAddress: string;
+  region?: string;
   personalCapNear: string;
+  paymentAmountNear: string;
+  destinationAddress: string;
   preferredChain: Chain;
   preferredToken: Token;
   schedule: PaymentSchedule;
+}
+
+export interface RecipientUpdateDraft {
+  personalCapNear: string;
+  walletAddress: string;
+  paymentAmountNear: string;
+  destinationAddress: string;
+  preferredChain: Chain;
+  preferredToken: Token;
+  schedule: PaymentSchedule;
+  active: boolean;
+  updatePrivatePlan: boolean;
 }
 
 export interface WorkerPreferences {

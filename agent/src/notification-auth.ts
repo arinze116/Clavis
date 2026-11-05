@@ -59,8 +59,11 @@ export function buildNotificationAuthorizationMessage(options: {
   payloadHash: string;
   origin?: string;
 }): string {
+  const title = options.action.includes("payroll")
+    ? "Clavis private payroll authorization"
+    : "Clavis notification authorization";
   return [
-    "Clavis notification authorization",
+    title,
     `version=${options.origin ? "2" : "1"}`,
     `account_id=${options.accountId}`,
     `action=${options.action}`,

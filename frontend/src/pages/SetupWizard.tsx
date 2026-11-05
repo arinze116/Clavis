@@ -1,9 +1,12 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BrainCircuit,
   Building2,
   Check,
+  CircleAlert,
   KeyRound,
+  LoaderCircle,
   Plus,
   Rocket,
   ShieldCheck,
@@ -14,6 +17,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { AppShell } from "../components/AppShell";
+import {
+  isSupportedRecipientRoute,
+  RecipientFormFields,
+} from "../components/RecipientFormFields";
 import { LoadingState } from "../components/ScreenState";
 import { WalletButton } from "../components/WalletButton";
 import { useToast } from "../contexts/ToastContext";
@@ -28,11 +35,18 @@ import {
   waitForPayrollDeployment,
 } from "../utils/contract";
 import { nearToYocto } from "../utils/format";
+import { generatePolicy, type AiPolicyResult } from "../utils/nearAi";
+import {
+  syncPayrollPlan,
+  validateAgentRecipientDraft,
+} from "../utils/payrollPlans";
 
 const emptyRecipient: RecipientDraft = {
   name: "",
   walletAddress: "",
   personalCapNear: "",
+  paymentAmountNear: "",
+  destinationAddress: "",
   preferredChain: "near",
   preferredToken: "NEAR",
   schedule: "Weekly",
@@ -43,7 +57,7 @@ const maxU128 = (1n << 128n) - 1n;
 
 export default function SetupWizard() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const { showToast, updateToast } = useToast();
   const { accountId, wallet, loading: walletLoading } = useWallet();
   // Only factory deployments should block a wallet from creating a new business contract.
   const ownerContract = useOwnerContract(accountId, false);
@@ -54,6 +68,10 @@ export default function SetupWizard() {
   const [checkingName, setCheckingName] = useState(false);
   const [dailyLimit, setDailyLimit] = useState("100");
   const [perPaymentLimit, setPerPaymentLimit] = useState("20");
+  const [policyDescription, setPolicyDescription] = useState("");
+  const [policyResult, setPolicyResult] = useState<AiPolicyResult | null>(null);
+  const [policyBusy, setPolicyBusy] = useState(false);
+  const [policyError, setPolicyError] = useState<string | null>(null);
   const [agent, setAgent] = useState("clavis-agent.testnet");
   const [recipients, setRecipients] = useState<RecipientDraft[]>([]);
   const [draft, setDraft] = useState<RecipientDraft>(emptyRecipient);
@@ -67,7 +85,7 @@ export default function SetupWizard() {
   const limitsValid =
     dailyLimitYocto !== null &&
     perPaymentLimitYocto !== null &&
-    perPaymentLimitYocto <= dailyLimitYocto;
+    perPaymentLimitYocto < dailyLimitYocto;
   const estimatedPayments = useMemo(() => {
     const daily = parsePositiveYocto(dailyLimit);
     const payment = parsePositiveYocto(perPaymentLimit);
@@ -111,6 +129,24 @@ export default function SetupWizard() {
     return () => window.clearTimeout(timer);
   }, [deployedContractId, navigate, step]);
 
+  useEffect(() => {
+    if (!policyResult || !draft.name.trim()) return;
+    const normalizedName = draft.name.trim().toLowerCase();
+    const matchingCap = policyResult.recipient_caps.find(
+      (recipient) => recipient.name.trim().toLowerCase() === normalizedName,
+    );
+    if (!matchingCap) return;
+    setDraft((current) => {
+      if (
+        current.name.trim().toLowerCase() !== normalizedName ||
+        current.personalCapNear.trim()
+      ) {
+        return current;
+      }
+      return { ...current, personalCapNear: formatAiAmount(matchingCap.cap) };
+    });
+  }, [draft.name, policyResult]);
+
   if (walletLoading || ownerContract.loading) {
     return (
       <AppShell>
@@ -119,15 +155,54 @@ export default function SetupWizard() {
     );
   }
 
-  function addDraft() {
-    if (!draft.name.trim() || !draft.walletAddress.trim() || !draft.personalCapNear.trim()) {
-      setError("Complete the recipient name, wallet, and personal cap.");
+  async function generateRules() {
+    if (policyDescription.trim().length < 10) {
+      setPolicyError("Describe the limits, schedule, or recipient caps you want Clavis to enforce.");
+      return;
+    }
+    setPolicyBusy(true);
+    setPolicyError(null);
+    try {
+      const result = await generatePolicy(policyDescription.trim());
+      setPolicyResult(result);
+      if (result.daily_limit !== null) setDailyLimit(formatAiAmount(result.daily_limit));
+      if (result.per_payment_limit !== null) {
+        setPerPaymentLimit(formatAiAmount(result.per_payment_limit));
+      }
+      if (result.schedule) {
+        setDraft((current) => ({ ...current, schedule: result.schedule ?? current.schedule }));
+      }
+    } catch (reason) {
+      setPolicyError(reason instanceof Error ? reason.message : "Unable to generate payroll rules");
+    } finally {
+      setPolicyBusy(false);
+    }
+  }
+
+  function addDraft(event?: React.FormEvent) {
+    event?.preventDefault();
+    if (
+      !draft.name.trim() ||
+      !draft.walletAddress.trim() ||
+      !draft.personalCapNear.trim() ||
+      !draft.paymentAmountNear.trim()
+    ) {
+      setError("Complete the recipient name, wallet, scheduled payment, and personal cap.");
       return;
     }
     if (
       parsePositiveYocto(draft.personalCapNear) === null
     ) {
       setError("Recipient personal cap must be greater than zero.");
+      return;
+    }
+    if (!isSupportedRecipientRoute(draft)) {
+      setError("Choose a supported chain and token route.");
+      return;
+    }
+    const agentValidationError = validateAgentRecipientDraft(draft, perPaymentLimit);
+    if (agentValidationError) {
+      setError(agentValidationError);
       return;
     }
     const walletAddress = draft.walletAddress.trim().toLowerCase();
@@ -145,9 +220,17 @@ export default function SetupWizard() {
     }
     setRecipients((value) => [
       ...value,
-      { ...draft, walletAddress, name: draft.name.trim() },
+      {
+        ...draft,
+        walletAddress,
+        name: draft.name.trim(),
+        region: draft.region?.trim() ?? "",
+      },
     ]);
-    setDraft(emptyRecipient);
+    setDraft({
+      ...emptyRecipient,
+      schedule: policyResult?.schedule ?? emptyRecipient.schedule,
+    });
     setError(null);
   }
 
@@ -164,6 +247,7 @@ export default function SetupWizard() {
     setDeploying(true);
     setError(null);
     const contractId = `${normalizedName}.clavis.testnet`;
+    let activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
     try {
       const deployment = await createPayroll({
         wallet,
@@ -173,30 +257,50 @@ export default function SetupWizard() {
         dailyLimitNear: dailyLimit,
         perPaymentLimitNear: perPaymentLimit,
       });
-      showToast({
-        message: "Transaction submitted · View on explorer",
+      const record = await waitForPayrollDeployment(accountId, contractId);
+      storeContractId(record.contract_id);
+      updateToast(activeToastId, {
+        status: "success",
+        message: "Transaction confirmed ✅ — Payroll contract deployed",
         explorerHref: deployment.explorerHref,
       });
-      const record = await waitForPayrollDeployment(accountId, contractId);
+      activeToastId = showToast({
+        status: "pending",
+        message: "Authorizing private payroll plan",
+      });
+      await syncPayrollPlan({
+        wallet,
+        accountId,
+        contractId,
+        recipients,
+      });
+      updateToast(activeToastId, {
+        status: "success",
+        message: "Payroll agent configured ✅",
+      });
       if (recipients.length > 0) {
+        activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
         const recipientTransactions = await addRecipients(
           wallet,
           accountId,
           contractId,
           recipients,
         );
-        for (const transaction of recipientTransactions) {
-          showToast({
-            message: "Transaction submitted · View on explorer",
-            explorerHref: transaction.explorerHref,
-          });
-        }
+        updateToast(activeToastId, {
+          status: "success",
+          message: "Transaction confirmed ✅ — Payroll recipients added",
+          explorerHref: recipientTransactions.at(-1)?.explorerHref,
+        });
       }
-      storeContractId(record.contract_id);
       setDeployedContractId(record.contract_id);
       setStep(6);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Deployment failed");
+      const detail = reason instanceof Error ? reason.message : "Deployment failed";
+      setError(detail);
+      updateToast(activeToastId, {
+        status: "error",
+        message: `Setup failed ❌ — ${detail}`,
+      });
     } finally {
       setDeploying(false);
     }
@@ -343,7 +447,132 @@ export default function SetupWizard() {
               <p className="mt-2 text-sm text-ink/50">
                 Both limits are enforced onchain in yoctoNEAR.
               </p>
-              <div className="mt-7 grid gap-4 sm:grid-cols-2">
+
+              <section className="mt-7 rounded-2xl border border-ink/10 bg-canvas/55 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink text-acid">
+                    <BrainCircuit className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-semibold">Describe the policy you want</h3>
+                    <p className="mt-1 text-xs leading-5 text-ink/50">
+                      NEAR AI turns plain English into editable contract limits and roster defaults.
+                    </p>
+                  </div>
+                </div>
+                <label
+                  className="mt-4 block text-xs font-semibold text-ink/55"
+                  htmlFor="setup-policy-description"
+                >
+                  Payroll rules
+                  <textarea
+                    id="setup-policy-description"
+                    className="field mt-2 min-h-32 resize-y leading-6"
+                    value={policyDescription}
+                    onChange={(event) => {
+                      setPolicyDescription(event.target.value);
+                      setPolicyError(null);
+                    }}
+                    placeholder="Describe your payroll rules in plain English. e.g. Pay Sarah $500 weekly on Fridays, max $600 per day total, never pay between midnight and 6am"
+                    maxLength={2_500}
+                    disabled={policyBusy}
+                  />
+                </label>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-[11px] text-ink/35">
+                    {policyDescription.length.toLocaleString()}/2,500 characters
+                  </span>
+                  <button
+                    type="button"
+                    className="button-primary w-full sm:w-auto"
+                    onClick={() => void generateRules()}
+                    disabled={policyBusy || policyDescription.trim().length < 10}
+                  >
+                    {policyBusy ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <BrainCircuit className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {policyBusy ? "Generating payroll rules" : "Generate rules with AI"}
+                  </button>
+                </div>
+
+                {policyError && (
+                  <p className="mt-3 text-xs leading-5 text-red-700" role="alert">
+                    {policyError}
+                  </p>
+                )}
+
+                {policyResult && (
+                  <div
+                    className="mt-5 rounded-xl border border-moss/20 bg-white p-4"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-moss" aria-hidden="true" />
+                      <h3 className="text-sm font-semibold">What NEAR AI extracted</h3>
+                    </div>
+                    <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
+                      <div>
+                        <dt className="text-ink/40">Daily limit</dt>
+                        <dd className="mt-1 font-semibold text-ink">
+                          {policyResult.daily_limit === null
+                            ? "Not specified"
+                            : `${formatAiAmount(policyResult.daily_limit)} NEAR`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink/40">Per payment</dt>
+                        <dd className="mt-1 font-semibold text-ink">
+                          {policyResult.per_payment_limit === null
+                            ? "Not specified"
+                            : `${formatAiAmount(policyResult.per_payment_limit)} NEAR`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-ink/40">Default schedule</dt>
+                        <dd className="mt-1 font-semibold text-ink">
+                          {policyResult.schedule ?? "Not specified"}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {policyResult.summary.length > 0 && (
+                      <ul className="mt-4 grid gap-2 text-xs leading-5 text-ink/60">
+                        {policyResult.summary.map((item, index) => (
+                          <li key={`${item}-${index}`} className="flex gap-2">
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-moss" aria-hidden="true" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {policyResult.recipient_caps.length > 0 && (
+                      <div className="mt-4 rounded-lg bg-canvas px-3 py-2 text-xs leading-5 text-ink/60">
+                        <span className="font-semibold text-ink">Recipient caps saved for the next step:</span>{" "}
+                        {policyResult.recipient_caps
+                          .map((recipient) => `${recipient.name} · ${formatAiAmount(recipient.cap)} NEAR`)
+                          .join(", ")}
+                      </div>
+                    )}
+
+                    {policyResult.warnings.length > 0 && (
+                      <div className="mt-4 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+                        <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        <span>{policyResult.warnings.join(" ")}</span>
+                      </div>
+                    )}
+                    <p className="mt-4 text-[11px] text-ink/40">
+                      The fields below are now filled from this draft. Review or edit them before continuing.
+                    </p>
+                  </div>
+                )}
+              </section>
+
+              <h3 className="mt-7 text-sm font-semibold">Review treasury limits</h3>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-ink/50">
                   Daily limit (NEAR)
                   <input
@@ -369,7 +598,7 @@ export default function SetupWizard() {
               </div>
               {!limitsValid && (
                 <p className="mt-3 text-xs text-red-700">
-                  Limits must be positive and the per-payment limit cannot exceed the daily limit.
+                  Limits must be positive and the per-payment limit must be less than the daily limit.
                 </p>
               )}
             </div>
@@ -384,72 +613,30 @@ export default function SetupWizard() {
               <p className="mt-2 text-sm text-ink/50">
                 Wallet addresses are hashed in your browser before the contract receives them.
               </p>
-              <div className="mt-6 grid gap-3">
-                <input
-                  className="field"
-                  placeholder="Display name"
-                  value={draft.name}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              {policyResult &&
+                (policyResult.schedule || policyResult.recipient_caps.length > 0) && (
+                  <div className="mt-5 rounded-xl border border-moss/20 bg-canvas/55 px-4 py-3 text-xs leading-5 text-ink/60">
+                    <span className="font-semibold text-ink">AI defaults are active.</span>{" "}
+                    {policyResult.schedule && `${policyResult.schedule} schedule. `}
+                    {policyResult.recipient_caps.length > 0 &&
+                      "Type an extracted recipient name exactly to apply the saved cap; every value remains editable."}
+                  </div>
+                )}
+              <form className="mt-6 grid gap-4" onSubmit={addDraft}>
+                <RecipientFormFields
+                  idPrefix="setup-recipient"
+                  value={draft}
+                  onChange={setDraft}
+                  disabled={recipients.length >= 20}
                 />
-                <input
-                  className="field font-mono text-xs"
-                  placeholder="Worker NEAR wallet"
-                  value={draft.walletAddress}
-                  onChange={(event) =>
-                    setDraft({ ...draft, walletAddress: event.target.value })
-                  }
-                />
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    className="field"
-                    placeholder="Personal cap"
-                    inputMode="decimal"
-                    value={draft.personalCapNear}
-                    onChange={(event) =>
-                      setDraft({ ...draft, personalCapNear: event.target.value })
-                    }
-                  />
-                  <select
-                    className="field"
-                    value={draft.preferredChain}
-                    onChange={(event) => {
-                      const chain = event.target.value as RecipientDraft["preferredChain"];
-                      setDraft({
-                        ...draft,
-                        preferredChain: chain,
-                        preferredToken:
-                          chain === "near" ? "NEAR" : chain === "ethereum" ? "USDC" : "BUSD",
-                      });
-                    }}
-                  >
-                    <option value="near">NEAR</option>
-                    <option value="ethereum">Ethereum</option>
-                    <option value="bnb">BNB</option>
-                  </select>
-                  <select
-                    className="field"
-                    value={draft.schedule}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        schedule: event.target.value as RecipientDraft["schedule"],
-                      })
-                    }
-                  >
-                    <option value="Weekly">Weekly</option>
-                    <option value="Biweekly">Biweekly</option>
-                    <option value="Milestone">Milestone</option>
-                  </select>
-                </div>
                 <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={addDraft}
+                  type="submit"
+                  className="button-secondary w-full"
                   disabled={recipients.length >= 20}
                 >
                   <Plus className="h-4 w-4" /> Add to setup
                 </button>
-              </div>
+              </form>
               <div className="mt-5 space-y-2">
                 {recipients.map((recipient, index) => (
                   <div
@@ -459,8 +646,8 @@ export default function SetupWizard() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{recipient.name}</p>
                       <p className="mt-1 truncate text-xs text-ink/40">
-                        {recipient.walletAddress} · {recipient.preferredChain} ·{" "}
-                        {recipient.personalCapNear} NEAR cap
+                        {recipient.walletAddress} · {recipient.preferredChain}/{recipient.preferredToken} ·{" "}
+                        {recipient.personalCapNear} NEAR cap · {recipient.schedule}
                       </p>
                     </div>
                     <button
@@ -616,4 +803,8 @@ function parsePositiveYocto(value: string): bigint | null {
   } catch {
     return null;
   }
+}
+
+function formatAiAmount(value: number): string {
+  return value.toFixed(6).replace(/\.?0+$/, "");
 }

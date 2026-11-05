@@ -11,7 +11,7 @@ export default function AuditLog() {
   const { accountId, loading: walletLoading } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
-  const { data, loading, showLoading, error, refresh } = useContractState(contractId);
+  const { data, loading, error, refresh } = useContractState(contractId, 30_000);
 
   if (walletLoading || ownerContract.loading) {
     return (
@@ -30,15 +30,14 @@ export default function AuditLog() {
       </AppShell>
     );
   }
-  if (loading && !showLoading) return <AppShell><div className="min-h-[55vh]" /></AppShell>;
-  if (loading) {
+  if (loading && !data) {
     return (
       <AppShell>
         <LoadingState label="Reading the public audit ledger" />
       </AppShell>
     );
   }
-  if (error || !data) {
+  if (!data) {
     return (
       <AppShell>
         <ErrorState
@@ -87,11 +86,27 @@ export default function AuditLog() {
             </div>
           ))}
         </div>
+        <div className="mt-6 flex items-center justify-between gap-4 text-xs text-ink/45">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+            Live ledger · refreshes every 30 seconds
+          </span>
+          {loading && <span>Checking for new decisions…</span>}
+        </div>
+        {error && (
+          <div className="mt-3 flex flex-col gap-3 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="status">
+            <span>The latest refresh failed. The verified entries below remain available.</span>
+            <button type="button" className="font-semibold underline" onClick={() => void refresh()}>
+              Retry now
+            </button>
+          </div>
+        )}
         <div className="mt-6">
           <PaymentHistory
             entries={data.auditLog}
             contractId={data.contractId}
             pageSize={20}
+            auditEmptyState
           />
         </div>
         <div className="mt-6 flex flex-col gap-4 rounded-3xl border border-line bg-white/65 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -100,13 +115,13 @@ export default function AuditLog() {
             <div className="min-w-0">
               <p className="text-sm font-semibold">Verify independently</p>
               <p className="mt-1 truncate font-mono text-[11px] text-ink/40">
-                {contractId}
+                {data.contractId}
               </p>
             </div>
           </div>
           <a
             className="button-secondary"
-            href={`${explorerUrl}/address/${contractId}`}
+            href={`${explorerUrl}/address/${data.contractId}`}
             target="_blank"
             rel="noreferrer"
           >

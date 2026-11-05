@@ -13,12 +13,16 @@ import {
   type NotificationPreference,
   type NotificationPreferenceStore,
 } from "./notification-preferences.js";
+import { payrollRecipientSchema } from "./payroll.js";
+import { PayrollPlanStore } from "./payroll-plan-store.js";
 import { NearRpcClient } from "./near.js";
 import type { NotificationManager } from "./notifications/index.js";
+import type { PayrollRecipient } from "./types.js";
 
-const MAX_BODY_BYTES = 32 * 1_024;
+const MAX_BODY_BYTES = 48 * 1_024;
 const MAX_EVENTS_PER_WINDOW = 30;
 const MAX_LINK_CHANGES_PER_WINDOW = 10;
+const MAX_PAYROLL_CHANGES_PER_WINDOW = 30;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
 const EMAIL_CHALLENGE_TTL_MS = 10 * 60 * 1_000;
 const TELEGRAM_PAIRING_TTL_MS = 10 * 60 * 1_000;
@@ -27,6 +31,9 @@ const signedActionSchema = z.enum([
   "begin_email_link",
   "begin_telegram_link",
   "unlink_notification_channel",
+  "sync_payroll_plan",
+  "upsert_payroll_recipient",
+  "remove_payroll_recipient",
 ]);
 
 const authorizationSchema = z.object({
@@ -85,6 +92,42 @@ const unlinkChannelSchema = z.object({
   action: z.literal("unlink_notification_channel"),
   payload: z.object({
     channel: z.enum(["email", "telegram", "all"]),
+  }),
+  authorization: authorizationSchema,
+});
+
+const payrollContractIdSchema = z
+  .string()
+  .trim()
+  .regex(notificationPreferenceValidation.accountIdPattern)
+  .refine(
+    (value) => value === "clavis.testnet" || value.endsWith(".clavis.testnet"),
+    "Payroll contract must be managed by clavis.testnet",
+  );
+
+const syncPayrollPlanSchema = z.object({
+  action: z.literal("sync_payroll_plan"),
+  payload: z.object({
+    contractId: payrollContractIdSchema,
+    recipients: z.array(payrollRecipientSchema).max(20),
+  }),
+  authorization: authorizationSchema,
+});
+
+const upsertPayrollRecipientSchema = z.object({
+  action: z.literal("upsert_payroll_recipient"),
+  payload: z.object({
+    contractId: payrollContractIdSchema,
+    recipient: payrollRecipientSchema,
+  }),
+  authorization: authorizationSchema,
+});
+
+const removePayrollRecipientSchema = z.object({
+  action: z.literal("remove_payroll_recipient"),
+  payload: z.object({
+    contractId: payrollContractIdSchema,
+    recipientHash: z.string().regex(/^[a-f0-9]{64}$/),
   }),
   authorization: authorizationSchema,
 });
@@ -152,6 +195,7 @@ export class NotificationApiServer {
   readonly #allowedOrigins: ReadonlySet<string>;
   readonly #sessionTtlMs: number;
   readonly #store: NotificationPreferenceStore;
+  readonly #payrollPlans: PayrollPlanStore;
   readonly #notifications: NotificationManager;
   readonly #rpc: NearRpcClient;
   readonly #telegramBotUsername: string | undefined;
@@ -168,6 +212,7 @@ export class NotificationApiServer {
     nearRpcUrl: string;
     allowedOrigins: ReadonlySet<string>;
     sessionTtlMs: number;
+    payrollDirectory: string;
     store: NotificationPreferenceStore;
     notifications: NotificationManager;
     telegramBotUsername?: string;
@@ -179,6 +224,7 @@ export class NotificationApiServer {
     this.#allowedOrigins = options.allowedOrigins;
     this.#sessionTtlMs = options.sessionTtlMs;
     this.#store = options.store;
+    this.#payrollPlans = new PayrollPlanStore(options.payrollDirectory);
     this.#notifications = options.notifications;
     this.#rpc = new NearRpcClient(options.nearRpcUrl);
     const username = options.telegramBotUsername?.replace(/^@/, "");
@@ -241,6 +287,16 @@ export class NotificationApiServer {
         result = await this.cancelTelegramLink(cancelTelegramLinkSchema.parse(value));
       } else if (action === "unlink_notification_channel") {
         result = await this.unlinkChannel(unlinkChannelSchema.parse(value));
+      } else if (action === "sync_payroll_plan") {
+        result = await this.syncPayrollPlan(syncPayrollPlanSchema.parse(value));
+      } else if (action === "upsert_payroll_recipient") {
+        result = await this.upsertPayrollRecipient(
+          upsertPayrollRecipientSchema.parse(value),
+        );
+      } else if (action === "remove_payroll_recipient") {
+        result = await this.removePayrollRecipient(
+          removePayrollRecipientSchema.parse(value),
+        );
       } else if (action === "transaction_event") {
         result = await this.transactionEvent(transactionEventSchema.parse(value));
       } else {
@@ -356,6 +412,85 @@ export class NotificationApiServer {
     });
   }
 
+  private async syncPayrollPlan(
+    request: z.infer<typeof syncPayrollPlanSchema>,
+  ): Promise<unknown> {
+    return this.withAuthorization(request, async (accountId) => {
+      await this.assertPayrollOwner(request.payload.contractId, accountId);
+      const preference = this.#store.get(accountId);
+      const result = await this.#payrollPlans.sync({
+        contractId: request.payload.contractId,
+        recipients: request.payload.recipients as PayrollRecipient[],
+        ...(preference?.email ? { ownerEmail: preference.email } : {}),
+        ...(preference?.telegramChatId
+          ? { telegramChatId: preference.telegramChatId }
+          : {}),
+      });
+      const session = await this.#store.issueSession(accountId, this.#sessionTtlMs);
+      return {
+        synced: true,
+        recipientCount: result.recipientCount,
+        sessionToken: session.token,
+        sessionExpiresAt: session.expiresAt,
+      };
+    });
+  }
+
+  private async upsertPayrollRecipient(
+    request: z.infer<typeof upsertPayrollRecipientSchema>,
+  ): Promise<unknown> {
+    return this.withAuthorization(request, async (accountId) => {
+      await this.assertPayrollOwner(request.payload.contractId, accountId);
+      const preference = this.#store.get(accountId);
+      const result = await this.#payrollPlans.upsert({
+        contractId: request.payload.contractId,
+        recipient: request.payload.recipient as PayrollRecipient,
+        ...(preference?.email ? { ownerEmail: preference.email } : {}),
+        ...(preference?.telegramChatId
+          ? { telegramChatId: preference.telegramChatId }
+          : {}),
+      });
+      const session = await this.#store.issueSession(accountId, this.#sessionTtlMs);
+      return {
+        synced: true,
+        recipientCount: result.recipientCount,
+        sessionToken: session.token,
+        sessionExpiresAt: session.expiresAt,
+      };
+    });
+  }
+
+  private async removePayrollRecipient(
+    request: z.infer<typeof removePayrollRecipientSchema>,
+  ): Promise<unknown> {
+    return this.withAuthorization(request, async (accountId) => {
+      await this.assertPayrollOwner(request.payload.contractId, accountId);
+      const preference = this.#store.get(accountId);
+      const result = await this.#payrollPlans.remove({
+        contractId: request.payload.contractId,
+        recipientHash: request.payload.recipientHash,
+        ...(preference?.email ? { ownerEmail: preference.email } : {}),
+        ...(preference?.telegramChatId
+          ? { telegramChatId: preference.telegramChatId }
+          : {}),
+      });
+      const session = await this.#store.issueSession(accountId, this.#sessionTtlMs);
+      return {
+        synced: true,
+        removed: result.removed,
+        recipientCount: result.recipientCount,
+        sessionToken: session.token,
+        sessionExpiresAt: session.expiresAt,
+      };
+    });
+  }
+
+  private async assertPayrollOwner(contractId: string, accountId: string): Promise<void> {
+    if (!(await isPayrollOwner(this.#rpc, contractId, accountId))) {
+      throw new HttpError(403, "Only the payroll contract owner can manage its private plan");
+    }
+  }
+
   private async withAuthorization<T>(
     request: SignedRequest,
     work: (accountId: string) => Promise<T>,
@@ -378,7 +513,11 @@ export class NotificationApiServer {
         rpc: this.#rpc,
       });
       const accountId = request.authorization.accountId;
-      this.enforceRateLimit(`link:${accountId}`, MAX_LINK_CHANGES_PER_WINDOW);
+      const payrollAction = request.action.includes("payroll");
+      this.enforceRateLimit(
+        `${payrollAction ? "payroll" : "link"}:${accountId}`,
+        payrollAction ? MAX_PAYROLL_CHANGES_PER_WINDOW : MAX_LINK_CHANGES_PER_WINDOW,
+      );
       const result = await work(accountId);
       await this.#store.markEventProcessed(authorizationId);
       return result;
@@ -434,10 +573,37 @@ export class NotificationApiServer {
         transactionHash: transaction.transaction.hash,
         ...summary,
       });
+      if (summary.succeeded) {
+        await this.notifyAddedRecipients(transaction);
+      }
       await this.#store.markEventProcessed(eventId);
       return { duplicate: false, summary };
     } finally {
       this.#inFlightEvents.delete(eventId);
+    }
+  }
+
+  private async notifyAddedRecipients(transaction: TransactionResult): Promise<void> {
+    const recipientHashes = transaction.transaction.actions.flatMap((action) => {
+      if (action.FunctionCall?.method_name !== "add_recipient") return [];
+      const hash = decodeArgs(action.FunctionCall.args).recipient_hash;
+      return typeof hash === "string" && /^[a-f0-9]{64}$/.test(hash) ? [hash] : [];
+    });
+    if (recipientHashes.length === 0) return;
+
+    const plan = await this.#payrollPlans.get(transaction.transaction.receiver_id);
+    if (!plan) return;
+    const recipients = new Map(
+      plan.recipients.map((recipient) => [recipient.recipientHash, recipient]),
+    );
+    for (const recipientHash of new Set(recipientHashes)) {
+      const recipient = recipients.get(recipientHash);
+      if (!recipient?.nearAddress) continue;
+      await this.#notifications.recipientAdded({
+        contractId: transaction.transaction.receiver_id,
+        workerAccountId: recipient.nearAddress,
+        workerName: recipient.name,
+      });
     }
   }
 
@@ -459,6 +625,14 @@ export class NotificationApiServer {
     recent.push(now);
     this.#rates.set(key, recent);
   }
+}
+
+export async function isPayrollOwner(
+  rpc: NearRpcClient,
+  contractId: string,
+  accountId: string,
+): Promise<boolean> {
+  return (await rpc.view<string>(contractId, "get_owner")) === accountId;
 }
 
 export function summarizeTransaction(result: TransactionResult): TransactionSummary {

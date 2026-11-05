@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
+import { AnomalyNotificationBell } from "./AnomalyNotificationBell";
 import { Logo } from "./Logo";
 import { WalletButton } from "./WalletButton";
 import { SiteFooter } from "./SiteFooter";
@@ -12,6 +13,7 @@ const links = [
   { to: "/worker", label: "Worker" },
   { to: "/audit", label: "Audit log" },
   { to: "/setup", label: "Setup" },
+  { to: "/guide", label: "Guide" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -42,18 +44,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               </NavLink>
             ))}
           </nav>
-          <div className="hidden justify-self-end md:block">
-            <WalletButton compact />
+          <div className="flex items-center gap-2 justify-self-end">
+            <AnomalyNotificationBell />
+            <div className="hidden md:block">
+              <WalletButton compact />
+            </div>
+            <button
+              type="button"
+              className="grid h-11 w-11 place-items-center rounded-[10px] border border-ink/10 bg-white md:hidden"
+              onClick={() => setOpen((value) => !value)}
+              aria-label="Toggle navigation"
+              aria-expanded={open}
+            >
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-          <button
-            type="button"
-            className="grid h-11 w-11 place-items-center rounded-full border border-ink/10 bg-white md:hidden"
-            onClick={() => setOpen((value) => !value)}
-            aria-label="Toggle navigation"
-            aria-expanded={open}
-          >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
         {open && (
           <div className="border-t border-ink/10 bg-canvas px-5 pb-5 pt-3 md:hidden">

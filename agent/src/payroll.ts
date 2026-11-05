@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import type { BusinessPayroll, PayrollFile, PayrollRecipient } from "./types.js";
 
-const nearAccountPattern = /^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
-const evmAddressPattern = /^0x[a-fA-F0-9]{40}$/;
+export const nearAccountPattern = /^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+export const evmAddressPattern = /^0x[a-fA-F0-9]{40}$/;
 const maxU128 = (1n << 128n) - 1n;
 
 const destinationSchema = z.object({
@@ -16,7 +16,7 @@ const destinationSchema = z.object({
   percentage: z.number().int().min(1).max(100),
 });
 
-const recipientSchema = z.object({
+export const payrollRecipientSchema = z.object({
   recipientHash: z.string().regex(/^[a-f0-9]{64}$/),
   name: z.string().trim().min(1).max(80).default("Worker"),
   nearAddress: z.string().trim().regex(nearAccountPattern).optional(),
@@ -32,22 +32,22 @@ const recipientSchema = z.object({
   destinations: z.array(destinationSchema).min(1).max(3),
 });
 
-const businessSchema = z.object({
+export const businessPayrollSchema = z.object({
   contract_id: z.string().trim().regex(nearAccountPattern),
   owner_email: z.string().email(),
   telegram_chat_id: z.string().trim().min(1).optional(),
-  recipients: z.array(recipientSchema).max(20),
+  recipients: z.array(payrollRecipientSchema).max(20),
 });
 
 const aggregateSchema = z.object({
-  businesses: z.array(businessSchema),
+  businesses: z.array(businessPayrollSchema),
 });
 
 const legacySchema = z.object({
   version: z.literal(1).optional(),
   owner_email: z.string().email().optional(),
   telegram_chat_id: z.string().trim().min(1).optional(),
-  recipients: z.array(recipientSchema).max(20),
+  recipients: z.array(payrollRecipientSchema).max(20),
 });
 
 async function readJson(filePath: string): Promise<unknown> {
@@ -67,7 +67,7 @@ async function readJson(filePath: string): Promise<unknown> {
   }
 }
 
-function validateBusiness(input: BusinessPayroll): BusinessPayroll {
+export function validateBusinessPayroll(input: BusinessPayroll): BusinessPayroll {
   const seen = new Set<string>();
   const recipients: PayrollRecipient[] = input.recipients.map((recipient) => {
     if (seen.has(recipient.recipientHash)) {
@@ -140,7 +140,7 @@ export async function loadPayrollCatalog(filePath: string): Promise<PayrollFile>
   }
 
   const businesses = parsed.data.businesses.map((business) =>
-    validateBusiness({
+    validateBusinessPayroll({
       ...business,
       telegram_chat_id: business.telegram_chat_id,
     } as BusinessPayroll),
@@ -163,21 +163,21 @@ export async function loadBusinessPayroll(options: {
   const dedicatedPath = path.join(options.payrollDirectory, `${options.contractId}.json`);
   try {
     const value = await readJson(dedicatedPath);
-    const direct = businessSchema.safeParse(value);
+    const direct = businessPayrollSchema.safeParse(value);
     if (direct.success) {
       if (direct.data.contract_id !== options.contractId) {
         throw new Error(
           `Payroll file ${dedicatedPath} names ${direct.data.contract_id}, expected ${options.contractId}`,
         );
       }
-      return validateBusiness(direct.data as BusinessPayroll);
+      return validateBusinessPayroll(direct.data as BusinessPayroll);
     }
 
     const legacy = legacySchema.safeParse(value);
     if (!legacy.success) {
       throw new Error(`Invalid payroll file ${dedicatedPath}: ${formatIssues(legacy.error)}`);
     }
-    return validateBusiness({
+    return validateBusinessPayroll({
       contract_id: options.contractId,
       owner_email: legacy.data.owner_email ?? "notifications-disabled@example.com",
       telegram_chat_id: legacy.data.telegram_chat_id,

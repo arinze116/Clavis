@@ -13,6 +13,11 @@ import type {
 } from "./types.js";
 
 const MAX_SUBMISSION_ATTEMPTS = 4; // initial attempt plus three retries
+const BUSINESS_HOURS_START_UTC = 6;
+
+export function isPaymentSubmissionAllowed(now: Date): boolean {
+  return now.getUTCHours() >= BUSINESS_HOURS_START_UTC;
+}
 
 export function isPaymentDue(
   recipient: RecipientView,
@@ -49,8 +54,18 @@ export async function triggerDuePayments(options: {
   const plans = new Map(
     options.business.recipients.map((recipient) => [recipient.recipientHash, recipient]),
   );
+  const recipientsToEvaluate = isPaymentSubmissionAllowed(now)
+    ? options.recipients
+    : [];
 
-  for (const recipient of options.recipients) {
+  if (recipientsToEvaluate.length === 0 && options.recipients.length > 0) {
+    logger.info("payment.window_closed", {
+      contractId: options.contractId,
+      opensAtUtc: `${String(BUSINESS_HOURS_START_UTC).padStart(2, "0")}:00`,
+    });
+  }
+
+  for (const recipient of recipientsToEvaluate) {
     const plan = plans.get(recipient.recipient_hash);
     if (!plan || !isPaymentDue(recipient, plan, options.state.value, nowNs)) continue;
 

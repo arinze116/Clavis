@@ -55,6 +55,7 @@ async function main(): Promise<void> {
         nearRpcUrl: config.nearRpcUrl,
         allowedOrigins: config.notificationAllowedOrigins,
         sessionTtlMs: config.notificationSessionTtlMs,
+        payrollDirectory: config.payrollDirectory,
         store: notificationPreferences,
         notifications,
         ...(!config.runOnce && config.telegramBotToken && config.telegramBotUsername

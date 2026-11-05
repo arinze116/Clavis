@@ -1,46 +1,161 @@
-import { AlertTriangle, Check, Radar } from "lucide-react";
+import {
+  AlertTriangle,
+  BrainCircuit,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  LoaderCircle,
+  Radar,
+} from "lucide-react";
+import { useState } from "react";
 
-import type { AnomalyEntry } from "../types";
+import type { AnomalyEntry, AuditEntry } from "../types";
 import { formatTimestamp } from "../utils/format";
+import { analyzeAnomaly } from "../utils/nearAi";
 
 export function AnomalyAlerts({
   anomalies,
+  recentPayments,
+  writeBusy,
   busyId,
   onDismiss,
 }: {
   anomalies: AnomalyEntry[];
+  recentPayments: AuditEntry[];
+  writeBusy: boolean;
   busyId: number | null;
-  onDismiss: (anomaly: AnomalyEntry) => void;
+  onDismiss: (anomaly: AnomalyEntry) => Promise<void>;
 }) {
   const active = anomalies.filter((anomaly) => !anomaly.reviewed).reverse();
+  const [analysisById, setAnalysisById] = useState<Record<number, string>>({});
+  const [analysisErrorById, setAnalysisErrorById] = useState<Record<number, string>>({});
+  const [analysisBusy, setAnalysisBusy] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  async function analyze(anomaly: AnomalyEntry) {
+    if (analysisById[anomaly.anomaly_id]) {
+      setExpandedId((current) => (current === anomaly.anomaly_id ? null : anomaly.anomaly_id));
+      return;
+    }
+    setAnalysisBusy(anomaly.anomaly_id);
+    setExpandedId(anomaly.anomaly_id);
+    setAnalysisErrorById((current) => ({ ...current, [anomaly.anomaly_id]: "" }));
+    try {
+      const analysis = await analyzeAnomaly(anomaly, recentPayments.slice(0, 30));
+      setAnalysisById((current) => ({ ...current, [anomaly.anomaly_id]: analysis }));
+    } catch (reason) {
+      setAnalysisErrorById((current) => ({
+        ...current,
+        [anomaly.anomaly_id]:
+          reason instanceof Error ? reason.message : "Unable to analyze this anomaly",
+      }));
+    } finally {
+      setAnalysisBusy(null);
+    }
+  }
+
   return (
-    <section className="panel p-6 lg:p-8">
+    <section id="anomalies" className="panel scroll-mt-28 p-6 lg:p-8">
       <div className="flex items-start justify-between gap-4">
-        <div><p className="eyebrow">Agent watch</p><h2 className="mt-2 font-display text-2xl font-semibold">Anomaly alerts</h2></div>
+        <div>
+          <p className="eyebrow">Agent watch</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold">Anomaly alerts</h2>
+        </div>
         <Radar className="h-5 w-5 text-moss" />
       </div>
       <div className="mt-6 space-y-3">
-        {active.map((anomaly) => (
-          <article key={anomaly.anomaly_id} className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold">{anomaly.anomaly_type.replaceAll("_", " ")}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${anomaly.severity === "HIGH" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{anomaly.severity}</span>
+        {active.map((anomaly) => {
+          const expanded = expandedId === anomaly.anomaly_id;
+          const analysis = analysisById[anomaly.anomaly_id];
+          const analysisError = analysisErrorById[anomaly.anomaly_id];
+          return (
+            <article
+              key={anomaly.anomaly_id}
+              className="rounded-[16px] border border-amber-200 bg-amber-50/70 p-4"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">
+                      {anomaly.anomaly_type.replaceAll("_", " ")}
+                    </p>
+                    <span
+                      className={`rounded-[5px] px-2 py-0.5 text-[10px] font-semibold ${
+                        anomaly.severity === "HIGH"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {anomaly.severity}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-ink/55">{anomaly.description}</p>
+                  <p className="mt-2 font-mono text-[10px] text-ink/35">
+                    {formatTimestamp(anomaly.timestamp)} UTC
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-[8px] border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-ink transition-colors hover:border-moss disabled:opacity-50"
+                      disabled={analysisBusy === anomaly.anomaly_id}
+                      onClick={() => void analyze(anomaly)}
+                      aria-expanded={expanded}
+                    >
+                      {analysisBusy === anomaly.anomaly_id ? (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <BrainCircuit className="h-3.5 w-3.5" />
+                      )}
+                      {analysisBusy === anomaly.anomaly_id
+                        ? "Analyzing"
+                        : analysis
+                          ? expanded
+                            ? "Hide AI analysis"
+                            : "Show AI analysis"
+                          : "Analyze with AI"}
+                      {analysis &&
+                        (expanded ? (
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        ))}
+                    </button>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-ink/55">{anomaly.description}</p>
-                <p className="mt-2 font-mono text-[10px] text-ink/35">{formatTimestamp(anomaly.timestamp)}</p>
+                <button
+                  type="button"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-white text-ink/45 transition-colors hover:text-moss disabled:opacity-30"
+                  disabled={writeBusy || busyId === anomaly.anomaly_id}
+                  onClick={() => void onDismiss(anomaly).catch(() => undefined)}
+                  aria-label="Mark anomaly reviewed"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
               </div>
-              <button type="button" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-ink/45 hover:text-moss disabled:opacity-30" disabled={busyId === anomaly.anomaly_id} onClick={() => onDismiss(anomaly)} aria-label="Mark anomaly reviewed"><Check className="h-4 w-4" /></button>
-            </div>
-          </article>
-        ))}
+
+              {expanded && (analysis || analysisError) && (
+                <div
+                  className={`mt-4 rounded-[12px] border px-4 py-4 text-sm leading-6 ${
+                    analysisError
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : "border-moss/20 bg-white text-ink/70"
+                  }`}
+                  role={analysisError ? "alert" : "status"}
+                >
+                  {analysisError || analysis}
+                </div>
+              )}
+            </article>
+          );
+        })}
         {active.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-line px-5 py-9 text-center">
+          <div className="rounded-[16px] border border-dashed border-line px-5 py-9 text-center">
             <Check className="mx-auto h-6 w-6 text-emerald-600" />
             <p className="mt-3 text-sm font-semibold">No anomalies detected</p>
-            <p className="mt-1 text-xs text-ink/45">The agent and contract policy are operating normally.</p>
+            <p className="mt-1 text-xs text-ink/45">
+              The agent and contract policy are operating normally.
+            </p>
           </div>
         )}
       </div>

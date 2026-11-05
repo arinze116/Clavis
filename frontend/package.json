@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && tsc -p tsconfig.api.json --pretty false && vite build",
+    "build": "tsc -b && tsc -p tsconfig.api.json --pretty false && vite build && node ../scripts/generate-route-metadata.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false && tsc -p tsconfig.api.json --pretty false"
   },

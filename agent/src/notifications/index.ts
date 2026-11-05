@@ -85,6 +85,24 @@ export class NotificationManager {
     });
   }
 
+  async recipientAdded(options: {
+    contractId: string;
+    workerAccountId: string;
+    workerName: string;
+  }): Promise<void> {
+    await this.sendNotification({
+      contractId: options.contractId,
+      audience: [{ accountId: options.workerAccountId }],
+      subject: `You were added to ${options.contractId} payroll`,
+      emailText:
+        `${options.workerName}, your NEAR testnet wallet was added to the payroll roster for ` +
+        `${options.contractId}. Open https://clavisapp.vercel.app/worker with the same wallet ` +
+        "to review your schedule and public-safe payment history.",
+      telegramText:
+        `✅ Added to payroll · ${options.workerName} · ${options.contractId}`,
+    });
+  }
+
   async anomalyDetected(options: {
     business: BusinessPayroll;
     ownerAccountId?: string;
@@ -313,9 +331,13 @@ interface DeliveryOptions {
 }
 
 function ownerAudience(business: BusinessPayroll, accountId: string | undefined): Audience {
+  const fallbackEmail =
+    business.owner_email === "notifications-disabled@example.com"
+      ? undefined
+      : business.owner_email;
   return {
     ...(accountId ? { accountId } : {}),
-    fallbackEmail: business.owner_email,
+    ...(fallbackEmail ? { fallbackEmail } : {}),
     ...(business.telegram_chat_id
       ? { fallbackTelegramChatId: business.telegram_chat_id }
       : {}),

@@ -5,11 +5,14 @@ const sections: LegalSection[] = [
     title: "What Clavis collects",
     content: (
       <p>
-        Clavis does not operate user accounts, analytics profiles, or an advertising
-        database. If you opt into notifications, Clavis stores the email address you verify
-        and/or the Telegram chat ID connected through the bot in the private VPS agent data
-        store. The browser also stores your selected contract, notification session, and
-        worker preferences locally on your device so the interface can restore them.
+        Clavis does not operate analytics profiles or an advertising database. The private
+        VPS agent stores the scheduled amount, worker NEAR address, and destination address
+        that an owner authorizes for automated delivery. These values are encrypted in
+        transit, permission-restricted on the server, and never returned by the public
+        contract API. If you opt into notifications, Clavis also stores the email address you
+        verify and/or the Telegram chat ID connected through the bot. The browser stores your
+        selected contract, short-lived service sessions, and worker preferences locally so
+        the interface can restore them.
         Notification contact details are never written to the NEAR blockchain and are
         removed from the private store when you unlink notifications. Verification and
         pairing secrets expire quickly; the server stores only one-way hashes, while the

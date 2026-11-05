@@ -19,6 +19,9 @@ Clavis is a production-oriented NEAR testnet payroll platform for remote teams. 
 - Multi-contract payroll scheduling every 60 seconds
 - Email notifications through Resend and Telegram Bot API notifications
 - Per-contract anomaly state, audit state, intent state, and daily reports
+- NEAR AI policy extraction, anomaly explanations, route advice, and CFO-style reports
+- Browser-run five-scenario security audits recorded in the public contract log
+- Interactive business, worker, and developer guides at `/guide`
 - PM2 deployment scripts for Ubuntu 22.04 on Oracle Cloud
 - Responsive React interface, loading skeletons, error boundaries, toasts, and legal pages
 
@@ -132,6 +135,7 @@ Routes:
 - `/worker` — worker registration and payroll portal
 - `/audit` — public decisions with NearBlocks transaction links
 - `/setup` — seven-step factory deployment flow
+- `/guide` — role-based business, worker, and developer documentation
 - `/privacy` — privacy policy
 - `/terms` — testnet terms
 
@@ -146,9 +150,28 @@ VITE_EXPLORER_URL=https://testnet.nearblocks.io
 VITE_NEARBLOCKS_API_URL=https://api-testnet.nearblocks.io
 ```
 
+NEAR AI requests are sent through the Vercel serverless proxy at `/api/ai`; the API key is
+never imported into browser code. Configure these as server-side Vercel variables:
+
+```dotenv
+NEAR_AI_API_KEY=replace-with-near-ai-cloud-key
+NEAR_AI_API_URL=https://cloud-api.near.ai/v1/chat/completions
+```
+
+`VITE_NEAR_AI_API_KEY` is accepted server-side for compatibility with the hackathon brief, but
+`NEAR_AI_API_KEY` is preferred so the secret cannot be mistaken for a browser variable.
+
+The owner-only `run_security_audit()` contract method records five privacy-safe rejected audit
+entries without moving funds or changing treasury policy. The upgraded root and factory-embedded
+payroll WASM must be deployed before this control is available on testnet.
+
 ## Multi-business payroll configuration
 
-The scheduler discovers contracts through `factory.clavis.testnet -> get_all_contracts()`. Private amounts and destination addresses remain in ignored server-side files.
+The scheduler discovers contracts through `factory.clavis.testnet -> get_all_contracts()`.
+During browser setup, the owner signs the private payroll payload with their wallet; the agent
+verifies that signer against the contract's `get_owner`, then stores amounts and destination
+addresses in mode-`0600` files on the VPS. These values never enter the public contract or audit
+log. The manual aggregate file remains available for local development and legacy deployments.
 
 `agent/config/payroll.local.json`:
 

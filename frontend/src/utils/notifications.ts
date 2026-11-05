@@ -5,6 +5,7 @@ import { factoryContractId } from "./near";
 
 const STORAGE_PREFIX = "clavis.notificationPreferences.";
 const TELEGRAM_LINK_PREFIX = "clavis.pendingTelegramLink.";
+const AGENT_SESSION_PREFIX = "clavis.agentSession.";
 const DEFAULT_NOTIFICATION_API = "/api/notifications";
 const MAX_EVENT_ATTEMPTS = 4;
 
@@ -30,6 +31,12 @@ export interface PendingTelegramLink {
   expiresAt: string;
 }
 
+interface AgentTransactionSession {
+  accountId: string;
+  sessionToken: string;
+  sessionExpiresAt: string;
+}
+
 interface PreferenceResponse {
   preference: {
     accountId: string;
@@ -41,7 +48,15 @@ interface PreferenceResponse {
   sessionExpiresAt: string | null;
 }
 
-interface SignedAuthorization {
+export type AgentAuthorizationAction =
+  | "begin_email_link"
+  | "begin_telegram_link"
+  | "unlink_notification_channel"
+  | "sync_payroll_plan"
+  | "upsert_payroll_recipient"
+  | "remove_payroll_recipient";
+
+export interface SignedAgentAuthorization {
   accountId: string;
   action: string;
   issuedAt: string;
@@ -61,6 +76,10 @@ function storageKey(accountId: string): string {
 
 function telegramLinkKey(accountId: string): string {
   return `${TELEGRAM_LINK_PREFIX}${accountId}`;
+}
+
+function agentSessionKey(accountId: string): string {
+  return `${AGENT_SESSION_PREFIX}${accountId}`;
 }
 
 function notificationApiUrl(): string {
@@ -95,8 +114,11 @@ function authorizationMessage(options: {
   payloadHash: string;
   origin: string;
 }): string {
+  const title = options.action.includes("payroll")
+    ? "Clavis private payroll authorization"
+    : "Clavis notification authorization";
   return [
-    "Clavis notification authorization",
+    title,
     "version=2",
     `account_id=${options.accountId}`,
     `action=${options.action}`,
@@ -107,7 +129,7 @@ function authorizationMessage(options: {
   ].join("\n");
 }
 
-async function postNotificationApi(body: unknown): Promise<Response> {
+export async function postAgentApi(body: unknown): Promise<Response> {
   return fetch(notificationApiUrl(), {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -117,24 +139,24 @@ async function postNotificationApi(body: unknown): Promise<Response> {
   });
 }
 
-async function responseError(response: Response): Promise<Error> {
+export async function agentResponseError(response: Response): Promise<Error> {
   try {
     const body = (await response.json()) as { error?: unknown };
     if (typeof body.error === "string") return new Error(body.error);
   } catch {
     // Use the status fallback when the proxy did not return JSON.
   }
-  return new Error(`Notification service returned HTTP ${response.status}`);
+  return new Error(`Clavis private service returned HTTP ${response.status}`);
 }
 
-async function signAuthorization(options: {
+export async function signAgentAuthorization(options: {
   wallet: Wallet;
   accountId: string;
-  action: "begin_email_link" | "begin_telegram_link" | "unlink_notification_channel";
+  action: AgentAuthorizationAction;
   payload: unknown;
-}): Promise<SignedAuthorization> {
+}): Promise<SignedAgentAuthorization> {
   if (!options.wallet.signMessage) {
-    throw new Error("This wallet cannot sign the message required to manage notifications");
+    throw new Error("This wallet cannot sign the message required to manage private Clavis settings");
   }
 
   const issuedAt = new Date().toISOString();
@@ -162,7 +184,7 @@ async function signAuthorization(options: {
     ...(callbackUrl ? { callbackUrl } : {}),
   });
   if (!signed || signed.accountId !== options.accountId) {
-    throw new Error("The connected wallet did not authorize this notification change");
+    throw new Error("The connected wallet did not authorize this Clavis settings change");
   }
   return {
     accountId: signed.accountId,
@@ -220,9 +242,9 @@ export async function beginEmailNotificationLink(options: {
 }): Promise<EmailLinkChallenge> {
   const payload = { email: options.email.trim() };
   const action = "begin_email_link" as const;
-  const authorization = await signAuthorization({ ...options, action, payload });
-  const response = await postNotificationApi({ action, payload, authorization });
-  if (!response.ok) throw await responseError(response);
+  const authorization = await signAgentAuthorization({ ...options, action, payload });
+  const response = await postAgentApi({ action, payload, authorization });
+  if (!response.ok) throw await agentResponseError(response);
   return (await response.json()) as EmailLinkChallenge;
 }
 
@@ -231,14 +253,14 @@ export async function confirmEmailNotificationLink(options: {
   challengeId: string;
   code: string;
 }): Promise<LinkedNotificationSettings> {
-  const response = await postNotificationApi({
+  const response = await postAgentApi({
     action: "confirm_email_link",
     payload: {
       challengeId: options.challengeId,
       code: options.code.trim(),
     },
   });
-  if (!response.ok) throw await responseError(response);
+  if (!response.ok) throw await agentResponseError(response);
   return storePreferenceResponse(options.accountId, (await response.json()) as PreferenceResponse);
 }
 
@@ -248,9 +270,9 @@ export async function beginTelegramNotificationLink(options: {
 }): Promise<PendingTelegramLink> {
   const payload = {};
   const action = "begin_telegram_link" as const;
-  const authorization = await signAuthorization({ ...options, action, payload });
-  const response = await postNotificationApi({ action, payload, authorization });
-  if (!response.ok) throw await responseError(response);
+  const authorization = await signAgentAuthorization({ ...options, action, payload });
+  const response = await postAgentApi({ action, payload, authorization });
+  if (!response.ok) throw await agentResponseError(response);
   const pending = (await response.json()) as PendingTelegramLink;
   window.sessionStorage.setItem(telegramLinkKey(options.accountId), JSON.stringify(pending));
   return pending;
@@ -280,14 +302,14 @@ export async function checkTelegramNotificationLink(options: {
   accountId: string;
   pending: PendingTelegramLink;
 }): Promise<LinkedNotificationSettings | null> {
-  const response = await postNotificationApi({
+  const response = await postAgentApi({
     action: "telegram_link_status",
     payload: {
       pairingId: options.pending.pairingId,
       pollToken: options.pending.pollToken,
     },
   });
-  if (!response.ok) throw await responseError(response);
+  if (!response.ok) throw await agentResponseError(response);
   const result = (await response.json()) as
     | { status: "PENDING" }
     | ({ status: "CONNECTED" } & PreferenceResponse);
@@ -300,14 +322,14 @@ export async function cancelTelegramNotificationLink(options: {
   accountId: string;
   pending: PendingTelegramLink;
 }): Promise<void> {
-  const response = await postNotificationApi({
+  const response = await postAgentApi({
     action: "cancel_telegram_link",
     payload: {
       pairingId: options.pending.pairingId,
       pollToken: options.pending.pollToken,
     },
   });
-  if (!response.ok) throw await responseError(response);
+  if (!response.ok) throw await agentResponseError(response);
   clearPendingTelegramLink(options.accountId);
 }
 
@@ -318,9 +340,9 @@ export async function unlinkNotificationChannel(options: {
 }): Promise<LinkedNotificationSettings> {
   const payload = { channel: options.channel };
   const action = "unlink_notification_channel" as const;
-  const authorization = await signAuthorization({ ...options, action, payload });
-  const response = await postNotificationApi({ action, payload, authorization });
-  if (!response.ok) throw await responseError(response);
+  const authorization = await signAgentAuthorization({ ...options, action, payload });
+  const response = await postAgentApi({ action, payload, authorization });
+  if (!response.ok) throw await agentResponseError(response);
   if (options.channel === "telegram" || options.channel === "all") {
     clearPendingTelegramLink(options.accountId);
   }
@@ -336,6 +358,31 @@ export function hasActiveNotificationSession(accountId: string): boolean {
   );
 }
 
+export function storeAgentTransactionSession(options: AgentTransactionSession): void {
+  if (Date.parse(options.sessionExpiresAt) <= Date.now()) return;
+  window.localStorage.setItem(agentSessionKey(options.accountId), JSON.stringify(options));
+}
+
+function getAgentTransactionSession(accountId: string): AgentTransactionSession | null {
+  try {
+    const source = window.localStorage.getItem(agentSessionKey(accountId));
+    if (!source) return null;
+    const session = JSON.parse(source) as AgentTransactionSession;
+    if (
+      session.accountId !== accountId ||
+      !session.sessionToken ||
+      Date.parse(session.sessionExpiresAt) <= Date.now()
+    ) {
+      window.localStorage.removeItem(agentSessionKey(accountId));
+      return null;
+    }
+    return session;
+  } catch {
+    window.localStorage.removeItem(agentSessionKey(accountId));
+    return null;
+  }
+}
+
 export async function notifyTransaction(options: {
   accountId: string;
   receiverId?: string;
@@ -343,19 +390,21 @@ export async function notifyTransaction(options: {
 }): Promise<void> {
   if (!options.transactionHash) return;
   const settings = getLinkedNotificationSettings(options.accountId);
-  if (
-    !settings?.sessionToken ||
-    !settings.sessionExpiresAt ||
-    Date.parse(settings.sessionExpiresAt) <= Date.now()
-  ) {
-    return;
-  }
+  const agentSession = getAgentTransactionSession(options.accountId);
+  const sessionToken =
+    agentSession?.sessionToken ??
+    (settings?.sessionToken &&
+    settings.sessionExpiresAt &&
+    Date.parse(settings.sessionExpiresAt) > Date.now()
+      ? settings.sessionToken
+      : null);
+  if (!sessionToken) return;
 
   for (let attempt = 0; attempt < MAX_EVENT_ATTEMPTS; attempt += 1) {
     try {
-      const response = await postNotificationApi({
+      const response = await postAgentApi({
         action: "transaction_event",
-        sessionToken: settings.sessionToken,
+        sessionToken,
         payload: {
           transactionHash: options.transactionHash,
           ...(options.receiverId ? { receiverId: options.receiverId } : {}),
@@ -363,6 +412,7 @@ export async function notifyTransaction(options: {
       });
       if (response.ok || response.status === 409) return;
       if (response.status === 401) {
+        window.localStorage.removeItem(agentSessionKey(options.accountId));
         window.localStorage.removeItem(storageKey(options.accountId));
         window.dispatchEvent(new CustomEvent("clavis:notification-preferences"));
         return;

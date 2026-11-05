@@ -24,6 +24,9 @@ export function MarketingHeader({ landing = false }: { landing?: boolean }) {
         <a href={`${anchorPrefix}#security`} className="transition hover:text-white">
           Security
         </a>
+        <Link to="/guide" className="transition hover:text-white">
+          Guide
+        </Link>
       </nav>
       <WalletButton compact />
     </header>

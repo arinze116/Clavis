@@ -2,6 +2,7 @@ mod audit;
 mod payments;
 mod recipients;
 mod rules;
+mod security;
 mod treasury;
 mod types;
 
@@ -16,7 +17,7 @@ use near_sdk::{
 use crate::types::RecipientConfig;
 pub use crate::types::{
     AnomalyEntry, AuditEntry, PaymentOutcome, PaymentResult, PaymentSchedule, RecipientConfigInput,
-    RecipientView, SplitConfig,
+    RecipientView, SecurityAuditResult, SecurityAuditScenario, SplitConfig,
 };
 
 pub(crate) const DAY_NS: u64 = 86_400_000_000_000;

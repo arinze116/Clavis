@@ -9,6 +9,8 @@ import type {
   ContractSnapshot,
   Recipient,
   RecipientDraft,
+  SecurityAuditResult,
+  SecurityAuditScenario,
 } from "../types";
 import {
   explorerUrl,
@@ -41,6 +43,17 @@ interface CachedViewResult {
 export interface TransactionSubmission {
   hash: string | null;
   explorerHref: string;
+}
+
+export interface SecurityAuditSubmission extends TransactionSubmission {
+  results: SecurityAuditResult[];
+}
+
+export interface ContractCall {
+  methodName: string;
+  args?: Record<string, unknown>;
+  gas?: bigint;
+  deposit?: bigint;
 }
 
 const viewCache = new Map<string, CachedViewResult>();
@@ -160,6 +173,25 @@ export async function getContractByOwner(
   owner: string,
   fallbackToRootContract = true,
 ): Promise<ContractRecord | null> {
+  // The original singleton deployment is not indexed by the factory. Prefer
+  // it for its actual owner even if that owner later created a factory child,
+  // so the canonical demo contract remains reachable and upgradeable.
+  if (fallbackToRootContract) {
+    try {
+      const rootOwner = await view<string>(rootContractId, "get_owner");
+      if (rootOwner === owner) {
+        return {
+          name: rootContractId,
+          contract_id: rootContractId,
+          owner: rootOwner,
+          created_at: 0,
+        };
+      }
+    } catch {
+      // A root lookup failure must not hide an otherwise valid factory contract.
+    }
+  }
+
   const businessContract = await view<ContractRecord | null>(
     factoryContractId,
     "get_contract_by_owner",
@@ -167,15 +199,7 @@ export async function getContractByOwner(
       owner,
     },
   );
-  if (businessContract || !fallbackToRootContract) return businessContract;
-
-  // The original singleton deployment is not indexed by the factory.
-  return {
-    name: rootContractId,
-    contract_id: rootContractId,
-    owner,
-    created_at: 0,
-  };
+  return businessContract;
 }
 
 export async function waitForPayrollDeployment(
@@ -340,37 +364,50 @@ async function loadAuditTransactionHashes(
     return cached.transactionHashesByBlock;
   }
 
-  const url = new URL(
-    `/v3/accounts/${encodeURIComponent(targetContractId)}/receipts`,
-    nearBlocksApiUrl,
+  const methods = [
+    { name: "request_payment", auditEntriesPerTransaction: 1 },
+    { name: "run_security_audit", auditEntriesPerTransaction: 5 },
+  ] as const;
+  const receiptsByMethod = await Promise.all(
+    methods.map(async (method) => {
+      const url = new URL(
+        `/v3/accounts/${encodeURIComponent(targetContractId)}/receipts`,
+        nearBlocksApiUrl,
+      );
+      url.searchParams.set("method", method.name);
+      url.searchParams.set("limit", "100");
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) {
+        throw new Error(`NearBlocks receipt lookup failed with HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as NearBlocksReceiptResponse;
+      return { method, receipts: body.data ?? [] };
+    }),
   );
-  url.searchParams.set("method", "request_payment");
-  url.searchParams.set("limit", "100");
-  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!response.ok) {
-    throw new Error(`NearBlocks receipt lookup failed with HTTP ${response.status}`);
-  }
 
-  const body = (await response.json()) as NearBlocksReceiptResponse;
   const transactionHashesByBlock = new Map<string, string[]>();
-  for (const receipt of body.data ?? []) {
-    const height = receipt.block?.block_height;
-    const transactionHash = receipt.transaction_hash;
-    const isPaymentRequest = receipt.actions?.some(
-      (action) => action.action === "FUNCTION_CALL" && action.method === "request_payment",
-    );
-    if (
-      height === undefined ||
-      !transactionHash ||
-      receipt.receiver_account_id !== targetContractId ||
-      !isPaymentRequest
-    ) {
-      continue;
+  for (const { method, receipts } of receiptsByMethod) {
+    for (const receipt of receipts) {
+      const height = receipt.block?.block_height;
+      const transactionHash = receipt.transaction_hash;
+      const isExpectedCall = receipt.actions?.some(
+        (action) => action.action === "FUNCTION_CALL" && action.method === method.name,
+      );
+      if (
+        height === undefined ||
+        !transactionHash ||
+        receipt.receiver_account_id !== targetContractId ||
+        !isExpectedCall
+      ) {
+        continue;
+      }
+      const key = String(height);
+      const hashes = transactionHashesByBlock.get(key) ?? [];
+      for (let index = 0; index < method.auditEntriesPerTransaction; index += 1) {
+        hashes.push(transactionHash);
+      }
+      transactionHashesByBlock.set(key, hashes);
     }
-    const key = String(height);
-    const hashes = transactionHashesByBlock.get(key) ?? [];
-    if (!hashes.includes(transactionHash)) hashes.push(transactionHash);
-    transactionHashesByBlock.set(key, hashes);
   }
 
   auditLinkCache.set(targetContractId, {
@@ -387,10 +424,29 @@ export async function change(
   methodName: string,
   args: Record<string, unknown> = {},
 ): Promise<TransactionSubmission> {
+  return changeMany(wallet, accountId, targetContractId, [
+    { methodName, args },
+  ]);
+}
+
+export async function changeMany(
+  wallet: Wallet,
+  accountId: string,
+  targetContractId: string,
+  calls: ContractCall[],
+): Promise<TransactionSubmission> {
+  if (calls.length === 0) throw new Error("At least one contract call is required");
   const outcome = await wallet.signAndSendTransaction({
     signerId: accountId,
     receiverId: targetContractId,
-    actions: [actionCreators.functionCall(methodName, args, 100_000_000_000_000n, 0n)],
+    actions: calls.map((call) =>
+      actionCreators.functionCall(
+        call.methodName,
+        call.args ?? {},
+        call.gas ?? 60_000_000_000_000n,
+        call.deposit ?? 0n,
+      ),
+    ),
   });
   invalidateViewCache();
   const submission = transactionSubmission(outcome, targetContractId);
@@ -400,6 +456,139 @@ export async function change(
     transactionHash: submission.hash,
   });
   return submission;
+}
+
+export async function runSecurityAudit(
+  wallet: Wallet,
+  accountId: string,
+  targetContractId: string,
+): Promise<SecurityAuditSubmission> {
+  const outcome = await wallet.signAndSendTransaction({
+    signerId: accountId,
+    receiverId: targetContractId,
+    actions: [
+      actionCreators.functionCall(
+        "run_security_audit",
+        {},
+        100_000_000_000_000n,
+        0n,
+      ),
+    ],
+  });
+  invalidateViewCache();
+  const submission = transactionSubmission(outcome, targetContractId);
+  void notifyTransaction({
+    accountId,
+    receiverId: targetContractId,
+    transactionHash: submission.hash,
+  });
+
+  const results =
+    securityResultsFromOutcome(outcome) ??
+    (await waitForSecurityAuditResults(targetContractId));
+  if (!results) {
+    throw new Error(
+      "The security audit transaction confirmed, but its five on-chain results could not be verified.",
+    );
+  }
+  return { ...submission, results };
+}
+
+const securityScenarioOrder: SecurityAuditScenario[] = [
+  "UNAPPROVED_RECIPIENT",
+  "OVER_LIMIT_PAYMENT",
+  "SUSPENDED_RECIPIENT",
+  "DAILY_LIMIT_BREACH",
+  "OFF_HOURS_PAYMENT",
+];
+
+const securityReasonFragments = [
+  "Recipient not approved",
+  "Exceeds per-payment limit",
+  "Recipient suspended",
+  "Daily limit exceeded",
+  "Off-hours payment blocked",
+] as const;
+
+function securityResultsFromOutcome(outcome: unknown): SecurityAuditResult[] | null {
+  if (typeof outcome !== "object" || outcome === null || !("status" in outcome)) return null;
+  const status = (outcome as { status?: unknown }).status;
+  if (typeof status !== "object" || status === null || !("SuccessValue" in status)) return null;
+  const encoded = (status as { SuccessValue?: unknown }).SuccessValue;
+  if (typeof encoded !== "string" || !encoded) return null;
+  try {
+    const bytes = Uint8Array.from(window.atob(encoded), (character) => character.charCodeAt(0));
+    return normalizeSecurityResults(JSON.parse(new TextDecoder().decode(bytes)) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSecurityResults(value: unknown): SecurityAuditResult[] | null {
+  if (!Array.isArray(value) || value.length !== securityScenarioOrder.length) return null;
+  const results = value.flatMap((item, index) => {
+    if (typeof item !== "object" || item === null) return [];
+    const candidate = item as Partial<SecurityAuditResult>;
+    if (
+      candidate.scenario !== securityScenarioOrder[index] ||
+      typeof candidate.blocked !== "boolean" ||
+      typeof candidate.reason !== "string" ||
+      typeof candidate.payment_id !== "number"
+    ) {
+      return [];
+    }
+    return [candidate as SecurityAuditResult];
+  });
+  return results.length === securityScenarioOrder.length ? results : null;
+}
+
+async function waitForSecurityAuditResults(
+  targetContractId: string,
+): Promise<SecurityAuditResult[] | null> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    invalidateViewCache();
+    try {
+      const entries = await view<AuditEntry[]>(targetContractId, "get_audit_log_reverse", {
+        from: 0,
+        limit: 20,
+      });
+      const candidates = entries
+        .flatMap((entry) => {
+          const reason = rejectedReason(entry);
+          return reason?.startsWith("Security audit:") ? [{ entry, reason }] : [];
+        })
+        .sort((left, right) => left.entry.payment_id - right.entry.payment_id)
+        .slice(-securityScenarioOrder.length);
+      if (candidates.length === securityScenarioOrder.length) {
+        const verified: SecurityAuditResult[] = [];
+        for (let index = 0; index < securityScenarioOrder.length; index += 1) {
+          const candidate = candidates[index];
+          const scenario = securityScenarioOrder[index];
+          const expectedReason = securityReasonFragments[index];
+          if (!candidate || !scenario || !expectedReason || !candidate.reason.includes(expectedReason)) {
+            return null;
+          }
+          verified.push({
+            scenario,
+            blocked: true,
+            reason: candidate.reason,
+            payment_id: candidate.entry.payment_id,
+          });
+        }
+        return verified;
+      }
+    } catch {
+      // The transaction can be final before a selected RPC endpoint serves the new state.
+    }
+    await wait(600 * (attempt + 1));
+  }
+  return null;
+}
+
+function rejectedReason(entry: AuditEntry): string | null {
+  return typeof entry.outcome === "object" && entry.outcome !== null && "Rejected" in entry.outcome
+    ? String(entry.outcome.Rejected)
+    : null;
 }
 
 export async function createPayroll(options: {

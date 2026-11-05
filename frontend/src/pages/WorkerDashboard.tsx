@@ -54,7 +54,6 @@ export default function WorkerDashboard() {
   const { showToast } = useToast();
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [registrationChecking, setRegistrationChecking] = useState(false);
@@ -171,15 +170,6 @@ export default function WorkerDashboard() {
     void discoverProfile();
   }, [discoverProfile]);
 
-  useEffect(() => {
-    if (!loading) {
-      setShowLoading(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setShowLoading(true), 500);
-    return () => window.clearTimeout(timer);
-  }, [loading]);
-
   const editedSplits = useMemo<SplitConfig[]>(() => {
     if (preferences.preferredChain === "near" || nearPercentage === 0) {
       return [
@@ -229,7 +219,6 @@ export default function WorkerDashboard() {
       </AppShell>
     );
   }
-  if (loading && !showLoading) return <AppShell><div className="min-h-[55vh]" /></AppShell>;
   if (loading) {
     return (
       <AppShell>
