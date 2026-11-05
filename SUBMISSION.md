@@ -61,7 +61,12 @@ AI proposes and explains. The owner confirms. The contract decides.
 
 Server-side endpoint: `https://cloud-api.near.ai/v1/chat/completions`
 
-Model: `meta-llama/Llama-3.3-70B-Instruct`
+Preferred model: `meta-llama/Llama-3.3-70B-Instruct`
+
+Live fallback: `deepseek-ai/DeepSeek-V4.1-Flash-1017`. NEAR AI retired the preferred Llama entry
+from its live catalog before release, so the proxy checks model availability and selects the first
+supported NEAR-hosted instruction model. Successful responses expose the active choice through the
+`x-clavis-ai-model` header.
 
 Implemented tasks:
 

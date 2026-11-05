@@ -26,6 +26,10 @@ interface NearAiResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
+interface NearAiModelCatalog {
+  data?: Array<{ id?: unknown; owned_by?: unknown }>;
+}
+
 interface RateLimitEntry {
   count: number;
   windowStartedAt: number;
@@ -51,15 +55,25 @@ interface RouteConditions {
 }
 
 const DEFAULT_NEAR_AI_URL = "https://cloud-api.near.ai/v1/chat/completions";
-const NEAR_AI_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
+const REQUESTED_NEAR_AI_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
+const CURRENT_NEAR_AI_FALLBACK_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
+const NEAR_AI_MODEL_PRIORITY = [
+  REQUESTED_NEAR_AI_MODEL,
+  CURRENT_NEAR_AI_FALLBACK_MODEL,
+  "Qwen/Qwen3.8-27B",
+  "z-ai/glm-5.3-flash",
+] as const;
 const MAX_BODY_BYTES = 48 * 1_024;
 const UPSTREAM_TIMEOUT_MS = 25_000;
+const MODEL_CATALOG_TIMEOUT_MS = 3_000;
+const MODEL_CATALOG_TTL_MS = 10 * 60_000;
 const MAX_TEXT_LENGTH = 6_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 12;
 const MAX_RATE_LIMIT_CLIENTS = 2_000;
 const ROUTE_RPC_TIMEOUT_MS = 2_500;
 const rateLimits = new Map<string, RateLimitEntry>();
+let cachedNearAiModel: { id: string; expiresAt: number } | null = null;
 
 export const config = { maxDuration: 30 };
 
@@ -113,8 +127,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       body = await enrichRouteRequest(body);
     }
     const prompt = buildPrompt(body);
-    const content = await callNearAi(apiKey, prompt.system, prompt.user, prompt.json);
-    response.status(200).json({ result: normalizeResult(body.task, content) });
+    const completion = await callNearAi(apiKey, prompt.system, prompt.user, prompt.json);
+    response.setHeader("x-clavis-ai-model", completion.model);
+    response.status(200).json({ result: normalizeResult(body.task, completion.content) });
   } catch (error) {
     const clientError = error instanceof ClientInputError;
     if (!clientError) {
@@ -259,10 +274,11 @@ async function callNearAi(
   system: string,
   user: string,
   json: boolean,
-): Promise<string> {
+): Promise<{ content: string; model: string }> {
   const configuredUrl = process.env.NEAR_AI_API_URL?.trim() || DEFAULT_NEAR_AI_URL;
   const upstreamUrl = new URL(configuredUrl);
   if (upstreamUrl.protocol !== "https:") throw new Error("NEAR AI requires HTTPS");
+  const model = await resolveNearAiModel(upstreamUrl);
 
   const upstream = await fetch(upstreamUrl, {
     method: "POST",
@@ -271,7 +287,7 @@ async function callNearAi(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: NEAR_AI_MODEL,
+      model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -297,7 +313,49 @@ async function callNearAi(
   if (!content || content.length > MAX_TEXT_LENGTH) {
     throw new Error("NEAR AI returned an invalid response");
   }
-  return content;
+  return { content, model };
+}
+
+async function resolveNearAiModel(upstreamUrl: URL): Promise<string> {
+  const configuredModel = process.env.NEAR_AI_MODEL?.trim();
+  if (configuredModel) return configuredModel;
+
+  const now = Date.now();
+  if (cachedNearAiModel && cachedNearAiModel.expiresAt > now) {
+    return cachedNearAiModel.id;
+  }
+
+  const catalogUrl = new URL(upstreamUrl);
+  const catalogPath = catalogUrl.pathname.replace(/\/chat\/completions\/?$/u, "/models");
+  if (catalogPath === catalogUrl.pathname) return CURRENT_NEAR_AI_FALLBACK_MODEL;
+  catalogUrl.pathname = catalogPath;
+  catalogUrl.search = "";
+
+  try {
+    const catalogResponse = await fetch(catalogUrl, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
+    });
+    if (!catalogResponse.ok) return CURRENT_NEAR_AI_FALLBACK_MODEL;
+    const catalog = (await catalogResponse.json()) as NearAiModelCatalog;
+    const entries = Array.isArray(catalog.data) ? catalog.data : [];
+    const availableIds = new Set(
+      entries.flatMap((entry) => (typeof entry.id === "string" ? [entry.id] : [])),
+    );
+    const preferred = NEAR_AI_MODEL_PRIORITY.find((candidate) => availableIds.has(candidate));
+    const hostedFallback = entries.find(
+      (entry) =>
+        typeof entry.id === "string" &&
+        entry.owned_by === "nearai" &&
+        !/(abliterated|embedding|flux|privacy-filter|reranker|whisper)/iu.test(entry.id),
+    )?.id;
+    const selected = preferred || (typeof hostedFallback === "string" ? hostedFallback : null);
+    if (!selected) return CURRENT_NEAR_AI_FALLBACK_MODEL;
+    cachedNearAiModel = { id: selected, expiresAt: now + MODEL_CATALOG_TTL_MS };
+    return selected;
+  } catch {
+    return CURRENT_NEAR_AI_FALLBACK_MODEL;
+  }
 }
 
 function classifyUpstreamStatus(status: number): string {
