@@ -81,10 +81,12 @@ export default function WorkerDashboard() {
       } catch {
         // The root deployment remains available while the factory RPC is warming up.
       }
+      // Results retain candidate order, so check the canonical root contract
+      // before a factory child that may contain a duplicate registration.
       const candidateIds = new Set([
-        ...factoryContracts.map((contract) => contract.contract_id),
-        getStoredContractId(),
         rootContractId,
+        getStoredContractId(),
+        ...factoryContracts.map((contract) => contract.contract_id),
       ]);
 
       const results = await Promise.all(
