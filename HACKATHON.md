@@ -20,7 +20,7 @@ Clavis is built for the `privacy`, `realworld`, `security`, `agents`, and `busin
 ## Sister project
 
 Sister project: Velo — AI Solver Network for NEAR Intents
-Repo: [coming soon]
+Repo: [coming soon — submitting under separate account]
 
 ## Builder
 

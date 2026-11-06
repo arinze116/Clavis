@@ -9,6 +9,18 @@ Clavis is a production-oriented NEAR testnet payroll platform for remote teams. 
 - Root contract and provisioner: [`clavis.testnet`](https://testnet.nearblocks.io/address/clavis.testnet)
 - Network: NEAR testnet only
 
+## Live Demo
+
+**Try it now:** https://clavisapp.vercel.app
+
+| Resource | Link |
+|---|---|
+| Live app | https://clavisapp.vercel.app |
+| Root contract | https://testnet.nearblocks.io/address/clavis.testnet |
+| Agent key | https://testnet.nearblocks.io/address/clavis-agent.testnet |
+| Factory | https://testnet.nearblocks.io/address/factory.clavis.testnet |
+| Figma design | https://www.figma.com/design/jm1POnC0a492ZVAejkiBre |
+
 ## Production testnet capabilities
 
 - Self-service business contract deployment under `*.clavis.testnet`
@@ -379,6 +391,27 @@ This exception is limited to the shared testnet operator. Contract authorization
 7. the chain/token route was approved by the owner.
 
 Unauthorized public calls do not append audit state, preventing storage-exhaustion attacks. Recipient hashes are validated as lowercase SHA-256 digests and recipient count is capped.
+
+## Demo flow for judges
+
+No terminal required. Everything runs from the browser.
+
+1. Open https://clavisapp.vercel.app — read the live policy engine card on the hero
+2. Go to `/audit` — verify 9+ onchain decisions with zero salary data
+3. Click "Open explorer" — confirm contract is live on NEAR testnet
+4. Go to `/dashboard` (connect `clavis.testnet` on Meteor Wallet testnet)
+   - Treasury: 9.94 NEAR live from contract
+   - Payroll roster: 3 recipients across NEAR, Ethereum, BNB Chain
+   - Click "Analyze with AI" on the anomaly alert
+   - Click "Generate AI report" — NEAR AI generates a CFO-style summary
+   - Click "Run AI security audit" — 5 attack scenarios, all rejected onchain
+5. Switch wallet to `arinze-worker1.testnet`
+   - Go to `/worker` — "Hello, Worker 1." recognized from contract
+   - Shows weekly cycle, primary route, cross-chain allocation
+6. Go to `/guide` — business owner, worker, and developer guides
+7. Go to `/setup` — 7-step factory deployment wizard
+
+**Tracks:** `privacy` · `realworld` · `security` · `agents` · `business`
 
 ## License
 
