@@ -20,6 +20,7 @@ target/
 # Agent private state
 agent/config/payroll.local.json
 agent/config/payrolls/
+agent/config/agent-credentials.local.json
 agent/data/
 agent/reports/
 

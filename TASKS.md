@@ -1,5 +1,19 @@
 # Clavis judge-ready build plan
 
+## Judge-evidence hardening pass (2026-11-06)
+
+| ID | Outcome | Owned paths | Depends on | Owner | Acceptance and verification |
+| --- | --- | --- | --- | --- | --- |
+| H1 | Public dashboard is useful without a wallet | Dashboard page and contract-state hooks | Baseline | Frontend worker | `/dashboard` renders live `clavis.testnet` read-only evidence; owner mutations remain wallet-gated |
+| H2 | Public audit reaches useful content quickly | Audit page and RPC/enrichment utilities | Baseline | Frontend worker | Snapshot is fetched once, transaction-link enrichment is non-blocking, concurrent calls are deduplicated |
+| H3 | Every payroll contract uses a restricted signer | Agent runtime/config/tests | Baseline | Agent worker | No Full Access opt-in remains; per-contract `request_payment` Function Call credentials are selected and isolated |
+| H4 | Security claims are reproducible | CI workflow, threat model, generated report, security-evidence page | Baseline | Security worker + parent integration | Threat cases map to real tests and commit evidence; browser probes are labelled as demonstrations |
+| H5 | Settlement evidence is honest and verifiable | Agent settlement records, UI/docs copy | H1 | Parent | Unsupported cross-chain routes fail without NEAR substitution; verified references identify route and settlement type |
+| H6 | Privacy and AI positioning match the implementation | Marketing, guide, metadata, README/submission/security docs | H1-H4 | Parent | “Privacy-minimized” boundary is explicit; deterministic tests, not AI, are the security authority |
+| H7 | Integrated release passes all gates | Whole repository | H1-H6 | Parent + QA reviewer | Agent/contract tests, typecheck, build, security-report generation, browser smoke and diff checks pass |
+
+Critical path: `H1/H2/H3/H4 -> H5/H6 -> H7`. No fabricated mainnet or cross-chain transaction evidence is permitted. A funded settlement or deployment requiring wallet signing remains an external approval gate.
+
 ## Working assumptions
 
 - Stage: implementation, integration, QA, deployment, and submission readiness.
@@ -14,10 +28,10 @@
 | --- | --- | --- | --- | --- | --- |
 | T0 | Baseline and branch are current, routing fix integrated | Git history only | — | Parent | `feat/clavis-mvp` contains latest `main`; clean baseline; routing commit present |
 | T1 | Safe NEAR AI Cloud interface and shared UI contracts | `api/ai.ts`, `frontend/api/ai.ts`, `frontend/src/utils/nearAi.ts`, shared type additions, env docs | T0 | Parent | Server-side key only; validated task payloads; timeout/error handling; frontend never bundles the key; API typecheck passes |
-| T2 | Owner-only, no-funds five-scenario security audit recorded on-chain | `contract/src/security.rs`, required contract module/type/test files | T0 | Contract worker | Exactly five canonical blocked scenarios, owner-only, privacy-safe audit entries, no transfers/state corruption; Rust tests and WASM build pass |
+| T2 | Owner-only, no-funds five-scenario security audit recorded on-chain | `contract/src/security.rs`, required contract module/type/test files | T0 | Contract worker | Exactly five canonical blocked scenarios, owner-only, privacy-minimized audit entries, no transfers/state corruption; Rust tests and WASM build pass |
 | T3 | Complete business, worker, and developer guides | New guide-only page/layout/content files | T0 | Guide worker | All supplied guide copy present; sidebar/mobile selector, progress, previous/next, try-it links, accessible semantics; frontend typecheck passes |
 | T4 | Setup AI policy generation and route recommendation | `frontend/src/pages/SetupWizard.tsx` and new setup/recipient form components assigned in brief | T1 | Setup worker | Plain-English extraction auto-fills editable limits and recipient caps; readable summary; route recommendation can be accepted or overridden; mobile/keyboard behavior passes |
-| T5 | Production dashboard controls and visible AI | Dashboard page/components, transaction helpers, toast lifecycle | T1, T2 | Parent | Anomaly analysis, CFO report, add/edit/delete recipient, validated limits/agent, pause banner/confirmation, two-step withdrawal, AI security audit feed, all writes use lifecycle toasts |
+| T5 | Production dashboard controls and visible AI | Dashboard page/components, transaction helpers, toast lifecycle | T1, T2 | Parent | Anomaly analysis, CFO report, add/edit/delete recipient, validated limits/agent, pause banner/confirmation, two-step withdrawal, deterministic security probe feed, all writes use lifecycle toasts |
 | T6 | Realtime audit and anomaly notification center | Audit/payment-history components, app notification component/hook | T5 | Parent | 30-second polling, animated new rows, useful empty state, unread anomaly badge/dropdown/mark-read, dashboard anchor links |
 | T7 | Guide/routes/navigation/SEO/404/mobile/loading integration | `App.tsx`, navigation/footer/landing, metadata hook, 404, global CSS, public banner | T3–T6 | Parent | Guide links everywhere, required CTAs, per-route OG metadata, branded 404, 375px behavior, skeletons replace blank loading states |
 | T8 | Documentation and submission polish | `HACKATHON.md`, `.env.example`, README/guide references if needed | T1–T7 | Parent | Velo placeholder text exact; setup/deployment variables documented; no terminal instruction remains in user-facing UI |

@@ -1,3 +1,4 @@
+import { AgentCredentialProvider } from "./agent-credentials.js";
 import { config } from "./config.js";
 import { errorMessage, logger } from "./logger.js";
 import { NearClient } from "./near.js";
@@ -5,15 +6,31 @@ import { NearClient } from "./near.js";
 const UNAPPROVED_RECIPIENT = "f".repeat(64);
 
 async function simulateAttack(): Promise<void> {
+  const contractId = process.env.CONTRACT_ID?.trim() || "clavis.testnet";
+  const credentials = await AgentCredentialProvider.load({
+    ...(config.agentCredentialsPath
+      ? { credentialPath: config.agentCredentialsPath }
+      : {}),
+    ...(config.nearAccountId && config.nearPrivateKey && config.legacyAgentContractId
+      ? {
+          legacyCredential: {
+            accountId: config.nearAccountId,
+            privateKey: config.nearPrivateKey,
+          },
+          legacyContractId: config.legacyAgentContractId,
+        }
+      : {}),
+  });
+  const credential = credentials.resolve(contractId);
   const near = new NearClient({
     networkId: config.nearNetwork,
     rpcUrl: config.nearRpcUrl,
-    accountId: config.nearAccountId,
-    privateKey: config.nearPrivateKey,
-    contractId: process.env.CONTRACT_ID?.trim() || "clavis.testnet",
+    accountId: credential.accountId,
+    privateKey: credential.privateKey,
+    contractId,
   });
   await near.connect();
-  await near.verifyAgentKey(config.allowFullAccessAgent);
+  await near.verifyAgentKey();
 
   const result = await near.requestPayment({
     recipientHash: UNAPPROVED_RECIPIENT,

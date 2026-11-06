@@ -69,6 +69,7 @@ export class IntentStore {
       delete record.transactionHash;
     }
     record.fallback = submission.fallback;
+    record.settlementKind = submission.settlementKind;
     delete record.lastError;
     delete record.nextRetryAt;
     record.updatedAt = new Date().toISOString();

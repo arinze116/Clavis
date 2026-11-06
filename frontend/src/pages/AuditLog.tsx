@@ -4,36 +4,24 @@ import { AppShell } from "../components/AppShell";
 import { PaymentHistory } from "../components/PaymentHistory";
 import { ErrorState, LoadingState } from "../components/ScreenState";
 import { useWallet } from "../contexts/WalletContext";
-import { useContractState, useOwnerContract } from "../hooks/useContractState";
+import { useAuditState, useOwnerContract } from "../hooks/useContractState";
 import { explorerUrl, rootContractId } from "../utils/near";
 
 export default function AuditLog() {
-  const { accountId, loading: walletLoading } = useWallet();
+  const { accountId } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
-  const { data, loading, error, refresh } = useContractState(contractId, 30_000);
+  const { data, loading, error, refresh } = useAuditState(contractId, 30_000);
 
-  if (walletLoading || ownerContract.loading) {
-    return (
-      <AppShell>
-        <LoadingState label="Resolving the audit contract" />
-      </AppShell>
-    );
-  }
-  if (ownerContract.error) {
-    return (
-      <AppShell>
-        <ErrorState
-          message={ownerContract.error}
-          retry={() => void ownerContract.refresh()}
-        />
-      </AppShell>
-    );
-  }
   if (loading && !data) {
     return (
       <AppShell>
-        <LoadingState label="Reading the public audit ledger" />
+        <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+          <AuditHero />
+          <div className="mt-10">
+            <LoadingState label="Reading two public contract views" />
+          </div>
+        </div>
       </AppShell>
     );
   }
@@ -53,25 +41,7 @@ export default function AuditLog() {
   return (
     <AppShell>
       <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
-        <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-end">
-          <div>
-            <p className="eyebrow">Public verification</p>
-            <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold leading-none tracking-tight sm:text-5xl md:text-7xl">
-              Proof without payroll exposure.
-            </h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-ink/52">
-              Every authorization decision is permanent and inspectable. Amounts,
-              recipient addresses, names, and destination chains are intentionally absent.
-            </p>
-          </div>
-          <div className="rounded-[28px] bg-ink p-7 text-white">
-            <EyeOff className="h-6 w-6 text-acid" />
-            <p className="mt-7 font-display text-3xl font-semibold">Zero salary data</p>
-            <p className="mt-3 text-sm leading-6 text-white/45">
-              The audit proves policy outcomes—not private compensation.
-            </p>
-          </div>
-        </div>
+        <AuditHero />
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
             ["Total decisions", data.logCount, ""],
@@ -130,5 +100,30 @@ export default function AuditLog() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function AuditHero() {
+  return (
+    <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-end">
+      <div>
+        <p className="eyebrow">Public verification</p>
+        <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold leading-none tracking-tight sm:text-5xl md:text-7xl">
+          Proof without payroll exposure.
+        </h1>
+        <p className="mt-6 max-w-2xl text-base leading-7 text-ink/52">
+          Every authorization decision is permanent and inspectable. Audit entries omit amounts,
+          recipient addresses, names, and destination chains. Standard NEAR transaction inputs and
+          public contract configuration remain visible onchain.
+        </p>
+      </div>
+      <div className="rounded-[28px] bg-ink p-7 text-white">
+        <EyeOff className="h-6 w-6 text-acid" />
+        <p className="mt-7 font-display text-3xl font-semibold">Zero salary data</p>
+        <p className="mt-3 text-sm leading-6 text-white/45">
+          A privacy-minimized audit of policy outcomes—not complete transaction privacy.
+        </p>
+      </div>
+    </div>
   );
 }

@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
+import { assertNoFullAccessOverride } from "./agent-credentials.js";
+
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const agentRoot = path.resolve(currentDirectory, "..");
 
@@ -24,8 +26,10 @@ const optionalStrongSecret = z.preprocess(
 );
 
 const schema = z.object({
-  NEAR_ACCOUNT_ID: z.string().min(2),
-  NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/),
+  NEAR_ACCOUNT_ID: z.string().min(2).optional(),
+  NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/).optional(),
+  LEGACY_AGENT_CONTRACT_ID: z.string().min(2).optional(),
+  AGENT_CREDENTIALS_PATH: z.string().trim().min(1).optional(),
   NEAR_NETWORK: z.string().default("testnet"),
   NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.fastnear.com"),
   FACTORY_CONTRACT_ID: z.string().default("factory.clavis.testnet"),
@@ -34,7 +38,6 @@ const schema = z.object({
   INTENTS_API_KEY: optionalSecret,
   SETTLEMENT_ACCOUNT_ID: z.string().min(2).optional(),
   SETTLEMENT_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/).optional(),
-  ALLOW_FULL_ACCESS_AGENT: booleanFromEnvironment.default(false),
   PAYROLL_CONFIG_PATH: z.string().default("./config/payroll.local.json"),
   PAYROLL_DIRECTORY: z.string().default("./config/payrolls"),
   AGENT_DATA_DIRECTORY: z.string().default("./data/contracts"),
@@ -81,14 +84,32 @@ if (!parsed.success) {
   throw new Error(`Invalid agent configuration: ${details}`);
 }
 
+assertNoFullAccessOverride(process.env.ALLOW_FULL_ACCESS_AGENT);
+
+const legacyCredentialFields = [
+  parsed.data.NEAR_ACCOUNT_ID,
+  parsed.data.NEAR_PRIVATE_KEY,
+  parsed.data.LEGACY_AGENT_CONTRACT_ID,
+].filter(Boolean).length;
+if (legacyCredentialFields !== 0 && legacyCredentialFields !== 3) {
+  throw new Error(
+    "NEAR_ACCOUNT_ID, NEAR_PRIVATE_KEY, and LEGACY_AGENT_CONTRACT_ID must be set together",
+  );
+}
+
+if (
+  !parsed.data.AGENT_CREDENTIALS_PATH &&
+  legacyCredentialFields !== 3
+) {
+  throw new Error(
+    "AGENT_CREDENTIALS_PATH or the single-contract legacy credential fields are required",
+  );
+}
+
 if (Boolean(parsed.data.SETTLEMENT_ACCOUNT_ID) !== Boolean(parsed.data.SETTLEMENT_PRIVATE_KEY)) {
   throw new Error(
     "SETTLEMENT_ACCOUNT_ID and SETTLEMENT_PRIVATE_KEY must either both be set or both be omitted",
   );
-}
-
-if (parsed.data.ALLOW_FULL_ACCESS_AGENT && parsed.data.NEAR_NETWORK !== "testnet") {
-  throw new Error("ALLOW_FULL_ACCESS_AGENT is permitted only on NEAR testnet");
 }
 
 if (parsed.data.NOTIFICATION_API_ENABLED && !parsed.data.NOTIFICATION_API_KEY) {
@@ -113,6 +134,10 @@ function resolveAgentPath(value: string): string {
 export const config = {
   nearAccountId: parsed.data.NEAR_ACCOUNT_ID,
   nearPrivateKey: parsed.data.NEAR_PRIVATE_KEY,
+  legacyAgentContractId: parsed.data.LEGACY_AGENT_CONTRACT_ID,
+  agentCredentialsPath: parsed.data.AGENT_CREDENTIALS_PATH
+    ? resolveAgentPath(parsed.data.AGENT_CREDENTIALS_PATH)
+    : undefined,
   nearNetwork: parsed.data.NEAR_NETWORK,
   nearRpcUrl: parsed.data.NEAR_RPC_URL,
   factoryContractId: parsed.data.FACTORY_CONTRACT_ID,
@@ -121,7 +146,6 @@ export const config = {
   intentsApiKey: parsed.data.INTENTS_API_KEY,
   settlementAccountId: parsed.data.SETTLEMENT_ACCOUNT_ID,
   settlementPrivateKey: parsed.data.SETTLEMENT_PRIVATE_KEY,
-  allowFullAccessAgent: parsed.data.ALLOW_FULL_ACCESS_AGENT,
   payrollConfigPath: resolveAgentPath(parsed.data.PAYROLL_CONFIG_PATH),
   payrollDirectory: resolveAgentPath(parsed.data.PAYROLL_DIRECTORY),
   dataDirectory: resolveAgentPath(parsed.data.AGENT_DATA_DIRECTORY),

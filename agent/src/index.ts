@@ -1,5 +1,9 @@
 import path from "node:path";
 
+import {
+  AgentCredentialProvider,
+  assertSeparateSettlementAccount,
+} from "./agent-credentials.js";
 import { config } from "./config.js";
 import { ContractEventMonitor } from "./contract-event-monitor.js";
 import { IntentStore } from "./intent-store.js";
@@ -14,6 +18,21 @@ import { Scheduler } from "./scheduler.js";
 import { TelegramLinkPoller } from "./telegram-link-poller.js";
 
 async function main(): Promise<void> {
+  const credentials = await AgentCredentialProvider.load({
+    ...(config.agentCredentialsPath
+      ? { credentialPath: config.agentCredentialsPath }
+      : {}),
+    ...(config.nearAccountId && config.nearPrivateKey && config.legacyAgentContractId
+      ? {
+          legacyCredential: {
+            accountId: config.nearAccountId,
+            privateKey: config.nearPrivateKey,
+          },
+          legacyContractId: config.legacyAgentContractId,
+        }
+      : {}),
+  });
+  assertSeparateSettlementAccount(credentials, config.settlementAccountId);
   const transferClient =
     config.settlementAccountId && config.settlementPrivateKey
       ? new NearTransferClient({
@@ -99,6 +118,7 @@ async function main(): Promise<void> {
     intentStore,
     notifications,
     notificationEvents,
+    credentials,
   });
 
   const shutdown = (signal: string): void => {

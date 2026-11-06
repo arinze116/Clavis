@@ -21,9 +21,9 @@ export function MarketingHeader({ landing = false }: { landing?: boolean }) {
         <Link to="/audit" className="transition hover:text-white">
           Public audit
         </Link>
-        <a href={`${anchorPrefix}#security`} className="transition hover:text-white">
+        <Link to="/security" className="transition hover:text-white">
           Security
-        </a>
+        </Link>
         <Link to="/guide" className="transition hover:text-white">
           Guide
         </Link>

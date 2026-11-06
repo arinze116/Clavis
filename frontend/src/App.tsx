@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Link, Route, Routes } from "react-router-dom";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingState } from "./components/ScreenState";
@@ -17,12 +17,14 @@ const GuideLanding = lazy(() => import("./pages/guide/GuideLanding"));
 const BusinessGuide = lazy(() => import("./pages/guide/BusinessGuide"));
 const WorkerGuide = lazy(() => import("./pages/guide/WorkerGuide"));
 const DeveloperGuide = lazy(() => import("./pages/guide/DeveloperGuide"));
+const SecurityEvidence = lazy(() => import("./pages/SecurityEvidence"));
 
 const descriptions = {
-  home: "Private, rule-bound cross-chain payroll on NEAR with autonomous scheduling and public-safe audit proofs.",
-  dashboard: "Manage Clavis treasury rules, recipients, security controls, anomalies, and AI payroll reports.",
+  home: "Privacy-minimized, rule-bound payroll automation with public audit and security evidence on NEAR testnet.",
+  dashboard: "Inspect live Clavis treasury, policy, roster, anomalies, and audit evidence without connecting a wallet.",
   worker: "Register your NEAR testnet wallet, choose a settlement route, and verify payroll decisions.",
-  audit: "Inspect Clavis payroll approvals and rejections without exposing salary, recipient, or destination data.",
+  audit: "Inspect privacy-minimized Clavis payroll decisions with the public NEAR transaction boundary disclosed.",
+  security: "Review Clavis threat cases, source-linked tests, CI evidence, and documented limitations.",
   setup: "Deploy and configure an isolated Clavis payroll contract on NEAR testnet.",
   guide: "Step-by-step guides for Clavis business owners, workers, and developers.",
   businessGuide:
@@ -44,7 +46,7 @@ export default function App() {
           path="/"
           element={
             <RouteBoundary
-              title="Clavis — Private Cross-Chain Payroll on NEAR"
+              title="Clavis — Rule-Bound Payroll on NEAR"
               description={descriptions.home}
             >
               <Landing />
@@ -55,7 +57,9 @@ export default function App() {
           path="/dashboard"
           element={
             <RouteBoundary title="Business Console · Clavis" description={descriptions.dashboard}>
-              <BusinessDashboard />
+              <Suspense fallback={<DashboardRouteFallback />}>
+                <BusinessDashboard />
+              </Suspense>
             </RouteBoundary>
           }
         />
@@ -72,6 +76,14 @@ export default function App() {
           element={
             <RouteBoundary title="Public Audit Log · Clavis" description={descriptions.audit}>
               <AuditLog />
+            </RouteBoundary>
+          }
+        />
+        <Route
+          path="/security"
+          element={
+            <RouteBoundary title="Security Evidence · Clavis" description={descriptions.security}>
+              <SecurityEvidence />
             </RouteBoundary>
           }
         />
@@ -161,4 +173,43 @@ function RouteBoundary({
 }) {
   usePageMetadata(title, description);
   return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
+function DashboardRouteFallback() {
+  return (
+    <div className="min-h-screen bg-canvas px-5 py-10 text-ink lg:px-10 lg:py-16">
+      <main className="mx-auto max-w-[1360px]">
+        <div className="rounded-[28px] border border-moss/20 bg-[#eef3e9] p-6 sm:p-8">
+          <p className="eyebrow">Public business console</p>
+          <h1 className="mt-4 max-w-4xl font-display text-4xl font-semibold tracking-tight sm:text-6xl">
+            Inspect the payroll system before connecting.
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-ink/55">
+            The live `clavis.testnet` snapshot is loading. Audit and security evidence remain
+            publicly accessible without a wallet; owner controls require a signed transaction.
+          </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link className="button-secondary" to="/audit">Open public audit</Link>
+            <Link className="button-secondary" to="/security">Open security evidence</Link>
+            <a
+              className="button-secondary"
+              href="https://testnet.nearblocks.io/address/clavis.testnet"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open contract explorer
+            </a>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {["Live treasury", "Roster policy", "Authorization decisions"].map((label) => (
+            <section key={label} className="panel p-6">
+              <p className="text-xs font-semibold text-ink/45">{label}</p>
+              <div className="mt-4 h-9 w-24 animate-pulse rounded-lg bg-ink/10" />
+            </section>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
 }

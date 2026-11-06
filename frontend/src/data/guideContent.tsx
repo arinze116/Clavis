@@ -239,7 +239,7 @@ export const businessGuide: RoleGuide = {
       id: "monitor-payroll",
       title: "Monitor payroll",
       summary:
-        "The business console brings treasury health, recipients, policy controls, anomalies, and private-safe audit decisions into one operating view.",
+        "The business console brings treasury health, recipients, policy controls, anomalies, and privacy-minimized audit decisions into one operating view.",
       content: (
         <BulletList>
           <li>Treasury status compares the current balance with today’s authorized spend and daily limit.</li>
@@ -265,23 +265,23 @@ export const businessGuide: RoleGuide = {
       id: "security-audit",
       title: "Run a security audit",
       summary:
-        "The browser audit asks AI to explain five canonical attacks, then lets the contract prove that every scenario is blocked and publicly logged.",
+        "The browser runs five fixed, versioned contract probes and verifies every structured result. NEAR AI may summarize the verified outcome, but it does not choose the tests or decide whether they passed.",
       content: (
         <div className="grid gap-4">
           <BulletList>
-            <li>Open Emergency controls and select Run AI security audit.</li>
+            <li>Open Emergency controls and select Run contract security probes.</li>
             <li>Approve the wallet transaction that executes the fixed, no-funds audit method.</li>
             <li>Watch the live feed test an unapproved recipient, over-limit payment, suspended recipient, daily-limit breach, and off-hours attempt.</li>
             <li>A successful result reads “5/5 attacks blocked”; open the public audit to inspect the matching rejected decisions.</li>
           </BulletList>
           <Note>
-            The audit never sends a real payment. It records privacy-safe rejection evidence so a
+            The audit never sends a real payment. It records privacy-minimized rejection evidence so a
             judge can verify the policy boundary independently.
           </Note>
         </div>
       ),
       visual: {
-        label: "AI security audit",
+        label: "Contract security probes",
         title: "5 / 5 attacks blocked",
         caption: "Each line maps to a rejected decision in the on-chain public audit.",
         rows: [
@@ -300,7 +300,7 @@ export const workerGuide: RoleGuide = {
   role: "Worker",
   title: "Join payroll and follow every decision",
   intro:
-    "Create a NEAR testnet identity, share it securely with your employer, choose a settlement route, and view your private-safe payment history.",
+    "Create a NEAR testnet identity, share it securely with your employer, choose a settlement preference, and view the privacy-minimized decision history available from the contract.",
   sections: [
     {
       id: "get-wallet",
@@ -387,14 +387,14 @@ export const workerGuide: RoleGuide = {
         <BulletList>
           <li>The agent checks payroll schedules approximately every 60 seconds.</li>
           <li>You receive a notification when the contract approves or rejects the request.</li>
-          <li>For cross-chain routes, NEAR Intents finds the settlement path to your preferred chain and token.</li>
+          <li>For cross-chain preferences, NEAR Intents may find a solver route. If it does not, delivery fails visibly instead of substituting a direct NEAR transfer.</li>
           <li>If the route changes, your employer must approve the corresponding contract update first.</li>
         </BulletList>
       ),
       visual: {
         label: "Payment status",
         title: "Authorization approved",
-        caption: "The public record proves the decision while the private settlement layer handles destination details.",
+        caption: "The public record proves authorization. A separate delivery record must prove what route actually settled.",
         rows: [
           { label: "Policy decision", value: "Approved", state: "active" },
           { label: "Route", value: "NEAR Intents" },
@@ -417,14 +417,14 @@ export const workerGuide: RoleGuide = {
             <li>Select the explorer icon beside an entry to verify its block or transaction on NearBlocks.</li>
           </BulletList>
           <Note>
-            Amounts are intentionally private. Only you and your employer should reconcile the
-            actual payroll amount through your private records.
+            Amounts are omitted from Clavis audit entries, but normal NEAR transaction arguments
+            and chain metadata remain public. Use employer records to reconcile actual payroll.
           </Note>
         </div>
       ),
       visual: {
         label: "Worker · history",
-        title: "Private-safe decision trail",
+        title: "Privacy-minimized decision trail",
         caption: "Timestamps and outcomes are public; salary, wallet, and destination details are not stored in the audit entry.",
         rows: [
           { label: "Decision #0048", value: "Approved", state: "active" },
@@ -491,7 +491,7 @@ export const developerGuide: RoleGuide = {
       visual: {
         label: "System boundary",
         title: "Agent asks · contract decides",
-        caption: "Private plans stay off-chain; public contract state contains only the policy and privacy-safe decision evidence.",
+        caption: "Payroll plans stay off-chain; public contract state and transaction inputs remain observable while audit entries minimize repeated sensitive fields.",
         rows: [
           { label: "React client", value: "Owner + worker actions" },
           { label: "Factory", value: "Isolated deployment" },
@@ -550,9 +550,9 @@ npm run dev:frontend`}</CodeBlock>
       content: (
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            ["Function Call Keys", "A key can be restricted to one receiver and request_payment, so the scheduler cannot invoke owner controls."],
-            ["NEAR Intents", "Approved work becomes a solver request that can settle to the worker’s registered destination chain and token."],
-            ["Confidential execution", "Private amounts and destination details stay behind a replaceable executor adapter; standard NEAR call arguments are public."],
+            ["Function Call Keys", "Each contract uses a key restricted to that receiver and request_payment, so the scheduler cannot invoke owner controls."],
+            ["NEAR Intents", "Approved work can become a solver request; only a filled intent with a verifiable reference counts as cross-chain settlement evidence."],
+            ["Privacy boundary", "Audit entries omit amounts and destination details; standard NEAR call arguments and metadata remain public."],
           ].map(([title, text]) => (
             <div key={title} className="rounded-2xl border border-line bg-white p-4">
               <h3 className="text-sm font-semibold text-ink">{title}</h3>
@@ -568,8 +568,8 @@ npm run dev:frontend`}</CodeBlock>
         rows: [
           { label: "1 · Agent key", value: "request_payment only" },
           { label: "2 · Contract", value: "Rules enforced", state: "active" },
-          { label: "3 · Executor", value: "Private envelope" },
-          { label: "4 · Intent", value: "Cross-chain settlement" },
+          { label: "3 · Executor", value: "Access-controlled envelope" },
+          { label: "4 · Intent", value: "Verified route or visible failure" },
         ],
       },
       action: { label: "Inspect public audit", to: "/audit" },
@@ -643,7 +643,7 @@ npm run dev:frontend`}</CodeBlock>
       visual: {
         label: "Rules engine",
         title: "Stable order, deterministic result",
-        caption: "The first failed rule becomes the public-safe rejection reason; an approval updates daily spend and the recipient schedule.",
+        caption: "The first failed rule becomes the privacy-minimized rejection reason; an approval updates daily spend and the recipient schedule.",
         rows: [
           { label: "Caller", value: "Authorized agent", state: "active" },
           { label: "Recipient + caps", value: "Passed" },

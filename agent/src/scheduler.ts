@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import type { AgentCredentialProvider } from "./agent-credentials.js";
 import { detectAnomalies } from "./anomaly.js";
 import type { config as configType } from "./config.js";
 import type { IntentStore } from "./intent-store.js";
@@ -23,6 +24,7 @@ export class Scheduler {
   readonly #intentStore: IntentStore;
   readonly #notifications: NotificationManager;
   readonly #notificationEvents: NotificationEventStore;
+  readonly #credentials: AgentCredentialProvider;
   readonly #clients = new Map<string, NearClient>();
   readonly #states = new Map<string, StateStore>();
   #stopping = false;
@@ -34,6 +36,7 @@ export class Scheduler {
     intentStore: IntentStore;
     notifications: NotificationManager;
     notificationEvents: NotificationEventStore;
+    credentials: AgentCredentialProvider;
   }) {
     this.#config = options.config;
     this.#factory = options.factory;
@@ -41,6 +44,7 @@ export class Scheduler {
     this.#intentStore = options.intentStore;
     this.#notifications = options.notifications;
     this.#notificationEvents = options.notificationEvents;
+    this.#credentials = options.credentials;
   }
 
   stop(): void {
@@ -179,15 +183,17 @@ export class Scheduler {
     const existing = this.#clients.get(contractId);
     if (existing) return existing;
 
+    const credential = this.#credentials.resolve(contractId);
+
     const client = new NearClient({
       networkId: this.#config.nearNetwork,
       rpcUrl: this.#config.nearRpcUrl,
-      accountId: this.#config.nearAccountId,
-      privateKey: this.#config.nearPrivateKey,
+      accountId: credential.accountId,
+      privateKey: credential.privateKey,
       contractId,
     });
     await client.connect();
-    const keyMode = await client.verifyAgentKey(this.#config.allowFullAccessAgent);
+    const keyMode = await client.verifyAgentKey();
     logger.info("agent.contract_connected", { contractId, keyMode });
     this.#clients.set(contractId, client);
     return client;

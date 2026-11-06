@@ -12,6 +12,7 @@ const links = [
   { to: "/dashboard", label: "Business" },
   { to: "/worker", label: "Worker" },
   { to: "/audit", label: "Audit log" },
+  { to: "/security", label: "Security" },
   { to: "/setup", label: "Setup" },
   { to: "/guide", label: "Guide" },
 ];

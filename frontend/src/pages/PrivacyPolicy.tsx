@@ -26,7 +26,9 @@ const sections: LegalSection[] = [
       <p>
         The contract stores hashed recipient wallet commitments, owner-approved policy
         configuration, display labels, and public audit decisions. It does not place raw
-        recipient wallet addresses or payment amounts in the public audit entries.
+        recipient wallet addresses or payment amounts in the public audit entries. This is
+        privacy minimization, not transaction confidentiality: standard NEAR function-call
+        arguments, signer accounts, timestamps, and other chain metadata remain public.
       </p>
     ),
   },

@@ -4,7 +4,7 @@ Target duration: 60–90 seconds, with the exact cut derived from ElevenLabs cha
 
 | Beat | Visual | Narration focus | Product proof |
 | --- | --- | --- | --- |
-| 1. Promise | Landing hero and live policy card | Speed without losing control | Private, rule-bound payroll positioning |
+| 1. Promise | Landing hero and live policy card | Speed without losing control | Privacy-minimized, rule-bound payroll positioning |
 | 2. Configure | Owner setup wizard: limits, recipients, agent | Define policy once | Treasury limits, personal caps, schedules, routes |
 | 3. Constrain | Owner dashboard and rules engine | Restricted autonomous agent | Function Call Key limited to `request_payment` |
 | 4. Enforce | Treasury, roster, anomaly alert, policy controls | Independent onchain checks | Active recipient, schedule, caps, daily limit, registered route |

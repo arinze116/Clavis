@@ -68,7 +68,7 @@ export function AiPayrollReportModal({
   return (
     <Modal
       title="AI payroll control report"
-      description="A CFO-style summary of the latest 30 privacy-safe audit decisions and anomaly signals."
+      description="A CFO-style summary of the latest 30 privacy-minimized audit decisions and anomaly signals."
       onClose={onClose}
       size="lg"
     >

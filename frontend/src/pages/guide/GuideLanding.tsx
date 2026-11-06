@@ -52,7 +52,7 @@ export default function GuideLanding() {
               The agent proposes. The contract decides.
             </p>
             <p className="mt-4 text-sm leading-6 text-white/50">
-              Private payroll context stays outside the public audit; rule outcomes remain
+              Access-controlled payroll context stays outside the public audit; rule outcomes remain
               inspectable on NEAR testnet.
             </p>
           </div>

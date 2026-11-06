@@ -140,7 +140,7 @@ export class NotificationManager {
       emailText:
         `${options.workerName}, your NEAR testnet wallet was added to the payroll roster for ` +
         `${options.contractId}. Open https://clavisapp.vercel.app/worker with the same wallet ` +
-        "to review your schedule and public-safe payment history.",
+        "to review your schedule and privacy-minimized payment history.",
       telegramText:
         `✅ Added to payroll · ${options.workerName} · ${options.contractId}`,
     });
@@ -188,7 +188,10 @@ export class NotificationManager {
     });
   }
 
-  async deliverySubmitted(options: DeliveryOptions & { fallback: boolean }): Promise<void> {
+  async deliverySubmitted(options: DeliveryOptions & {
+    fallback: boolean;
+    settlementKind: "solver_intent" | "native_near";
+  }): Promise<void> {
     await this.sendNotification({
       contractId: options.business.contract_id,
       audience: ownerAndWorkerAudience(options),
@@ -196,7 +199,9 @@ export class NotificationManager {
       emailText:
         `Delivery for ${options.workerName} was submitted on ${options.business.contract_id}. ` +
         `Route: ${options.chain}/${options.token}.` +
-        (options.fallback ? " Direct NEAR fallback was used." : ""),
+        (options.settlementKind === "native_near"
+          ? " Settlement: direct native NEAR."
+          : " Settlement: NEAR Intents solver submission."),
       telegramText:
         `🚚 Delivery submitted · ${options.workerName} · ${options.chain}/${options.token}`,
     });
