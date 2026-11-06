@@ -59,8 +59,9 @@ export default function SetupWizard() {
   const navigate = useNavigate();
   const { showToast, updateToast } = useToast();
   const { accountId, wallet, loading: walletLoading } = useWallet();
-  // Only factory deployments should block a wallet from creating a new business contract.
-  const ownerContract = useOwnerContract(accountId, false);
+  // Prefer the canonical root deployment when this wallet owns both the root
+  // contract and a factory-created child account.
+  const ownerContract = useOwnerContract(accountId);
   const [step, setStep] = useState(0);
   const [businessName, setBusinessName] = useState("");
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
@@ -235,7 +236,9 @@ export default function SetupWizard() {
   }
 
   function canContinue(): boolean {
-    if (step === 0) return Boolean(accountId && wallet && !ownerContract.contract);
+    if (step === 0) {
+      return Boolean(ownerContract.contract || (accountId && wallet));
+    }
     if (step === 1) return nameAvailable === true && !checkingName;
     if (step === 2) return limitsValid;
     if (step === 4) return nearAccountPattern.test(agent.trim().toLowerCase());
