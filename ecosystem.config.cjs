@@ -10,6 +10,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         DOTENV_CONFIG_PATH: "/opt/clavis/agent/.env",
+        DOTENV_CONFIG_OVERRIDE: "true",
       },
       restart_delay: 5000,
       max_restarts: 10,
