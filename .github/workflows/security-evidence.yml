@@ -20,6 +20,8 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Install JavaScript dependencies
         run: npm ci
@@ -27,6 +29,7 @@ jobs:
       - name: Run payroll contract security tests
         run: |
           cargo test --manifest-path contract/Cargo.toml
+          bash scripts/build-contracts.sh
           cargo test --manifest-path contract/Cargo.toml --package clavis-factory
 
       - name: Run agent resilience tests
