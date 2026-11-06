@@ -14,9 +14,9 @@ export const securityEvidence = {
   },
   "verification": {
     "status": "passed",
-    "commit": "65c020ba0f46c08b20307f8f8de763eb4d9817f3",
-    "tree_state": "modified",
-    "generated_at": "2026-11-06T11:57:43.912Z",
+    "commit": "e3f1eebd2b2d139f508383c0094c4bf7689a7de0",
+    "tree_state": "clean",
+    "generated_at": "2026-11-06T12:14:29.780Z",
     "run_url": "",
     "workflow_url": "https://github.com/arinze116/Clavis/actions/workflows/security-evidence.yml"
   },
@@ -30,7 +30,7 @@ export const securityEvidence = {
       "test": "rule_2_rejects_unauthorized_caller",
       "line": 109,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L109"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L109"
     },
     {
       "id": "AUTH-002",
@@ -41,7 +41,7 @@ export const securityEvidence = {
       "test": "non_owner_cannot_run_security_audit_or_append_entries",
       "line": 386,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L386"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L386"
     },
     {
       "id": "AUTH-003",
@@ -52,7 +52,7 @@ export const securityEvidence = {
       "test": "accepts only the owner returned by the payroll contract",
       "line": 67,
       "source_sha256": "ed390251208f48ab833f4f7362a5e90e5934f9cf1c9fa4f8217d5ceeda3e9c73",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/notification-api.test.ts#L67"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/notification-api.test.ts#L67"
     },
     {
       "id": "KEY-001",
@@ -63,7 +63,7 @@ export const securityEvidence = {
       "test": "rejects Full Access keys without an override",
       "line": 23,
       "source_sha256": "336f6c0b5ac12a3de81eb23fa9bee04f76478d9bccfdc23a96203a628e656088",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/near.test.ts#L23"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/near.test.ts#L23"
     },
     {
       "id": "KEY-002",
@@ -74,7 +74,7 @@ export const securityEvidence = {
       "test": "fails closed when a credential file omits a discovered contract",
       "line": 36,
       "source_sha256": "ea2777bbf77c8e8ad3abfdd6eb803c716067d29839a48f4f3ee1061dc06bb186",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/agent-credentials.test.ts#L36"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/agent-credentials.test.ts#L36"
     },
     {
       "id": "KEY-003",
@@ -85,7 +85,7 @@ export const securityEvidence = {
       "test": "rejects a settlement signer that reuses a payroll agent account",
       "line": 102,
       "source_sha256": "ea2777bbf77c8e8ad3abfdd6eb803c716067d29839a48f4f3ee1061dc06bb186",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/agent-credentials.test.ts#L102"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/agent-credentials.test.ts#L102"
     },
     {
       "id": "POLICY-001",
@@ -96,7 +96,7 @@ export const securityEvidence = {
       "test": "rule_3_rejects_unknown_recipient",
       "line": 128,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L128"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L128"
     },
     {
       "id": "POLICY-002",
@@ -107,7 +107,7 @@ export const securityEvidence = {
       "test": "rule_4_rejects_suspended_recipient",
       "line": 138,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L138"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L138"
     },
     {
       "id": "POLICY-003",
@@ -118,7 +118,7 @@ export const securityEvidence = {
       "test": "rule_5_rejects_global_limit_breach",
       "line": 150,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L150"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L150"
     },
     {
       "id": "POLICY-004",
@@ -129,7 +129,7 @@ export const securityEvidence = {
       "test": "rule_6_rejects_personal_cap_breach",
       "line": 160,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L160"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L160"
     },
     {
       "id": "POLICY-005",
@@ -140,7 +140,7 @@ export const securityEvidence = {
       "test": "rule_8_rejects_daily_limit_breach",
       "line": 180,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L180"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L180"
     },
     {
       "id": "POLICY-006",
@@ -151,7 +151,7 @@ export const securityEvidence = {
       "test": "rule_1_rejects_when_paused",
       "line": 97,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L97"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L97"
     },
     {
       "id": "ROUTE-001",
@@ -162,7 +162,7 @@ export const securityEvidence = {
       "test": "rejects_unregistered_destination_route",
       "line": 214,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L214"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L214"
     },
     {
       "id": "SETTLE-001",
@@ -173,7 +173,7 @@ export const securityEvidence = {
       "test": "uses the configured native payout destination instead of the worker identity wallet",
       "line": 61,
       "source_sha256": "e64cd371a50611b090b7eb168511f33864007e764bff732fee2f1dec7ed2962c",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/intents.test.ts#L61"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/intents.test.ts#L61"
     },
     {
       "id": "SETTLE-002",
@@ -184,7 +184,7 @@ export const securityEvidence = {
       "test": "does not consume authorization when settlement preflight fails",
       "line": 196,
       "source_sha256": "bb4bc998a31937ce8816a977baa768e6ff59db3943509ed96138bfbc4cc7dc8a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/trigger.test.ts#L196"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/trigger.test.ts#L196"
     },
     {
       "id": "SCHEDULE-001",
@@ -195,7 +195,7 @@ export const securityEvidence = {
       "test": "rejects_early_scheduled_payment",
       "line": 202,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L202"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L202"
     },
     {
       "id": "SCHEDULE-002",
@@ -206,7 +206,7 @@ export const securityEvidence = {
       "test": "triggers a milestone once per stable milestone ID",
       "line": 73,
       "source_sha256": "bb4bc998a31937ce8816a977baa768e6ff59db3943509ed96138bfbc4cc7dc8a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/trigger.test.ts#L73"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/trigger.test.ts#L73"
     },
     {
       "id": "REPLAY-001",
@@ -217,7 +217,7 @@ export const securityEvidence = {
       "test": "alerts and removes a filled intent without submitting it again",
       "line": 234,
       "source_sha256": "bb4bc998a31937ce8816a977baa768e6ff59db3943509ed96138bfbc4cc7dc8a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/trigger.test.ts#L234"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/trigger.test.ts#L234"
     },
     {
       "id": "REPLAY-002",
@@ -228,7 +228,7 @@ export const securityEvidence = {
       "test": "deduplicates processed transaction and authorization events",
       "line": 85,
       "source_sha256": "8e3d739c0e6a475a511494e377ffa5a57307e919c17a5da0c2f31613357cf5b4",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/notification-preferences.test.ts#L85"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/notification-preferences.test.ts#L85"
     },
     {
       "id": "DATA-001",
@@ -239,7 +239,7 @@ export const securityEvidence = {
       "test": "rejects malformed routes before writing a plan",
       "line": 93,
       "source_sha256": "09b1caa5a4ebc169563c3fbbffbd82de95619f4e5febef7f50adc9290299dc82",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/payroll-plan-store.test.ts#L93"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/payroll-plan-store.test.ts#L93"
     },
     {
       "id": "DATA-002",
@@ -250,7 +250,7 @@ export const securityEvidence = {
       "test": "syncs a validated private plan without exposing it through the response",
       "line": 47,
       "source_sha256": "09b1caa5a4ebc169563c3fbbffbd82de95619f4e5febef7f50adc9290299dc82",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/agent/src/payroll-plan-store.test.ts#L47"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/agent/src/payroll-plan-store.test.ts#L47"
     },
     {
       "id": "MATH-001",
@@ -261,7 +261,7 @@ export const securityEvidence = {
       "test": "pure_rule_evaluator_rejects_daily_spend_overflow",
       "line": 400,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L400"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L400"
     },
     {
       "id": "STATE-001",
@@ -272,7 +272,7 @@ export const securityEvidence = {
       "test": "security_audit_fails_before_writing_when_log_counter_is_exhausted",
       "line": 423,
       "source_sha256": "42fe083ddfdc291c84cd625bbfff074e1fba934f72d6df22f73edf84d02b9041",
-      "source_url": "https://github.com/arinze116/Clavis/blob/65c020ba0f46c08b20307f8f8de763eb4d9817f3/contract/src/tests.rs#L423"
+      "source_url": "https://github.com/arinze116/Clavis/blob/e3f1eebd2b2d139f508383c0094c4bf7689a7de0/contract/src/tests.rs#L423"
     }
   ],
   "limitations": [
