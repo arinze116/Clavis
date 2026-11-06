@@ -48,6 +48,26 @@ export interface NearClientOptions {
   contractId: string;
 }
 
+export function assertRestrictedAgentAccessKey(
+  accessKey: AccessKeyResult,
+  contractId: string,
+): void {
+  if (accessKey.permission === "FullAccess") {
+    throw new Error(
+      "Refusing to start with a Full Access agent key; create a Function Call key restricted to request_payment",
+    );
+  }
+
+  const permission = accessKey.permission.FunctionCall;
+  if (
+    permission.receiver_id !== contractId ||
+    permission.method_names.length !== 1 ||
+    permission.method_names[0] !== "request_payment"
+  ) {
+    throw new Error(`Agent key must only call request_payment on ${contractId}`);
+  }
+}
+
 export class NearRpcClient {
   readonly rpcUrl: string;
 
@@ -150,7 +170,7 @@ export class NearClient {
     this.#account = await near.account(this.#options.accountId);
   }
 
-  async verifyAgentKey(allowFullAccess: boolean): Promise<"restricted" | "full-access"> {
+  async verifyAgentKey(): Promise<"restricted"> {
     const configuredAgent = await this.view<string>("get_agent");
     if (configuredAgent !== this.#options.accountId) {
       throw new Error(
@@ -165,25 +185,7 @@ export class NearClient {
       public_key: this.#keyPair.getPublicKey().toString(),
     });
 
-    if (accessKey.permission === "FullAccess") {
-      if (!allowFullAccess) {
-        throw new Error(
-          "Refusing to start with a Full Access agent key. Set ALLOW_FULL_ACCESS_AGENT=true only for the shared testnet operator account.",
-        );
-      }
-      return "full-access";
-    }
-
-    const permission = accessKey.permission.FunctionCall;
-    if (
-      permission.receiver_id !== this.#options.contractId ||
-      permission.method_names.length !== 1 ||
-      permission.method_names[0] !== "request_payment"
-    ) {
-      throw new Error(
-        `Agent key must only call request_payment on ${this.#options.contractId}`,
-      );
-    }
+    assertRestrictedAgentAccessKey(accessKey, this.#options.contractId);
     return "restricted";
   }
 
@@ -274,14 +276,14 @@ export class NearTransferClient {
   async transferNear(receiverId: string, amountYocto: string): Promise<string> {
     if (!this.#account) throw new Error("Settlement client is not connected");
     if (!/^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(receiverId)) {
-      throw new Error("A valid NEAR testnet recipient is required for fallback transfer");
+      throw new Error("A valid NEAR testnet recipient is required for native settlement");
     }
     const outcome = (await this.#account.sendMoney(
       receiverId,
       BigInt(amountYocto),
     )) as TransactionOutcome;
     if (outcome.status.Failure) {
-      throw new Error("Direct NEAR fallback transfer failed");
+      throw new Error("Direct native NEAR settlement failed");
     }
     return outcome.transaction.hash;
   }

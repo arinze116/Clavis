@@ -12,19 +12,24 @@ const routes = [
     path: "dashboard",
     title: "Business Console · Clavis",
     description:
-      "Manage treasury rules, recipients, security controls, anomalies, and AI payroll reports with Clavis.",
+      "Inspect live Clavis treasury, policy, roster, anomalies, and audit evidence without connecting a wallet.",
   },
   {
     path: "worker",
     title: "Worker Portal · Clavis",
     description:
-      "Register a NEAR testnet wallet, choose a settlement route, and verify private-safe payroll decisions.",
+      "Register a NEAR testnet wallet, choose a settlement preference, and verify privacy-minimized payroll decisions.",
   },
   {
     path: "audit",
     title: "Public Audit Log · Clavis",
     description:
-      "Inspect Clavis payroll approvals and rejections without exposing salary, recipient, or destination data.",
+      "Inspect privacy-minimized Clavis payroll decisions with the public NEAR transaction boundary disclosed.",
+  },
+  {
+    path: "security",
+    title: "Security Evidence · Clavis",
+    description: "Review Clavis threat cases, source-linked tests, CI evidence, and documented limitations.",
   },
   {
     path: "setup",

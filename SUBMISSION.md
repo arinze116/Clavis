@@ -10,20 +10,20 @@ Do not submit until every item in the final checklist is checked. In particular,
 Clavis
 
 **Tagline**
-Private, rule-bound cross-chain payroll for autonomous agents on NEAR.
+Privacy-minimized, rule-bound payroll automation for autonomous agents on NEAR testnet.
 
 **One sentence**
-Clavis lets an AI payroll agent schedule work while an isolated Rust contract enforces recipients, caps, schedules, routes, emergency controls, and a privacy-safe public audit.
+Clavis lets an AI payroll agent schedule work while an isolated Rust contract enforces recipients, caps, schedules, routes, emergency controls, and a privacy-minimized public audit.
 
 **Short pitch**
-Payroll automation creates a dangerous tradeoff: the more useful an agent becomes, the more treasury authority it usually receives. Clavis breaks that link. Owners configure payroll in the browser, use NEAR AI to draft and understand policy, and deploy an isolated NEAR contract that independently approves or rejects every request. Workers receive on their preferred route, while the public audit proves decisions without publishing recipient identities or amounts.
+Payroll automation creates a dangerous tradeoff: the more useful an agent becomes, the more treasury authority it usually receives. Clavis breaks that link. Owners configure payroll in the browser, use NEAR AI to draft and understand policy, and deploy an isolated NEAR contract that independently approves or rejects every request. The public audit omits recipient identities and amounts from its own entries while the product explicitly discloses normal NEAR transaction visibility.
 
 **Full description**
 Clavis is a NEAR testnet payroll control plane for remote teams. A business owner deploys an isolated contract, defines global and per-recipient limits, approves destination routes, configures a private scheduled amount, and appoints an agent account. The TypeScript scheduler checks due work every 60 seconds, but the Rust contract remains the authority for pause state, caller identity, recipient approval, active status, off-hours policy, per-payment limits, personal caps, daily limits, schedules, and routes.
 
-NEAR AI is visible at the decision points where language helps: it converts plain-English policy into an editable draft, explains anomalies, recommends a testnet route from live RPC observations, and produces a CFO-style report from privacy-safe audit data. In Emergency Controls, AI describes five canonical attacks and the contract independently proves whether each one is blocked. The UI accepts success only when it can verify five structured on-chain results.
+NEAR AI is used where language adds value: it converts plain-English policy into an editable draft, explains anomalies, recommends a testnet route from live RPC observations, and produces a CFO-style report from privacy-minimized audit data. Security probes are fixed and versioned rather than model-generated; after the contract returns five structured results, NEAR AI may summarize those verified facts as an advisory explanation.
 
-Sensitive delivery configuration is signed by the owner in the browser and stored in the private agent service rather than in the public audit log. Approved work is prepared for a NEAR Intents settlement adapter. The current hackathon deployment is testnet-only and keeps the Intents relay in dry-run mode; completed cross-chain settlement is not claimed.
+Sensitive delivery configuration is signed by the owner in the browser and stored in the access-controlled agent service rather than in the public audit log. Approved work is prepared for a NEAR Intents settlement adapter. The current hackathon deployment is testnet-only; routes are preflighted and completed cross-chain settlement is not claimed without a filled solver reference.
 
 ## Problem
 
@@ -51,7 +51,7 @@ AI proposes and explains. The owner confirms. The contract decides.
 ## Why NEAR
 
 - **Rust contracts:** deterministic rules and owner-only emergency controls.
-- **Account model and access keys:** support for an agent key restricted to `request_payment` on one receiver; the shared multi-contract testnet operator must be disclosed separately if it uses an explicitly allowed full-access credential.
+- **Account model and access keys:** one restricted Function Call key per payroll contract, each verified on-chain as `request_payment`-only; Full Access payroll-agent keys are rejected. NEP-413 settlement signing uses a separate, minimally funded account that is rejected if it overlaps any payroll agent account.
 - **Factory architecture:** one isolated `*.clavis.testnet` contract per business.
 - **Fast testnet UX:** wallet-signed setup and policy updates from the browser.
 - **NEAR Intents:** a settlement abstraction for worker-selected routes after contract approval.
@@ -72,7 +72,7 @@ Implemented tasks:
 
 1. Plain-English policy extraction into limits, schedule, recipient caps, summary, and warnings.
 2. Cautious anomaly explanation with a recommended owner action.
-3. CFO-style report from the latest thirty public-safe audit entries.
+3. CFO-style report from the latest thirty privacy-minimized audit entries.
 4. Testnet route recommendation enriched with point-in-time NEAR, Sepolia, and BNB RPC observations.
 5. Human-readable descriptions of five canonical security scenarios before the contract evaluates them.
 
@@ -81,8 +81,8 @@ The API key stays in the Vercel serverless environment. Browser code calls same-
 ## Strongest differentiators
 
 - **AI is not the authority.** It assists with language; deterministic contract code controls funds.
-- **The security demo produces proof.** Five scenarios are evaluated on-chain and written to the public audit log without moving funds.
-- **Private and public state are deliberately separated.** Scheduled amounts and destination addresses live in an owner-authorized private plan; public audit entries contain decision evidence rather than payroll identities or amounts.
+- **Security evidence is reproducible.** A versioned threat model maps claims to repeatable contract and agent tests; five on-chain probes provide an additional browser demonstration without moving funds.
+- **Audit data is deliberately minimized.** Scheduled amounts and destination addresses live in an owner-authorized off-chain plan; audit entries contain decision evidence rather than payroll identities or amounts. Standard chain arguments remain public.
 - **Every owner workflow is browser-accessible.** Setup, recipient CRUD, private plan sync, limits, agent updates, pause, emergency withdrawal, notification linking, security audit, reports, and documentation do not require a user terminal.
 
 ## Architecture
@@ -112,8 +112,8 @@ The API key stays in the Vercel serverless environment. Browser code calls same-
 | Track | Fit |
 | --- | --- |
 | Agents | Autonomous scheduling with a deliberately narrow contract role and human-readable AI assistance |
-| Security | Fail-closed policy engine, owner-only controls, pause/withdraw, anomaly handling, and observable five-scenario audit |
-| Privacy | Private delivery plan plus privacy-safe public audit, with standard-NEAR argument limitations disclosed |
+| Security | Fail-closed policy engine, owner-only controls, restricted keys, mapped CI tests, and observable five-scenario probes |
+| Privacy | Access-controlled delivery plan plus privacy-minimized audit entries, with standard-NEAR visibility disclosed |
 | Real-world | Payroll operations, worker portal, notifications, reports, and recovery controls |
 | Business | Isolated contracts per business, CFO summary, roster management, and clear operating documentation |
 
@@ -143,7 +143,7 @@ Replace this section with the final command timestamp and commit SHA before subm
 ## Honest disclosures
 
 - Clavis is **NEAR testnet only**.
-- The current NEAR Intents integration is configured in **dry-run mode**. Route policy and intent construction are implemented; completed cross-chain settlement is not claimed.
+- Completed cross-chain settlement is not claimed without a `FILLED` solver intent and verifiable relay reference. Unsupported cross-chain preferences fail visibly instead of being replaced with direct NEAR.
 - The public audit omits recipient identities and amounts. Standard NEAR function-call arguments are still public; complete transaction-input confidentiality requires the documented confidential-executor boundary.
 - AI output is advisory. Owners can edit generated policy, and the contract—not the model—makes authorization decisions.
 - Route advice is a point-in-time testnet recommendation. RPC latency is not settlement time, and gas-unit values are not compared directly across chains.
@@ -159,7 +159,7 @@ The payment request hits a purpose-built rules engine first. Recipient approval,
 No. AI produces drafts, explanations, route advice, reports, and scenario descriptions. Only owner-signed transactions change policy, and Rust code determines payment outcomes.
 
 **Does the security audit really test the contract?**
-Yes. The owner-only method executes five scenarios through the same pure evaluator used by real requests. It moves no funds, returns structured results, and records five public-safe decisions. The UI refuses to show 5/5 unless it verifies those results.
+Yes, as a demonstration layer. The owner-only method executes five fixed scenarios through the same pure evaluator used by real requests. It moves no funds, returns structured results, and records five minimized decisions. The stronger evidence is the reproducible threat-model suite mapped to versioned contract and agent tests.
 
 **What is private today?**
 The agent’s scheduled amount, raw worker address, and delivery destination are kept in its private store; the audit contains a decision ID, timestamp, outcome, and block height. Standard NEAR call arguments remain public, which is explicitly disclosed.

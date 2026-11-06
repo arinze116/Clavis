@@ -1,4 +1,4 @@
-# Clavis — Private Cross-Chain Payroll on NEAR
+# Clavis — Privacy-Minimized Payroll Controls on NEAR
 
 > Give an AI agent enough authority to run payroll—and no authority to break the rules.
 
@@ -24,15 +24,15 @@ Clavis is a production-oriented NEAR testnet payroll platform for remote teams. 
 ## Production testnet capabilities
 
 - Self-service business contract deployment under `*.clavis.testnet`
-- Owner dashboard discovery through the factory contract
+- Public read-only dashboard with owner-only mutation controls
 - Worker registration checks, preferences, QR wallet sharing, and payment history
 - Live NEAR Intents solver-relay submission with persisted status and retries
-- Direct NEAR testnet fallback when the solver has no supported quote
+- Direct NEAR settlement only for native NEAR routes; unsupported cross-chain routes fail visibly
 - Multi-contract payroll scheduling every 60 seconds
 - Email notifications through Resend and Telegram Bot API notifications
 - Per-contract anomaly state, audit state, intent state, and daily reports
 - NEAR AI policy extraction, anomaly explanations, route advice, and CFO-style reports
-- Browser-run five-scenario security audits recorded in the public contract log
+- CI-backed threat model plus five deterministic browser probes recorded in the public contract log
 - Interactive business, worker, and developer guides at `/guide`
 - PM2 deployment scripts for Ubuntu 22.04 on Oracle Cloud
 - Responsive React interface, loading skeletons, error boundaries, toasts, and legal pages
@@ -63,10 +63,10 @@ Business owner
             ├── persisted intent status
             └── NEAR Intents relay
                     │
-                    └── direct NEAR fallback when no quote is available
+                    └── unsupported cross-chain route fails without substitution
 ```
 
-The public audit contains payment ID, timestamp, block height, outcome, and rejection reason. It does not store salary amounts, recipient hashes, wallet addresses, or destination routes. Normal NEAR transaction arguments remain public; see [docs/PRIVACY.md](docs/PRIVACY.md) for the exact privacy boundary.
+The privacy-minimized public audit contains payment ID, timestamp, block height, outcome, and rejection reason. It does not store salary amounts, recipient hashes, wallet addresses, or destination routes. Normal NEAR transaction arguments and chain metadata remain public; see [docs/PRIVACY.md](docs/PRIVACY.md) for the exact boundary.
 
 ## Repository
 
@@ -83,7 +83,7 @@ docs/       Privacy and security notes
 - Node.js 20.19 or newer
 - Rust stable and `wasm32-unknown-unknown`
 - NEAR CLI RS
-- NEAR testnet accounts for the root owner and shared agent
+- NEAR testnet accounts for the root owner and restricted payroll agent
 
 ```bash
 rustup target add wasm32-unknown-unknown
@@ -173,9 +173,11 @@ The proxy calls `https://cloud-api.near.ai/v1/chat/completions`, first attempts
 `meta-llama/Llama-3.3-70B-Instruct`, and falls back to
 `deepseek-ai/DeepSeek-V4.1-Flash-1017`. The browser never receives the API key.
 
-The owner-only `run_security_audit()` contract method records five privacy-safe rejected audit
-entries without moving funds or changing treasury policy. The upgraded root and factory-embedded
-payroll WASM must be deployed before this control is available on testnet.
+The owner-only `run_security_audit()` contract method records five privacy-minimized rejected audit
+entries without moving funds or changing treasury policy. These browser probes are demonstration
+evidence; the versioned threat model and CI-mapped tests at `/security` are the primary security
+evidence. The upgraded root and factory-embedded payroll WASM must be deployed before this control
+is available on testnet.
 
 ## Multi-business payroll configuration
 
@@ -202,7 +204,7 @@ log. The manual aggregate file remains available for local development and legac
 
 A business can override its aggregate entry with `agent/config/payrolls/{contract_id}.json`. Every business-cycle log includes `contractId`.
 
-## Live NEAR Intents and fallback settlement
+## Testnet settlement and evidence boundary
 
 The agent calls the live relay at `https://solver-relay-v2.chaindefuser.com/rpc`.
 
@@ -214,17 +216,27 @@ Testnet asset identifiers:
 
 Intent state is written atomically to `agent/data/intents.json` with `PENDING`, `FILLED`, and `FAILED` states. Failed submissions receive three retries after the initial attempt with a 30-second minimum backoff.
 
-The public relay may return no quote for fake testnet assets. Clavis then logs `intent.direct_near_fallback` and sends the route's NEAR value directly to the recipient's NEAR testnet account.
+The public relay may return no quote for fake testnet assets. Native NEAR routes settle directly to
+the recipient's NEAR testnet account. Ethereum and BNB preferences fail visibly when no supported
+solver route exists. Route availability is preflighted before `request_payment`, so a known-unavailable
+delivery does not consume daily policy capacity or advance the recipient schedule. Clavis never substitutes direct NEAR and calls it cross-chain settlement.
+Completed cross-chain delivery is not claimed unless a solver intent reaches `FILLED` with a
+verifiable relay reference.
 
 ```dotenv
 INTENTS_CONTRACT_ID=intents.near
 SOLVER_RELAY_URL=https://solver-relay-v2.chaindefuser.com/rpc
 INTENTS_API_KEY=
-SETTLEMENT_ACCOUNT_ID=clavis-agent.testnet
+SETTLEMENT_ACCOUNT_ID=clavis-settlement.testnet
 SETTLEMENT_PRIVATE_KEY=ed25519:...
 ```
 
-The settlement key must never be exposed to the browser.
+The settlement signer is a separate, minimally funded account used only for delivery submission. It
+must not be any payroll agent account. The runtime rejects that overlap so a settlement signing key
+cannot weaken the `request_payment`-only authorization boundary. The settlement key must never be
+exposed to the browser. NEP-413 intent signing requires a Full Access key on this separate settlement
+account; that key has no authority over payroll contracts and should hold only the funds required for
+the current delivery operation.
 
 ## Notifications
 
@@ -366,15 +378,23 @@ Expected PM2 status: `clavis-agent online`.
 
 ## Agent key model
 
-For one contract, use a Function Call access key restricted to `request_payment`. NEAR access keys target only one receiver, so the shared multi-contract testnet operator needs an explicitly enabled Full Access key:
+Every payroll contract uses its own Function Call access key restricted to `request_payment` on that
+contract. A single agent account may hold several restricted keys, but the runtime selects the key by
+contract and verifies its on-chain permission before starting.
 
 ```dotenv
-NEAR_ACCOUNT_ID=clavis-agent.testnet
-NEAR_PRIVATE_KEY=ed25519:...
-ALLOW_FULL_ACCESS_AGENT=true
+AGENT_CREDENTIALS_PATH=./config/agent-credentials.local.json
 ```
 
-This exception is limited to the shared testnet operator. Contract authorization still prevents that account from invoking owner-only policy methods.
+Copy `agent/config/agent-credentials.example.json`, add one distinct restricted private key per
+contract, set file mode `0600`, and keep the local file out of Git. Full Access agent keys are always
+rejected. Legacy `NEAR_ACCOUNT_ID`, `NEAR_PRIVATE_KEY`, and `LEGACY_AGENT_CONTRACT_ID` variables are
+supported only for that explicitly named single contract and are still verified as an exact
+`request_payment` Function Call permission.
+
+Provision each restricted key with `scripts/create-function-key.sh`, setting `CONTRACT_ID` to the
+target payroll contract for each run. This signs an on-chain access-key transaction and therefore
+must be performed deliberately by the operator; the repository does not auto-sign or expose keys.
 
 ## Contract policy
 
@@ -395,19 +415,21 @@ Unauthorized public calls do not append audit state, preventing storage-exhausti
 No terminal required. Everything runs from the browser.
 
 1. Open https://clavisapp.vercel.app — read the live policy engine card on the hero
-2. Go to `/audit` — verify 9+ onchain decisions with zero salary data
-3. Click "Open explorer" — confirm contract is live on NEAR testnet
-4. Go to `/dashboard` (connect `clavis.testnet` on Meteor Wallet testnet)
+2. Go to `/dashboard` — inspect the live read-only treasury, policy, roster, anomaly, and audit evidence without a wallet
+3. Go to `/audit` — verify 9+ privacy-minimized on-chain decisions; salary fields are omitted from audit entries
+4. Go to `/security` — inspect the versioned threat model, mapped tests, commit evidence, and limitations
+5. Click "Open explorer" — confirm contract is live on NEAR testnet
+6. Connect `clavis.testnet` on Meteor Wallet testnet to enable owner controls
    - Treasury: 9.94 NEAR live from contract
    - Payroll roster: 3 recipients across NEAR, Ethereum, BNB Chain
    - Click "Analyze with AI" on the anomaly alert
    - Click "Generate AI report" — NEAR AI generates a CFO-style summary
-   - Click "Run AI security audit" — 5 attack scenarios, all rejected onchain
-5. Switch wallet to `arinze-worker1.testnet`
+   - Click "Run contract security probes" — 5 deterministic scenarios, all rejected onchain; NEAR AI only summarizes the verified result
+7. Switch wallet to `arinze-worker1.testnet`
    - Go to `/worker` — "Hello, Worker 1." recognized from contract
    - Shows weekly cycle, primary route, cross-chain allocation
-6. Go to `/guide` — business owner, worker, and developer guides
-7. Go to `/setup` — 7-step factory deployment wizard
+8. Go to `/guide` — business owner, worker, and developer guides
+9. Go to `/setup` — 7-step factory deployment wizard
 
 **Tracks:** `privacy` · `realworld` · `security` · `agents` · `business`
 

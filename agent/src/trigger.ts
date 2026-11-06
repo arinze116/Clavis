@@ -73,17 +73,25 @@ export async function triggerDuePayments(options: {
     const primaryRoute = plan.destinations[0];
     if (!primaryRoute) continue;
 
-    await options.state.recordRequest({
-      recipientHash: plan.recipientHash,
-      timestamp: now.getTime(),
-    });
-    logger.info("payment.requested", {
-      contractId: options.contractId,
-      recipient: maskHash(plan.recipientHash),
-      schedule: recipient.schedule,
-    });
-
     try {
+      const preparedEnvelopes = buildIntentEnvelopes(
+        options.contractId,
+        0,
+        plan,
+        now,
+      );
+      await options.intents.preflight(preparedEnvelopes);
+
+      await options.state.recordRequest({
+        recipientHash: plan.recipientHash,
+        timestamp: now.getTime(),
+      });
+      logger.info("payment.requested", {
+        contractId: options.contractId,
+        recipient: maskHash(plan.recipientHash),
+        schedule: recipient.schedule,
+      });
+
       const result = await options.near.requestPayment({
         recipientHash: plan.recipientHash,
         amountYocto: plan.amountYocto,
@@ -265,10 +273,12 @@ export async function submitPendingIntents(options: {
         status: result.status,
         reference: result.reference,
         fallback: result.fallback,
+        settlementKind: result.settlementKind,
       });
       await options.notifications.deliverySubmitted({
         ...deliveryDetails(options, envelope),
         fallback: result.fallback,
+        settlementKind: result.settlementKind,
       });
       if (record.status === "FILLED") {
         await options.notifications.deliveryFilled({

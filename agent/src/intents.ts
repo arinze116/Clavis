@@ -18,6 +18,7 @@ const TESTNET_ASSETS = {
   ethereum: "nep141:usdc.fakes.testnet",
   bnb: "nep141:wrap.testnet",
 } as const;
+const PREPARED_QUOTE_TTL_MS = 60_000;
 
 export interface TokenDiffIntent {
   intent_type: "token_diff";
@@ -92,6 +93,7 @@ export class IntentClient {
   readonly #options: IntentClientOptions;
   readonly #relay: ReturnType<typeof createSolverRelayClient>;
   readonly #signer: ReturnType<typeof createLocalIntentSigner> | null;
+  readonly #preparedQuotes = new Map<string, { quote: RelayQuote; expiresAt: number }>();
 
   constructor(options: IntentClientOptions) {
     this.#options = options;
@@ -108,35 +110,56 @@ export class IntentClient {
         : null;
   }
 
+  async preflight(envelopes: IntentEnvelope[]): Promise<void> {
+    for (const envelope of envelopes) {
+      const assetOut = outputAsset(envelope.destination);
+      if (assetOut === TESTNET_ASSETS.near) {
+        if (envelope.destination.chain !== "near") {
+          throw new Error(
+            `${envelope.destination.chain}/${envelope.destination.token} has no distinct supported testnet asset`,
+          );
+        }
+        if (!this.#options.transferClient) {
+          throw new Error("Native NEAR settlement credentials are not configured");
+        }
+        continue;
+      }
+      if (!this.#signer) {
+        throw new Error("Cross-chain settlement signer is not configured");
+      }
+      const quote = await this.requestQuote(envelope);
+      if (!quote) {
+        throw new Error(
+          `No solver quote is available for ${envelope.destination.chain}/${envelope.destination.token}`,
+        );
+      }
+      this.#preparedQuotes.set(this.quoteKey(envelope), {
+        quote,
+        expiresAt: Date.now() + PREPARED_QUOTE_TTL_MS,
+      });
+    }
+  }
+
   async submit(envelope: IntentEnvelope): Promise<IntentSubmission> {
     const assetOut = outputAsset(envelope.destination);
     if (assetOut === TESTNET_ASSETS.near) {
-      return this.fallbackToNear(
-        envelope,
-        `${envelope.destination.chain} testnet routes use the wrapped NEAR equivalent`,
-      );
+      if (envelope.destination.chain !== "near") {
+        throw new Error(
+          `${envelope.destination.chain}/${envelope.destination.token} has no distinct supported testnet asset; refusing to relabel direct NEAR as cross-chain settlement`,
+        );
+      }
+      return this.settleDirectNear(envelope, "native NEAR route");
     }
-    let quote: RelayQuote | undefined;
-    try {
-      const quotes = await this.#relay.quote({
-        defuse_asset_identifier_in: TESTNET_ASSETS.near,
-        defuse_asset_identifier_out: assetOut,
-        exact_amount_in: envelope.sourceAmountYocto,
-        min_deadline_ms: 120_000,
-      });
-      quote = quotes?.[0];
-    } catch (error) {
-      logger.warn("intent.quote_unavailable", {
-        contractId: envelope.contractId,
-        paymentId: envelope.paymentId,
-        error: error instanceof Error ? error.message : "Unknown quote error",
-      });
-    }
+    const prepared = this.#preparedQuotes.get(this.quoteKey(envelope));
+    const quote =
+      prepared && prepared.expiresAt > Date.now()
+        ? prepared.quote
+        : await this.requestQuote(envelope);
+    this.#preparedQuotes.delete(this.quoteKey(envelope));
 
     if (!quote || !this.#signer) {
-      return this.fallbackToNear(
-        envelope,
-        quote ? "intent signer is not configured" : "no solver quote was available",
+      throw new Error(
+        `Cross-chain settlement unavailable: ${quote ? "intent signer is not configured" : "no solver quote was available"}. Direct NEAR substitution is disabled for non-NEAR routes`,
       );
     }
 
@@ -170,6 +193,7 @@ export class IntentClient {
       status: "PENDING",
       reference: result.intent_hash,
       fallback: false,
+      settlementKind: "solver_intent",
     };
   }
 
@@ -180,28 +204,58 @@ export class IntentClient {
     return "PENDING";
   }
 
-  private async fallbackToNear(
+  private async requestQuote(envelope: IntentEnvelope): Promise<RelayQuote | undefined> {
+    try {
+      const quotes = await this.#relay.quote({
+        defuse_asset_identifier_in: TESTNET_ASSETS.near,
+        defuse_asset_identifier_out: outputAsset(envelope.destination),
+        exact_amount_in: envelope.sourceAmountYocto,
+        min_deadline_ms: 120_000,
+      });
+      return quotes?.[0];
+    } catch (error) {
+      logger.warn("intent.quote_unavailable", {
+        contractId: envelope.contractId,
+        paymentId: envelope.paymentId,
+        error: error instanceof Error ? error.message : "Unknown quote error",
+      });
+      return undefined;
+    }
+  }
+
+  private quoteKey(envelope: IntentEnvelope): string {
+    return [
+      envelope.contractId,
+      envelope.recipientHash,
+      envelope.sourceAmountYocto,
+      envelope.destination.chain,
+      envelope.destination.token,
+      envelope.destination.address,
+    ].join(":");
+  }
+
+  private async settleDirectNear(
     envelope: IntentEnvelope,
     reason: string,
   ): Promise<IntentSubmission> {
-    logger.warn("intent.direct_near_fallback", {
+    logger.info("intent.direct_near_settlement", {
       contractId: envelope.contractId,
       paymentId: envelope.paymentId,
       reason,
     });
     if (!this.#options.transferClient) {
       throw new Error(
-        `Solver unavailable and direct NEAR fallback cannot run: ${reason}; configure settlement credentials`,
+        `Direct NEAR settlement cannot run: ${reason}; configure settlement credentials`,
       );
     }
-    if (!envelope.nearRecipient) {
+    if (!envelope.destination.address) {
       throw new Error(
-        "Solver unavailable and the payroll plan has no recipient NEAR address for fallback",
+        "The payroll plan has no destination address for native settlement",
       );
     }
 
     const transactionHash = await this.#options.transferClient.transferNear(
-      envelope.nearRecipient,
+      envelope.destination.address,
       envelope.sourceAmountYocto,
     );
     return {
@@ -209,7 +263,8 @@ export class IntentClient {
       status: "FILLED",
       reference: transactionHash,
       transactionHash,
-      fallback: true,
+      fallback: false,
+      settlementKind: "native_near",
     };
   }
 }

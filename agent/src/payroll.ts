@@ -114,7 +114,7 @@ export function validateBusinessPayroll(input: BusinessPayroll): BusinessPayroll
     const nearAddress = recipient.nearAddress ?? nearDestination?.address ?? "";
     if (!nearAddress || !nearAccountPattern.test(nearAddress)) {
       throw new Error(
-        `${input.contract_id} requires a valid fallback NEAR address for every recipient`,
+        `${input.contract_id} requires a valid native NEAR address for every recipient`,
       );
     }
     return {

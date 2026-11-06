@@ -1,6 +1,8 @@
-# Privacy model
+# Privacy-minimization model
 
-Clavis separates **public policy evidence** from **private payroll data**.
+Clavis minimizes the data written into its dedicated audit entries. It does not provide transaction
+confidentiality on NEAR testnet. The boundary below separates **public chain data**, **audit fields**,
+and **off-chain payroll data**.
 
 ## Public by design
 
@@ -19,7 +21,7 @@ Clavis separates **public policy evidence** from **private payroll data**.
 - Intent destination address
 - Payroll report totals
 
-## Kept in private agent storage
+## Kept in access-controlled agent storage
 
 - Scheduled payment amount
 - Destination addresses
@@ -27,7 +29,9 @@ Clavis separates **public policy evidence** from **private payroll data**.
 - Delivery status and retry state
 - Owner payroll reports
 
-Files containing this data are created with owner-only permissions where supported and are excluded by `.gitignore`.
+Files containing this data are created with owner-only permissions where supported and are excluded
+by `.gitignore`. This reduces casual disclosure; it is not cryptographic privacy and depends on the
+security of the VPS and its operators.
 
 ## Confidential execution boundary
 

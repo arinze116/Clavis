@@ -314,10 +314,36 @@ export async function loadContractSnapshot(contractId: string): Promise<Contract
     treasuryBalance,
     paused,
     recipients,
-    auditLog: await enrichAuditTransactions(auditLog, contractId),
+    auditLog,
     anomalies,
     logCount,
   };
+}
+
+export interface AuditSnapshot {
+  contractId: string;
+  auditLog: AuditEntry[];
+  logCount: number;
+}
+
+export async function loadAuditSnapshot(contractId: string): Promise<AuditSnapshot> {
+  const [auditLog, logCount] = await Promise.all([
+    view<AuditEntry[]>(contractId, "get_audit_log_reverse", { from: 0, limit: 100 }),
+    view<number>(contractId, "get_log_count"),
+  ]);
+  return { contractId, auditLog, logCount };
+}
+
+export async function enrichAuditSnapshot(snapshot: AuditSnapshot): Promise<AuditSnapshot> {
+  const auditLog = await enrichAuditTransactions(snapshot.auditLog, snapshot.contractId);
+  return auditLog === snapshot.auditLog ? snapshot : { ...snapshot, auditLog };
+}
+
+export async function enrichContractSnapshotAudit(
+  snapshot: ContractSnapshot,
+): Promise<ContractSnapshot> {
+  const auditLog = await enrichAuditTransactions(snapshot.auditLog, snapshot.contractId);
+  return auditLog === snapshot.auditLog ? snapshot : { ...snapshot, auditLog };
 }
 
 interface NearBlocksReceipt {

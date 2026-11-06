@@ -7,6 +7,7 @@ const productLinks = [
   { to: "/", label: "Home" },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/audit", label: "Audit Log" },
+  { to: "/security", label: "Security Evidence" },
   { to: "/setup", label: "Setup" },
   { to: "/worker", label: "Worker Portal" },
   { to: "/guide", label: "Guide" },
@@ -25,7 +26,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-[1360px] gap-12 py-14 md:grid-cols-[1.35fr_0.7fr_1fr] lg:gap-20 lg:py-20">
         <div>
           <Logo inverse />
-          <p className="mt-5 text-sm font-medium text-white/70">Private cross-chain payroll on NEAR</p>
+          <p className="mt-5 text-sm font-medium text-white/70">Privacy-minimized payroll controls on NEAR</p>
           <p className="mt-2 text-sm text-white/40">Built by Arinze · Nigeria → the world</p>
         </div>
 

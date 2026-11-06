@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Private, rule-bound cross-chain payroll on NEAR",
+  "description": "Privacy-minimized, rule-bound payroll automation on NEAR testnet",
   "workspaces": [
     "agent",
     "frontend"

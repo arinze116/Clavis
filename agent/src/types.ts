@@ -139,6 +139,7 @@ export interface IntentRecord extends IntentEnvelope {
   reference?: string;
   transactionHash?: string;
   fallback?: boolean;
+  settlementKind?: "solver_intent" | "native_near";
   lastError?: string;
   nextRetryAt?: string;
   updatedAt: string;
@@ -150,6 +151,7 @@ export interface IntentSubmission {
   reference: string;
   transactionHash?: string;
   fallback: boolean;
+  settlementKind: "solver_intent" | "native_near";
 }
 
 export interface DailyReportSummary {

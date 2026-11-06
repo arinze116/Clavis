@@ -120,7 +120,7 @@ describe("triggerDuePayments", () => {
     await triggerDuePayments({
       contractId: "acme.clavis.testnet",
       near: { requestPayment } as unknown as NearClient,
-      intents: {} as IntentClient,
+      intents: { preflight: vi.fn(async () => undefined) } as unknown as IntentClient,
       intentStore: {
         ensurePending: vi.fn(async () => record),
       } as unknown as IntentStore,
@@ -156,11 +156,12 @@ describe("triggerDuePayments", () => {
     const recordRequest = vi.fn(async () => undefined);
     const recordPayment = vi.fn(async () => undefined);
     const paymentApproved = vi.fn(async () => undefined);
+    const preflight = vi.fn(async () => undefined);
 
     await triggerDuePayments({
       contractId: "acme.clavis.testnet",
       near: { requestPayment } as unknown as NearClient,
-      intents: {} as IntentClient,
+      intents: { preflight } as unknown as IntentClient,
       intentStore: {
         ensurePending: vi.fn(async () => ({ status: "PENDING" })),
       } as unknown as IntentStore,
@@ -182,10 +183,50 @@ describe("triggerDuePayments", () => {
     });
 
     expect(isPaymentSubmissionAllowed(now)).toBe(true);
+    expect(preflight).toHaveBeenCalledOnce();
     expect(requestPayment).toHaveBeenCalledOnce();
+    expect(preflight.mock.invocationCallOrder[0]).toBeLessThan(
+      requestPayment.mock.invocationCallOrder[0]!,
+    );
     expect(recordRequest).toHaveBeenCalledOnce();
     expect(recordPayment).toHaveBeenCalledOnce();
     expect(paymentApproved).toHaveBeenCalledOnce();
+  });
+
+  it("does not consume authorization when settlement preflight fails", async () => {
+    const requestPayment = vi.fn();
+    const recordRequest = vi.fn();
+    const recordPayment = vi.fn();
+
+    await triggerDuePayments({
+      contractId: "acme.clavis.testnet",
+      near: { requestPayment } as unknown as NearClient,
+      intents: {
+        preflight: vi.fn(async () => {
+          throw new Error("No solver quote is available");
+        }),
+      } as unknown as IntentClient,
+      intentStore: {} as IntentStore,
+      state: {
+        value: state(),
+        recordRequest,
+        recordPayment,
+      } as unknown as StateStore,
+      business: {
+        contract_id: "acme.clavis.testnet",
+        owner_email: "owner@example.com",
+        telegram_chat_id: undefined,
+        recipients: [plan("delivery-1")],
+      },
+      recipients: [milestoneRecipient],
+      notifications: {} as NotificationManager,
+      intentRetryDelayMs: 30_000,
+      now: new Date("2026-11-03T06:00:00.000Z"),
+    });
+
+    expect(requestPayment).not.toHaveBeenCalled();
+    expect(recordRequest).not.toHaveBeenCalled();
+    expect(recordPayment).not.toHaveBeenCalled();
   });
 });
 

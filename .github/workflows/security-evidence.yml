@@ -1,0 +1,62 @@
+name: Security evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-security-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Run payroll contract security tests
+        run: |
+          cargo test --manifest-path contract/Cargo.toml
+          bash scripts/build-contracts.sh
+          cargo test --manifest-path contract/Cargo.toml --package clavis-factory
+
+      - name: Run agent resilience tests
+        run: |
+          mkdir -p artifacts/security-evidence
+          npm exec --workspace=@clavis/agent -- vitest run \
+            --reporter=json \
+            --outputFile=../artifacts/security-evidence/vitest.json
+
+      - name: Generate source-linked security report
+        env:
+          SECURITY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/security/generate-security-report.mjs \
+            --status passed \
+            --commit "${GITHUB_SHA}" \
+            --run-url "${SECURITY_RUN_URL}" \
+            --vitest-report artifacts/security-evidence/vitest.json \
+            --output-dir artifacts/security-evidence
+
+      - name: Add report to the workflow summary
+        run: cat artifacts/security-evidence/security-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reproducible evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: clavis-security-evidence-${{ github.sha }}
+          path: artifacts/security-evidence/
+          if-no-files-found: error
+          retention-days: 90

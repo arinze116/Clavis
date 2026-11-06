@@ -14,7 +14,7 @@ impl Clavis {
     ///
     /// The audit deliberately does not submit a real payment, alter recipient
     /// policy, consume a daily limit, or move funds. Each canonical attack is
-    /// rejected inside the contract and written through the same privacy-safe
+    /// rejected inside the contract and written through the same privacy-minimized
     /// public audit path as a payment decision.
     pub fn run_security_audit(&mut self) -> Vec<SecurityAuditResult> {
         self.assert_owner();

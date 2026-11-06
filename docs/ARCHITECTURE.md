@@ -6,7 +6,7 @@ The agent decides *when to ask*. The contract decides *whether payment is allowe
 
 ## Authorization before settlement
 
-`request_payment` reserves daily policy capacity and emits an approval before cross-chain submission. The agent immediately persists one intent envelope per route. Failed submissions remain queued and are retried, preserving the authorization instead of requesting a duplicate payment.
+Before calling `request_payment`, the agent preflights native credentials or a live solver quote for every configured split. Known-unavailable routes fail before daily policy capacity or the recipient schedule is consumed. After authorization, the agent immediately persists one intent envelope per route. Native NEAR routes settle directly; cross-chain routes require the prepared solver quote and never fall back to a differently labelled asset. Failed submissions remain queued and are retried, preserving the authorization instead of requesting a duplicate payment.
 
 ## Public-safe events
 

@@ -55,10 +55,6 @@ export interface AiSecurityScenario {
   expected_protection: string;
 }
 
-export interface AiSecurityScenarioResult extends AiAttribution {
-  scenarios: AiSecurityScenario[];
-}
-
 interface NearAiProxyResponse<T> {
   result?: T;
   model?: string;
@@ -167,16 +163,6 @@ export async function optimizeRoute(options: {
       selected_chain: options.selectedChain,
       selected_token: options.selectedToken,
       region: options.region?.trim() || undefined,
-    }),
-  );
-}
-
-export async function generateSecurityScenarios(
-  contractId: string,
-): Promise<AiSecurityScenarioResult> {
-  return withAttribution(
-    await requestNearAi<{ scenarios: AiSecurityScenario[] }>("security-scenarios", {
-      contract_id: contractId,
     }),
   );
 }

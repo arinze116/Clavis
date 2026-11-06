@@ -332,7 +332,7 @@ function OpeningTitle({ fps }: { fps: number }) {
               letterSpacing: "-0.045em",
             }}
           >
-            Private payroll. Public proof.
+            Privacy-minimized audit. Public proof.
           </div>
         </div>
       </div>
@@ -433,7 +433,7 @@ function EndCard({ fps }: { fps: number }) {
             fontSize: 30,
           }}
         >
-          Private, rule-bound, cross-chain payroll on NEAR.
+          Privacy-minimized, rule-bound payroll automation on NEAR testnet.
         </div>
         <div
           style={{
