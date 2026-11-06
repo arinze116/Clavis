@@ -288,8 +288,8 @@ export default function WorkerDashboard() {
                 Register for payroll
               </h1>
               <p className="mt-3 text-sm leading-6 text-ink/50">
-                Save your delivery preferences, then share your NEAR wallet with your
-                employer. Only the employer can add the final onchain recipient commitment.
+                You are not yet on a payroll roster. Fill in your preferences below, then share
+                your wallet address with your employer. They will add you to their Clavis contract.
               </p>
 
               <div className="mt-7 grid gap-4 sm:grid-cols-2">

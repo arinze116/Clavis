@@ -71,6 +71,7 @@ export default function SetupWizard() {
   const [perPaymentLimit, setPerPaymentLimit] = useState("20");
   const [policyDescription, setPolicyDescription] = useState("");
   const [policyResult, setPolicyResult] = useState<AiPolicyResult | null>(null);
+  const [policyConfirmed, setPolicyConfirmed] = useState(false);
   const [policyBusy, setPolicyBusy] = useState(false);
   const [policyError, setPolicyError] = useState<string | null>(null);
   const [agent, setAgent] = useState("clavis-agent.testnet");
@@ -131,7 +132,7 @@ export default function SetupWizard() {
   }, [deployedContractId, navigate, step]);
 
   useEffect(() => {
-    if (!policyResult || !draft.name.trim()) return;
+    if (!policyResult || !policyConfirmed || !draft.name.trim()) return;
     const normalizedName = draft.name.trim().toLowerCase();
     const matchingCap = policyResult.recipient_caps.find(
       (recipient) => recipient.name.trim().toLowerCase() === normalizedName,
@@ -146,7 +147,7 @@ export default function SetupWizard() {
       }
       return { ...current, personalCapNear: formatAiAmount(matchingCap.cap) };
     });
-  }, [draft.name, policyResult]);
+  }, [draft.name, policyConfirmed, policyResult]);
 
   if (walletLoading || ownerContract.loading) {
     return (
@@ -166,18 +167,26 @@ export default function SetupWizard() {
     try {
       const result = await generatePolicy(policyDescription.trim());
       setPolicyResult(result);
-      if (result.daily_limit !== null) setDailyLimit(formatAiAmount(result.daily_limit));
-      if (result.per_payment_limit !== null) {
-        setPerPaymentLimit(formatAiAmount(result.per_payment_limit));
-      }
-      if (result.schedule) {
-        setDraft((current) => ({ ...current, schedule: result.schedule ?? current.schedule }));
-      }
+      setPolicyConfirmed(false);
     } catch (reason) {
       setPolicyError(reason instanceof Error ? reason.message : "Unable to generate payroll rules");
     } finally {
       setPolicyBusy(false);
     }
+  }
+
+  function confirmGeneratedRules() {
+    if (!policyResult || policyResult.requires_clarification || policyResult.too_vague) return;
+    if (policyResult.daily_limit !== null) {
+      setDailyLimit(formatAiAmount(policyResult.daily_limit));
+    }
+    if (policyResult.per_payment_limit !== null) {
+      setPerPaymentLimit(formatAiAmount(policyResult.per_payment_limit));
+    }
+    if (policyResult.schedule) {
+      setDraft((current) => ({ ...current, schedule: policyResult.schedule ?? current.schedule }));
+    }
+    setPolicyConfirmed(true);
   }
 
   function addDraft(event?: React.FormEvent) {
@@ -378,7 +387,7 @@ export default function SetupWizard() {
                 contract.
               </p>
               <div className="mt-7 flex justify-center">
-                <WalletButton />
+                <WalletButton copyAccountOnClick />
               </div>
               {ownerContract.contract && (
                 <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
@@ -475,6 +484,8 @@ export default function SetupWizard() {
                     onChange={(event) => {
                       setPolicyDescription(event.target.value);
                       setPolicyError(null);
+                      setPolicyResult(null);
+                      setPolicyConfirmed(false);
                     }}
                     placeholder="Describe your payroll rules in plain English. e.g. Pay Sarah $500 weekly on Fridays, max $600 per day total, never pay between midnight and 6am"
                     maxLength={2_500}
@@ -541,6 +552,13 @@ export default function SetupWizard() {
                       </div>
                     </dl>
 
+                    {policyResult.schedule_details && (
+                      <p className="mt-3 rounded-lg bg-canvas px-3 py-2 text-xs leading-5 text-ink/60">
+                        <span className="font-semibold text-ink">Schedule detail:</span>{" "}
+                        {policyResult.schedule_details}
+                      </p>
+                    )}
+
                     {policyResult.summary.length > 0 && (
                       <ul className="mt-4 grid gap-2 text-xs leading-5 text-ink/60">
                         {policyResult.summary.map((item, index) => (
@@ -567,9 +585,33 @@ export default function SetupWizard() {
                         <span>{policyResult.warnings.join(" ")}</span>
                       </div>
                     )}
-                    <p className="mt-4 text-[11px] text-ink/40">
-                      The fields below are now filled from this draft. Review or edit them before continuing.
-                    </p>
+
+                    {(policyResult.too_vague || policyResult.ambiguities.length > 0) && (
+                      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-950">
+                        <p className="font-semibold">Clarification required</p>
+                        {policyResult.clarification_message && (
+                          <p className="mt-1">{policyResult.clarification_message}</p>
+                        )}
+                        {policyResult.ambiguities.map((ambiguity) => (
+                          <p key={ambiguity} className="mt-1">{ambiguity}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-[11px] text-ink/40">
+                        Powered by NEAR AI — {policyResult.modelLabel}
+                      </p>
+                      <button
+                        type="button"
+                        className="button-secondary w-full sm:w-auto"
+                        onClick={confirmGeneratedRules}
+                        disabled={policyResult.requires_clarification || policyResult.too_vague || policyConfirmed}
+                      >
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                        {policyConfirmed ? "Rules confirmed" : "Confirm and fill fields"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </section>
@@ -616,7 +658,7 @@ export default function SetupWizard() {
               <p className="mt-2 text-sm text-ink/50">
                 Wallet addresses are hashed in your browser before the contract receives them.
               </p>
-              {policyResult &&
+              {policyResult && policyConfirmed &&
                 (policyResult.schedule || policyResult.recipient_caps.length > 0) && (
                   <div className="mt-5 rounded-xl border border-moss/20 bg-canvas/55 px-4 py-3 text-xs leading-5 text-ink/60">
                     <span className="font-semibold text-ink">AI defaults are active.</span>{" "}

@@ -167,15 +167,11 @@ never imported into browser code. Configure these as server-side Vercel variable
 
 ```dotenv
 NEAR_AI_API_KEY=replace-with-near-ai-cloud-key
-NEAR_AI_API_URL=https://cloud-api.near.ai/v1/chat/completions
-# Optional: pin a catalog model instead of using Clavis's availability-aware selection.
-NEAR_AI_MODEL=
 ```
 
-`VITE_NEAR_AI_API_KEY` is accepted server-side for compatibility with the hackathon brief, but
-`NEAR_AI_API_KEY` is preferred so the secret cannot be mistaken for a browser variable.
-Clavis checks the live NEAR AI catalog, prefers the brief's Llama 3.3 model when available, and
-falls back to a current NEAR-hosted instruction model if that catalog entry is retired.
+The proxy calls `https://cloud-api.near.ai/v1/chat/completions`, first attempts
+`meta-llama/Llama-3.3-70B-Instruct`, and falls back to
+`deepseek-ai/DeepSeek-V4.1-Flash-1017`. The browser never receives the API key.
 
 The owner-only `run_security_audit()` contract method records five privacy-safe rejected audit
 entries without moving funds or changing treasury policy. The upgraded root and factory-embedded
@@ -233,6 +229,8 @@ The settlement key must never be exposed to the browser.
 ## Notifications
 
 Notification failures are isolated with `Promise.allSettled`; email or Telegram downtime never stops payroll.
+The payroll scheduler keeps its 60-second cycle, while a separate contract-event watcher checks
+new payment decisions and anomalies every 10 seconds and dispatches Telegram alerts immediately.
 
 The Resend, Telegram, VPS, and Vercel values below are configured once by the Clavis
 operator. End users never receive or edit those credentials.

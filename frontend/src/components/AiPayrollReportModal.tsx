@@ -1,7 +1,7 @@
 import { Check, Clipboard, FileText, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import type { AnomalyEntry, AuditEntry } from "../types";
+import type { AnomalyEntry, AuditEntry, Recipient } from "../types";
 import { generatePayrollReport } from "../utils/nearAi";
 import { Modal } from "./Modal";
 
@@ -9,14 +9,21 @@ export function AiPayrollReportModal({
   contractId,
   auditEntries,
   anomalies,
+  recipients,
+  treasuryBalance,
+  dailySpent,
   onClose,
 }: {
   contractId: string;
   auditEntries: AuditEntry[];
   anomalies: AnomalyEntry[];
+  recipients: Recipient[];
+  treasuryBalance: string;
+  dailySpent: string;
   onClose: () => void;
 }) {
   const [report, setReport] = useState<string | null>(null);
+  const [modelLabel, setModelLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -26,19 +33,22 @@ export function AiPayrollReportModal({
     setError(null);
     setCopied(false);
     try {
-      setReport(
-        await generatePayrollReport({
-          contractId,
-          auditEntries: auditEntries.slice(0, 30),
-          anomalies: anomalies.slice(0, 30),
-        }),
-      );
+      const result = await generatePayrollReport({
+        contractId,
+        auditEntries: auditEntries.slice(0, 100),
+        anomalies: anomalies.slice(0, 30),
+        recipients,
+        treasuryBalance,
+        dailySpent,
+      });
+      setReport(result.text);
+      setModelLabel(result.modelLabel);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to generate the payroll report");
     } finally {
       setLoading(false);
     }
-  }, [anomalies, auditEntries, contractId]);
+  }, [anomalies, auditEntries, contractId, dailySpent, recipients, treasuryBalance]);
 
   useEffect(() => {
     void generate();
@@ -93,6 +103,11 @@ export function AiPayrollReportModal({
               <div>
                 <p className="text-sm font-semibold">Clavis payroll controls</p>
                 <p className="mt-1 font-mono text-[10px] text-ink/40">{contractId}</p>
+                {modelLabel && (
+                  <p className="mt-1 text-[11px] text-ink/40">
+                    Powered by NEAR AI — {modelLabel}
+                  </p>
+                )}
               </div>
             </div>
             <div className="whitespace-pre-wrap text-sm leading-7 text-ink/70">{report}</div>

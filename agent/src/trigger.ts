@@ -46,6 +46,7 @@ export async function triggerDuePayments(options: {
   ownerAccountId?: string;
   recipients: RecipientView[];
   notifications: NotificationManager;
+  claimDecisionNotification?: (paymentId: number) => Promise<boolean>;
   intentRetryDelayMs: number;
   now?: Date;
 }): Promise<void> {
@@ -97,15 +98,20 @@ export async function triggerDuePayments(options: {
           paymentId: result.payment_id,
           reason,
         });
-        await options.notifications.paymentRejected({
-          business: options.business,
-          paymentId: result.payment_id,
-          reason,
-          ...(options.ownerAccountId
-            ? { ownerAccountId: options.ownerAccountId }
-            : {}),
-          workerAccountId: plan.nearAddress,
-        });
+        if (
+          !options.claimDecisionNotification ||
+          (await options.claimDecisionNotification(result.payment_id))
+        ) {
+          await options.notifications.paymentRejected({
+            business: options.business,
+            paymentId: result.payment_id,
+            reason,
+            ...(options.ownerAccountId
+              ? { ownerAccountId: options.ownerAccountId }
+              : {}),
+            workerAccountId: plan.nearAddress,
+          });
+        }
         continue;
       }
 
@@ -138,15 +144,20 @@ export async function triggerDuePayments(options: {
         paymentId: result.payment_id,
         routes: envelopes.length,
       });
-      await options.notifications.paymentApproved({
-        business: options.business,
-        paymentId: result.payment_id,
-        workerName: plan.name,
-        ...(options.ownerAccountId
-          ? { ownerAccountId: options.ownerAccountId }
-          : {}),
-        workerAccountId: plan.nearAddress,
-      });
+      if (
+        !options.claimDecisionNotification ||
+        (await options.claimDecisionNotification(result.payment_id))
+      ) {
+        await options.notifications.paymentApproved({
+          business: options.business,
+          paymentId: result.payment_id,
+          workerName: plan.name,
+          ...(options.ownerAccountId
+            ? { ownerAccountId: options.ownerAccountId }
+            : {}),
+          workerAccountId: plan.nearAddress,
+        });
+      }
     } catch (error) {
       logger.error("payment.request_failed", {
         contractId: options.contractId,

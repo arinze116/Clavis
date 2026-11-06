@@ -2,6 +2,7 @@ import { errorMessage, logger } from "../logger.js";
 import type {
   Anomaly,
   BusinessPayroll,
+  ContractAnomalyEntry,
   DailyReportSummary,
 } from "../types.js";
 import type { NotificationPreferenceStore } from "../notification-preferences.js";
@@ -82,6 +83,48 @@ export class NotificationManager {
         `Reason: ${options.reason}`,
       telegramText:
         `❌ Payment rejected · ${options.reason} · ${options.business.contract_id}`,
+    });
+  }
+
+  async contractDecisionDetected(options: {
+    business: BusinessPayroll;
+    ownerAccountId?: string;
+    paymentId: number;
+    approved: boolean;
+    reason?: string;
+  }): Promise<void> {
+    const payment = formatPaymentId(options.paymentId);
+    const status = options.approved ? "approved" : "rejected";
+    const reason = options.reason ? ` Reason: ${options.reason}` : "";
+    await this.sendNotification({
+      contractId: options.business.contract_id,
+      audience: [ownerAudience(options.business, options.ownerAccountId)],
+      subject: `Payment #${payment} ${status} on ${options.business.contract_id}`,
+      emailText:
+        `Payment #${payment} was ${status} by ${options.business.contract_id}.` + reason,
+      telegramText:
+        `${options.approved ? "✅" : "❌"} Payment #${payment} ${status}` +
+        `${options.reason ? ` · ${options.reason}` : ""} · ${options.business.contract_id}`,
+    });
+  }
+
+  async contractAnomalyDetected(options: {
+    business: BusinessPayroll;
+    ownerAccountId?: string;
+    anomaly: ContractAnomalyEntry;
+  }): Promise<void> {
+    const milliseconds = BigInt(String(options.anomaly.timestamp)) / 1_000_000n;
+    const time = new Date(Number(milliseconds)).toISOString().slice(11, 16);
+    await this.sendNotification({
+      contractId: options.business.contract_id,
+      audience: [ownerAudience(options.business, options.ownerAccountId)],
+      subject: `Anomaly alert: ${options.anomaly.anomaly_type}`,
+      emailText:
+        `Clavis detected a ${options.anomaly.severity} ${options.anomaly.anomaly_type} anomaly ` +
+        `on ${options.business.contract_id}. ${options.anomaly.description}`,
+      telegramText:
+        `⚠️ ${options.anomaly.severity} anomaly: ${options.anomaly.anomaly_type} · ` +
+        `${options.anomaly.description} · ${time} UTC`,
     });
   }
 

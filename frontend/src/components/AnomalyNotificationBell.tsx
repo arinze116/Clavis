@@ -30,7 +30,10 @@ export function AnomalyNotificationBell() {
     const activeContractId = contractId;
     setReadIds(loadReadIds(activeContractId));
     let active = true;
+    let refreshing = false;
     async function refresh() {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const next = await view<AnomalyEntry[]>(activeContractId, "get_anomalies", {
           from: 0,
@@ -40,13 +43,22 @@ export function AnomalyNotificationBell() {
         if (active) setAnomalies(next);
       } catch {
         // Header alerts are best-effort; dashboard error handling remains authoritative.
+      } finally {
+        refreshing = false;
       }
     }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
     void refresh();
     const timer = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
+    window.addEventListener("online", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       active = false;
       window.clearInterval(timer);
+      window.removeEventListener("online", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [contractId]);
 

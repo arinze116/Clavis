@@ -11,7 +11,7 @@ import { useState } from "react";
 
 import type { AnomalyEntry, AuditEntry } from "../types";
 import { formatTimestamp } from "../utils/format";
-import { analyzeAnomaly } from "../utils/nearAi";
+import { analyzeAnomaly, type AiAnomalyAnalysis } from "../utils/nearAi";
 
 export function AnomalyAlerts({
   anomalies,
@@ -27,7 +27,7 @@ export function AnomalyAlerts({
   onDismiss: (anomaly: AnomalyEntry) => Promise<void>;
 }) {
   const active = anomalies.filter((anomaly) => !anomaly.reviewed).reverse();
-  const [analysisById, setAnalysisById] = useState<Record<number, string>>({});
+  const [analysisById, setAnalysisById] = useState<Record<number, AiAnomalyAnalysis>>({});
   const [analysisErrorById, setAnalysisErrorById] = useState<Record<number, string>>({});
   const [analysisBusy, setAnalysisBusy] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -143,7 +143,34 @@ export function AnomalyAlerts({
                   }`}
                   role={analysisError ? "alert" : "status"}
                 >
-                  {analysisError || analysis}
+                  {analysisError ||
+                    (analysis && (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md bg-ink px-2 py-1 text-[10px] font-semibold text-white">
+                            {analysis.severity} severity
+                          </span>
+                          <span className="text-[11px] text-ink/40">
+                            Powered by NEAR AI — {analysis.modelLabel}
+                          </span>
+                        </div>
+                        <p>{analysis.meaning}</p>
+                        <p>
+                          <span className="font-semibold text-ink">Likely cause:</span>{" "}
+                          {causeLabel(analysis.likely_cause)} — {analysis.cause_reasoning}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-ink">Severity reasoning:</span>{" "}
+                          {analysis.severity_reasoning}
+                        </p>
+                        <div>
+                          <p className="font-semibold text-ink">Recommended actions</p>
+                          <ol className="mt-1 list-decimal space-y-1 pl-5">
+                            {analysis.actions.map((action) => <li key={action}>{action}</li>)}
+                          </ol>
+                        </div>
+                      </div>
+                    ))}
                 </div>
               )}
             </article>
@@ -161,4 +188,10 @@ export function AnomalyAlerts({
       </div>
     </section>
   );
+}
+
+function causeLabel(cause: AiAnomalyAnalysis["likely_cause"]): string {
+  if (cause === "compromised_agent") return "Possible compromised agent";
+  if (cause === "normal_behavior") return "Likely normal behavior";
+  return "Likely configuration issue";
 }

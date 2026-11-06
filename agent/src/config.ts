@@ -41,6 +41,12 @@ const schema = z.object({
   INTENT_STATE_PATH: z.string().default("./data/intents.json"),
   REPORT_DIRECTORY: z.string().default("./reports"),
   POLL_INTERVAL_MS: z.coerce.number().int().min(5_000).default(60_000),
+  NOTIFICATION_EVENT_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(5_000)
+    .max(30_000)
+    .default(10_000),
   RETRY_DELAY_MS: z.coerce.number().int().min(1_000).default(5_000),
   INTENT_RETRY_DELAY_MS: z.coerce.number().int().min(30_000).default(30_000),
   RUN_ONCE: booleanFromEnvironment.default(false),
@@ -122,6 +128,7 @@ export const config = {
   intentStatePath: resolveAgentPath(parsed.data.INTENT_STATE_PATH),
   reportDirectory: resolveAgentPath(parsed.data.REPORT_DIRECTORY),
   pollIntervalMs: parsed.data.POLL_INTERVAL_MS,
+  notificationEventPollIntervalMs: parsed.data.NOTIFICATION_EVENT_POLL_INTERVAL_MS,
   retryDelayMs: parsed.data.RETRY_DELAY_MS,
   intentRetryDelayMs: parsed.data.INTENT_RETRY_DELAY_MS,
   runOnce: parsed.data.RUN_ONCE,

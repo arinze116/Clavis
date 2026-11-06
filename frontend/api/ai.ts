@@ -15,7 +15,8 @@ type AiTask =
   | "anomaly"
   | "payroll-report"
   | "route"
-  | "security-scenarios";
+  | "security-scenarios"
+  | "security-summary";
 
 interface AiRequestBody {
   task: AiTask;
@@ -24,10 +25,6 @@ interface AiRequestBody {
 
 interface NearAiResponse {
   choices?: Array<{ message?: { content?: string } }>;
-}
-
-interface NearAiModelCatalog {
-  data?: Array<{ id?: unknown; owned_by?: unknown }>;
 }
 
 interface RateLimitEntry {
@@ -57,23 +54,15 @@ interface RouteConditions {
 const DEFAULT_NEAR_AI_URL = "https://cloud-api.near.ai/v1/chat/completions";
 const REQUESTED_NEAR_AI_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
 const CURRENT_NEAR_AI_FALLBACK_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
-const NEAR_AI_MODEL_PRIORITY = [
-  REQUESTED_NEAR_AI_MODEL,
-  CURRENT_NEAR_AI_FALLBACK_MODEL,
-  "Qwen/Qwen3.8-27B",
-  "z-ai/glm-5.3-flash",
-] as const;
+const NEAR_AI_MODEL_PRIORITY = [REQUESTED_NEAR_AI_MODEL, CURRENT_NEAR_AI_FALLBACK_MODEL] as const;
 const MAX_BODY_BYTES = 48 * 1_024;
 const UPSTREAM_TIMEOUT_MS = 25_000;
-const MODEL_CATALOG_TIMEOUT_MS = 3_000;
-const MODEL_CATALOG_TTL_MS = 10 * 60_000;
 const MAX_TEXT_LENGTH = 6_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 12;
 const MAX_RATE_LIMIT_CLIENTS = 2_000;
 const ROUTE_RPC_TIMEOUT_MS = 2_500;
 const rateLimits = new Map<string, RateLimitEntry>();
-let cachedNearAiModel: { id: string; expiresAt: number } | null = null;
 
 export const config = { maxDuration: 30 };
 
@@ -106,8 +95,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
-  const apiKey =
-    process.env.NEAR_AI_API_KEY?.trim() || process.env.VITE_NEAR_AI_API_KEY?.trim();
+  const apiKey = process.env.NEAR_AI_API_KEY?.trim();
   if (!apiKey) {
     response.status(503).json({ error: "NEAR AI is not configured", request_id: requestId });
     return;
@@ -129,7 +117,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const prompt = buildPrompt(body);
     const completion = await callNearAi(apiKey, prompt.system, prompt.user, prompt.json);
     response.setHeader("x-clavis-ai-model", completion.model);
-    response.status(200).json({ result: normalizeResult(body.task, completion.content) });
+    console.info("near_ai.completed", { request_id: requestId, task, model: completion.model });
+    response.status(200).json({
+      result: normalizeResult(body, completion.content),
+      model: completion.model,
+      model_label: displayModelName(completion.model),
+    });
   } catch (error) {
     const clientError = error instanceof ClientInputError;
     if (!clientError) {
@@ -179,6 +172,7 @@ function parseRequest(value: unknown): AiRequestBody {
     "payroll-report",
     "route",
     "security-scenarios",
+    "security-summary",
   ];
   if (!supported.includes(parsed.task as AiTask)) {
     throw new ClientInputError("Unsupported AI task");
@@ -195,6 +189,7 @@ function sanitizeInput(task: AiTask, value: unknown): unknown {
     const input = requiredRecord(value);
     return {
       anomaly_type: requiredText(input, "anomaly_type", 100),
+      contract_severity: optionalText(input.contract_severity, 20),
       description: requiredText(input, "description", 1_000),
       timestamp: requiredText(input, "timestamp", 100),
       recent_payments: limitedArray(input.recent_payments, 30),
@@ -204,8 +199,12 @@ function sanitizeInput(task: AiTask, value: unknown): unknown {
     const input = requiredRecord(value);
     return {
       contract_id: optionalText(input.contract_id, 100),
-      audit_entries: limitedArray(input.audit_entries, 30),
+      generated_at: requiredText(input, "generated_at", 100),
+      payment_comparison: sanitizeJson(input.payment_comparison, 0),
+      recipients: sanitizeJson(input.recipients, 0),
+      policy_violations: limitedArray(input.policy_violations, 100),
       anomalies: limitedArray(input.anomalies, 30),
+      treasury_health: sanitizeJson(input.treasury_health, 0),
     };
   }
   if (task === "route") {
@@ -220,9 +219,15 @@ function sanitizeInput(task: AiTask, value: unknown): unknown {
       region: optionalText(input.region, 100) || "Not provided",
     };
   }
-  return {
-    contract_id: isRecord(value) ? optionalText(value.contract_id, 100) : "",
-  };
+  if (task === "security-summary") {
+    const input = requiredRecord(value);
+    return {
+      contract_id: optionalText(input.contract_id, 100),
+      scenarios: limitedArray(input.scenarios, 5),
+      results: limitedArray(input.results, 5),
+    };
+  }
+  return { contract_id: isRecord(value) ? optionalText(value.contract_id, 100) : "" };
 }
 
 function buildPrompt(body: AiRequestBody): {
@@ -237,28 +242,35 @@ function buildPrompt(body: AiRequestBody): {
   if (body.task === "policy") {
     return {
       json: true,
-      system: `${dataRule} You are Clavis Policy Analyst. Extract a practical NEAR testnet payroll policy from plain English. Return only JSON with this exact shape: {"daily_limit":number|null,"per_payment_limit":number|null,"schedule":"Weekly"|"Biweekly"|"Milestone"|null,"recipient_caps":[{"name":string,"cap":number}],"summary":[string],"warnings":[string]}. Use positive numeric values with at most 6 decimals. If the user writes fiat symbols, preserve the numeric value for the demo and add a warning that Clavis applies it as a NEAR-denominated testnet limit. Never invent a recipient or amount.`,
+      system: `${dataRule} You are Clavis Policy Analyst. Extract a practical NEAR testnet payroll policy from plain English. Return only JSON with this exact shape: {"daily_limit":number|null,"per_payment_limit":number|null,"schedule":"Weekly"|"Biweekly"|"Milestone"|null,"schedule_details":string|null,"recipient_caps":[{"name":string,"cap":number}],"summary":[string],"warnings":[string],"ambiguities":[string],"requires_clarification":boolean,"too_vague":boolean,"clarification_message":string|null}. Extract daily and per-payment limits, every named recipient-specific cap, and scheduling details such as weekly on Fridays, biweekly, or milestone only. Use positive numeric values with at most 6 decimals. Treat words such as "around", "about", "roughly", and "approximately" as ambiguous and ask a specific question before values can be applied. Example: "pay around 500" must produce "Do you mean exactly 500 NEAR or approximately?" in ambiguities. If no usable amount is present, set too_vague and requires_clarification to true and set clarification_message exactly to "Please specify an amount. For example: ‘Pay up to 500 NEAR per day, max 100 NEAR per payment’". If the user writes fiat symbols, preserve the numeric value for the demo and warn that Clavis applies it as a NEAR-denominated testnet limit. Never invent a recipient, amount, or schedule.`,
       user: JSON.stringify(body.input),
     };
   }
   if (body.task === "anomaly") {
     return {
-      json: false,
-      system: `${dataRule} You are a cautious payroll security analyst. Explain what likely happened in 90-150 plain-English words, cite the UTC time and anomaly type, distinguish facts from possibilities, and finish with a concrete "Recommended action:" sentence. Do not claim compromise without evidence.`,
+      json: true,
+      system: `${dataRule} You are a cautious payroll security analyst. Return only JSON with this exact shape: {"meaning":string,"likely_cause":"configuration_issue"|"compromised_agent"|"normal_behavior","cause_reasoning":string,"actions":[string,string],"severity":"Low"|"Medium"|"High","severity_reasoning":string}. Explain the anomaly in plain English. Choose the most likely cause without claiming compromise unless evidence supports it. Give exactly two specific actions the owner should take. Rate severity and explain why.`,
       user: JSON.stringify(body.input),
     };
   }
   if (body.task === "payroll-report") {
     return {
       json: false,
-      system: `${dataRule} You are a CFO writing a concise payroll control report from privacy-safe audit decisions. Use the exact headings "Executive summary", "Decision totals", "Rejection reasons", "Anomalies", and "Policy recommendations". Count supplied entries accurately, name the main rejection reasons, and give 2-4 specific policy recommendations. Never infer salary totals because Clavis deliberately does not expose amounts. Write polished prose, not a raw JSON dump, in 250-450 words.`,
+      system: `${dataRule} You are a CFO writing a concise payroll operations report from privacy-safe, precomputed contract metrics. Include: total approved payments this week versus last week and the percentage change or lack of baseline; which named recipients were paid and which are pending; every supplied policy rejection reason; anomalies and their severity; treasury runway in days or a clear statement that spend is too low for a runway estimate; and exactly one specific operational recommendation tied to the supplied facts. Use the headings "Weekly payment trend", "Recipient status", "Policy controls", "Anomalies", "Treasury health", and "Recommendation". Do not invent payments, recipients, amounts, dates, or causes. Finish with the exact sign-off format "Generated by NEAR AI · [contract_id] · [generated_at]" using the supplied values. Write 250-450 words.`,
       user: JSON.stringify(body.input),
     };
   }
   if (body.task === "route") {
     return {
       json: true,
-      system: `${dataRule} You are the Clavis testnet route adviser. Choose one supported route only: near/NEAR, ethereum/USDC, or bnb/BUSD. The input contains a short-lived RPC snapshot with endpoint availability, observed latency, and atomic gas-unit prices. Treat it as a point-in-time signal only: latency is not settlement time, gas price is not total transaction cost, and atomic units must not be compared directly across chains. Combine the observed snapshot with the supplied qualitative gas patterns and use region only as a soft usability signal. Never claim current conditions when a network is marked unavailable and never invent measurements. Return only JSON: {"chain":"near"|"ethereum"|"bnb","token":"NEAR"|"USDC"|"BUSD","reason":string,"confidence":"high"|"medium"}. Keep the reason under 160 characters, mention the strongest observed or typical signal, and clearly call it a testnet recommendation.`,
+      system: `${dataRule} You are the Clavis testnet route adviser. Choose one supported route only: near/NEAR, ethereum/USDC, or bnb/BUSD. Use the recipient region when provided as a soft accessibility and ecosystem signal. Compare native NEAR's typical low-cost direct settlement with the extra token-contract and cross-chain execution involved in Ethereum or BNB routes. The input contains a short-lived RPC snapshot; latency is not settlement time, gas-unit prices are not total fees, and atomic units must never be compared across chains. Never invent measurements. Return only JSON: {"chain":"near"|"ethereum"|"bnb","token":"NEAR"|"USDC"|"BUSD","reason":string,"region_rationale":string,"gas_comparison":string,"confidence":"high"|"medium"|"low"}. Keep each explanation concise and clearly label the recommendation as testnet guidance.`,
+      user: JSON.stringify(body.input),
+    };
+  }
+  if (body.task === "security-summary") {
+    return {
+      json: false,
+      system: `${dataRule} You are a smart-contract security reviewer. Write one concise paragraph of 80-140 words summarizing the supplied five attack results. State how many were blocked, identify the contract controls demonstrated, distinguish a successful test from a guarantee of complete security, and give one sensible next security step. Do not invent findings.`,
       user: JSON.stringify(body.input),
     };
   }
@@ -275,87 +287,63 @@ async function callNearAi(
   user: string,
   json: boolean,
 ): Promise<{ content: string; model: string }> {
-  const configuredUrl = process.env.NEAR_AI_API_URL?.trim() || DEFAULT_NEAR_AI_URL;
-  const upstreamUrl = new URL(configuredUrl);
-  if (upstreamUrl.protocol !== "https:") throw new Error("NEAR AI requires HTTPS");
-  const model = await resolveNearAiModel(upstreamUrl);
+  let lastError: NearAiUpstreamError | Error | null = null;
+  for (const model of NEAR_AI_MODEL_PRIORITY) {
+    try {
+      const upstream = await fetch(DEFAULT_NEAR_AI_URL, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: json ? 0.1 : 0.3,
+          max_tokens: json ? 1_200 : 1_500,
+        }),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      });
 
-  const upstream = await fetch(upstreamUrl, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: json ? 0.1 : 0.3,
-      max_tokens: json ? 900 : 1_100,
-    }),
-    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-  });
-
-  if (!upstream.ok) {
-    // Consume and discard the body so provider responses never reach logs or clients.
-    await upstream.text();
-    throw new NearAiUpstreamError(upstream.status, classifyUpstreamStatus(upstream.status));
+      if (!upstream.ok) {
+        await upstream.text();
+        const error = new NearAiUpstreamError(
+          upstream.status,
+          classifyUpstreamStatus(upstream.status),
+        );
+        if (upstream.status === 401 || upstream.status === 403 || upstream.status === 429) {
+          throw error;
+        }
+        lastError = error;
+        continue;
+      }
+      let payload: NearAiResponse;
+      try {
+        payload = (await upstream.json()) as NearAiResponse;
+      } catch {
+        lastError = new Error("NEAR AI returned malformed JSON");
+        continue;
+      }
+      const content = payload.choices?.[0]?.message?.content?.trim();
+      if (!content || content.length > MAX_TEXT_LENGTH) {
+        lastError = new Error("NEAR AI returned an invalid response");
+        continue;
+      }
+      return { content, model };
+    } catch (error) {
+      if (
+        error instanceof NearAiUpstreamError &&
+        (error.status === 401 || error.status === 403 || error.status === 429)
+      ) {
+        throw error;
+      }
+      lastError = error instanceof Error ? error : new Error("NEAR AI request failed");
+    }
   }
-  let payload: NearAiResponse;
-  try {
-    payload = (await upstream.json()) as NearAiResponse;
-  } catch {
-    throw new Error("NEAR AI returned malformed JSON");
-  }
-  const content = payload.choices?.[0]?.message?.content?.trim();
-  if (!content || content.length > MAX_TEXT_LENGTH) {
-    throw new Error("NEAR AI returned an invalid response");
-  }
-  return { content, model };
-}
-
-async function resolveNearAiModel(upstreamUrl: URL): Promise<string> {
-  const configuredModel = process.env.NEAR_AI_MODEL?.trim();
-  if (configuredModel) return configuredModel;
-
-  const now = Date.now();
-  if (cachedNearAiModel && cachedNearAiModel.expiresAt > now) {
-    return cachedNearAiModel.id;
-  }
-
-  const catalogUrl = new URL(upstreamUrl);
-  const catalogPath = catalogUrl.pathname.replace(/\/chat\/completions\/?$/u, "/models");
-  if (catalogPath === catalogUrl.pathname) return CURRENT_NEAR_AI_FALLBACK_MODEL;
-  catalogUrl.pathname = catalogPath;
-  catalogUrl.search = "";
-
-  try {
-    const catalogResponse = await fetch(catalogUrl, {
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
-    });
-    if (!catalogResponse.ok) return CURRENT_NEAR_AI_FALLBACK_MODEL;
-    const catalog = (await catalogResponse.json()) as NearAiModelCatalog;
-    const entries = Array.isArray(catalog.data) ? catalog.data : [];
-    const availableIds = new Set(
-      entries.flatMap((entry) => (typeof entry.id === "string" ? [entry.id] : [])),
-    );
-    const preferred = NEAR_AI_MODEL_PRIORITY.find((candidate) => availableIds.has(candidate));
-    const hostedFallback = entries.find(
-      (entry) =>
-        typeof entry.id === "string" &&
-        entry.owned_by === "nearai" &&
-        !/(abliterated|embedding|flux|privacy-filter|reranker|whisper)/iu.test(entry.id),
-    )?.id;
-    const selected = preferred || (typeof hostedFallback === "string" ? hostedFallback : null);
-    if (!selected) return CURRENT_NEAR_AI_FALLBACK_MODEL;
-    cachedNearAiModel = { id: selected, expiresAt: now + MODEL_CATALOG_TTL_MS };
-    return selected;
-  } catch {
-    return CURRENT_NEAR_AI_FALLBACK_MODEL;
-  }
+  throw lastError ?? new Error("NEAR AI did not return a completion");
 }
 
 function classifyUpstreamStatus(status: number): string {
@@ -367,16 +355,33 @@ function classifyUpstreamStatus(status: number): string {
   return "unexpected_status";
 }
 
-function normalizeResult(task: AiTask, content: string): unknown {
-  if (task === "anomaly" || task === "payroll-report") return { text: content };
+function displayModelName(model: string): string {
+  if (model === REQUESTED_NEAR_AI_MODEL) return "Llama 3.3";
+  if (model === CURRENT_NEAR_AI_FALLBACK_MODEL) return "DeepSeek V4.1 Flash";
+  return model.split("/").at(-1)?.replaceAll("-", " ") || "NEAR AI";
+}
+
+function normalizeResult(body: AiRequestBody, content: string): unknown {
+  if (body.task === "payroll-report") {
+    const input = requiredRecord(body.input);
+    const signoff = `Generated by NEAR AI · ${requiredText(input, "contract_id", 100)} · ${requiredText(input, "generated_at", 100)}`;
+    return { text: content.includes(signoff) ? content : `${content}\n\n${signoff}` };
+  }
+  if (body.task === "security-summary") {
+    return { text: content };
+  }
   const parsed = parseProviderJson(stripCodeFence(content));
   if (!isRecord(parsed)) throw new Error("NEAR AI returned invalid structured JSON");
-  if (task === "policy") return normalizePolicy(parsed);
-  if (task === "route") return normalizeRoute(parsed);
+  if (body.task === "policy") {
+    const input = requiredRecord(body.input);
+    return normalizePolicy(parsed, requiredText(input, "description", 2_500));
+  }
+  if (body.task === "anomaly") return normalizeAnomaly(parsed);
+  if (body.task === "route") return normalizeRoute(parsed);
   return normalizeSecurityScenarios(parsed);
 }
 
-function normalizePolicy(value: Record<string, unknown>): unknown {
+function normalizePolicy(value: Record<string, unknown>, description: string): unknown {
   const schedules = ["Weekly", "Biweekly", "Milestone"] as const;
   const schedule = schedules.includes(value.schedule as (typeof schedules)[number])
     ? value.schedule
@@ -389,13 +394,61 @@ function normalizePolicy(value: Record<string, unknown>): unknown {
         return name && cap !== null ? [{ name, cap }] : [];
       })
     : [];
+  const dailyLimit = optionalPositiveNumber(value.daily_limit);
+  const perPaymentLimit = optionalPositiveNumber(value.per_payment_limit);
+  const modelAmbiguities = stringArray(value.ambiguities, 6, 240);
+  const approximateAmount = description.match(
+    /\b(?:around|about|roughly|approximately)\s+(?:NEAR\s*)?(\d+(?:\.\d+)?)/iu,
+  )?.[1];
+  const ambiguities = approximateAmount
+    ? [`Do you mean exactly ${approximateAmount} NEAR or approximately?`, ...modelAmbiguities]
+    : modelAmbiguities;
+  const dedupedAmbiguities = [...new Set(ambiguities)];
+  const tooVague =
+    value.too_vague === true ||
+    (dailyLimit === null && perPaymentLimit === null && caps.length === 0);
   return {
-    daily_limit: optionalPositiveNumber(value.daily_limit),
-    per_payment_limit: optionalPositiveNumber(value.per_payment_limit),
+    daily_limit: dailyLimit,
+    per_payment_limit: perPaymentLimit,
     schedule,
+    schedule_details: optionalText(value.schedule_details, 180) || null,
     recipient_caps: caps,
     summary: stringArray(value.summary, 8, 240),
     warnings: stringArray(value.warnings, 6, 240),
+    ambiguities: dedupedAmbiguities,
+    requires_clarification:
+      tooVague || dedupedAmbiguities.length > 0 || value.requires_clarification === true,
+    too_vague: tooVague,
+    clarification_message: tooVague
+      ? "Please specify an amount. For example: ‘Pay up to 500 NEAR per day, max 100 NEAR per payment’"
+      : optionalText(value.clarification_message, 300) || null,
+  };
+}
+
+function normalizeAnomaly(value: Record<string, unknown>): unknown {
+  const causes = ["configuration_issue", "compromised_agent", "normal_behavior"] as const;
+  const severities = ["Low", "Medium", "High"] as const;
+  const likelyCause = causes.includes(value.likely_cause as (typeof causes)[number])
+    ? value.likely_cause
+    : "configuration_issue";
+  const severity = severities.includes(value.severity as (typeof severities)[number])
+    ? value.severity
+    : "Medium";
+  const actions = stringArray(value.actions, 2, 240);
+  if (actions.length !== 2) throw new Error("NEAR AI must return exactly two anomaly actions");
+  const meaning = optionalText(value.meaning, 600);
+  const causeReasoning = optionalText(value.cause_reasoning, 400);
+  const severityReasoning = optionalText(value.severity_reasoning, 400);
+  if (!meaning || !causeReasoning || !severityReasoning) {
+    throw new Error("NEAR AI returned an incomplete anomaly analysis");
+  }
+  return {
+    meaning,
+    likely_cause: likelyCause,
+    cause_reasoning: causeReasoning,
+    actions,
+    severity,
+    severity_reasoning: severityReasoning,
   };
 }
 
@@ -406,12 +459,19 @@ function normalizeRoute(value: Record<string, unknown>): unknown {
     throw new Error("NEAR AI returned an unsupported route");
   }
   const reason = optionalText(value.reason, 200);
-  if (!reason) throw new Error("NEAR AI returned an incomplete route recommendation");
+  const regionRationale = optionalText(value.region_rationale, 240);
+  const gasComparison = optionalText(value.gas_comparison, 320);
+  if (!reason || !regionRationale || !gasComparison) {
+    throw new Error("NEAR AI returned an incomplete route recommendation");
+  }
   return {
     chain,
     token: pairs[chain as keyof typeof pairs],
     reason,
-    confidence: value.confidence === "high" ? "high" : "medium",
+    region_rationale: regionRationale,
+    gas_comparison: gasComparison,
+    confidence:
+      value.confidence === "high" ? "high" : value.confidence === "low" ? "low" : "medium",
   };
 }
 

@@ -28,7 +28,8 @@ export class TelegramNotifier {
           text: message,
           disable_web_page_preview: true,
         }),
-        signal: AbortSignal.timeout(15_000),
+        // Keep the delivery attempt inside the five-second real-time alert budget.
+        signal: AbortSignal.timeout(5_000),
       },
     );
     if (!response.ok) {

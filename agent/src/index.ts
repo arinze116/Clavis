@@ -1,9 +1,13 @@
+import path from "node:path";
+
 import { config } from "./config.js";
+import { ContractEventMonitor } from "./contract-event-monitor.js";
 import { IntentStore } from "./intent-store.js";
 import { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
 import { FactoryClient, NearTransferClient } from "./near.js";
 import { NotificationApiServer } from "./notification-api.js";
+import { NotificationEventStore } from "./notification-event-store.js";
 import { NotificationPreferenceStore } from "./notification-preferences.js";
 import { NotificationManager } from "./notifications/index.js";
 import { Scheduler } from "./scheduler.js";
@@ -46,6 +50,19 @@ async function main(): Promise<void> {
     telegramChatId: config.telegramChatId,
     preferences: notificationPreferences,
   });
+  const notificationEvents = new NotificationEventStore(
+    path.join(config.dataDirectory, "notification-events.json"),
+  );
+  const contractEventMonitor = new ContractEventMonitor({
+    factory,
+    rpcUrl: config.nearRpcUrl,
+    payrollConfigPath: config.payrollConfigPath,
+    payrollDirectory: config.payrollDirectory,
+    pollIntervalMs: config.notificationEventPollIntervalMs,
+    notifications,
+    events: notificationEvents,
+  });
+  await contractEventMonitor.initialize();
   const notificationApi = config.notificationApiEnabled
     ? new NotificationApiServer({
         host: config.notificationApiHost,
@@ -81,11 +98,13 @@ async function main(): Promise<void> {
     intents,
     intentStore,
     notifications,
+    notificationEvents,
   });
 
   const shutdown = (signal: string): void => {
     logger.info("agent.shutdown_requested", { signal });
     scheduler.stop();
+    contractEventMonitor.stop();
     telegramLinkPoller?.stop();
     void notificationApi?.stop().catch((error: unknown) => {
       logger.error("notification_api.shutdown_failed", { error: errorMessage(error) });
@@ -98,9 +117,13 @@ async function main(): Promise<void> {
     network: config.nearNetwork,
     factoryContractId: config.factoryContractId,
     pollIntervalMs: config.pollIntervalMs,
+    notificationEventPollIntervalMs: config.notificationEventPollIntervalMs,
     notificationApiEnabled: config.notificationApiEnabled,
   });
-  await scheduler.start();
+  await Promise.all([
+    scheduler.start(),
+    ...(config.runOnce ? [] : [contractEventMonitor.start()]),
+  ]);
 }
 
 main().catch((error: unknown) => {

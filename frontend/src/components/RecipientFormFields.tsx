@@ -288,9 +288,22 @@ export function RecipientFormFields({
                   Recommended: {routeLabel(recommendation.chain)} {recommendation.token}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-ink/55">{recommendation.reason}</p>
+                <dl className="mt-3 grid gap-2 text-xs leading-5 text-ink/55">
+                  <div>
+                    <dt className="font-semibold text-ink">Region fit</dt>
+                    <dd>{recommendation.region_rationale}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-ink">Gas comparison</dt>
+                    <dd>{recommendation.gas_comparison}</dd>
+                  </div>
+                </dl>
                 <p className="mt-2 text-[11px] text-ink/40">
-                  {recommendation.confidence === "high" ? "High" : "Medium"} confidence · You
-                  can accept this route or keep your current selection
+                  {recommendation.confidence === "high"
+                    ? "High"
+                    : recommendation.confidence === "low"
+                      ? "Low"
+                      : "Medium"} confidence · Powered by NEAR AI — {recommendation.modelLabel}
                 </p>
               </div>
             </div>

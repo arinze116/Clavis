@@ -12,6 +12,7 @@ import { useState } from "react";
 import type { SecurityAuditResult, SecurityAuditScenario } from "../types";
 import {
   generateSecurityScenarios,
+  generateSecuritySummary,
   type AiSecurityScenario,
   type SecurityScenarioKind,
 } from "../utils/nearAi";
@@ -31,39 +32,6 @@ const contractScenarioByKind: Record<SecurityScenarioKind, SecurityAuditScenario
   daily_limit_breach: "DAILY_LIMIT_BREACH",
   off_hours_payment: "OFF_HOURS_PAYMENT",
 };
-
-const fallbackScenarios: AiSecurityScenario[] = [
-  {
-    kind: "unapproved_recipient",
-    title: "Unapproved recipient",
-    description: "Attempts to authorize payroll for a wallet outside the approved roster.",
-    expected_protection: "The recipient allowlist must reject the request.",
-  },
-  {
-    kind: "over_limit_payment",
-    title: "Over-limit payment",
-    description: "Attempts a single payment above the configured per-payment ceiling.",
-    expected_protection: "The per-payment limit must reject the request.",
-  },
-  {
-    kind: "suspended_recipient",
-    title: "Suspended recipient",
-    description: "Attempts to pay a recipient whose payroll access is suspended.",
-    expected_protection: "The active-recipient rule must reject the request.",
-  },
-  {
-    kind: "daily_limit_breach",
-    title: "Daily limit breach",
-    description: "Attempts to push aggregate authorized payroll beyond the daily treasury limit.",
-    expected_protection: "The daily-spend rule must reject the request.",
-  },
-  {
-    kind: "off_hours_payment",
-    title: "Off-hours payment",
-    description: "Attempts payroll during the protected overnight monitoring window.",
-    expected_protection: "The off-hours security policy must reject the request.",
-  },
-];
 
 export function EmergencyControls({
   contractId,
@@ -89,6 +57,9 @@ export function EmergencyControls({
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditComplete, setAuditComplete] = useState(false);
   const [aiWarning, setAiWarning] = useState<string | null>(null);
+  const [aiModelLabel, setAiModelLabel] = useState<string | null>(null);
+  const [securitySummary, setSecuritySummary] = useState<string | null>(null);
+  const [summaryModelLabel, setSummaryModelLabel] = useState<string | null>(null);
 
   async function togglePause() {
     setActionError(null);
@@ -117,20 +88,28 @@ export function EmergencyControls({
     setAuditComplete(false);
     setActionError(null);
     setAiWarning(null);
+    setAiModelLabel(null);
+    setSecuritySummary(null);
+    setSummaryModelLabel(null);
     let scenarios: AiSecurityScenario[];
     try {
-      scenarios = await generateSecurityScenarios(contractId);
+      const generated = await generateSecurityScenarios(contractId);
+      scenarios = generated.scenarios;
+      setAiModelLabel(generated.modelLabel);
     } catch (reason) {
-      scenarios = fallbackScenarios;
-      setAiWarning(
-        `NEAR AI is temporarily unavailable, so Clavis is using its labelled contract-defined scenarios. ${
-          reason instanceof Error ? reason.message : ""
-        }`.trim(),
+      setActionError(
+        reason instanceof Error
+          ? reason.message
+          : "NEAR AI could not prepare the security scenarios",
       );
+      setAuditRunning(false);
+      return;
     }
 
     setAuditFeed(scenarios.map((scenario) => ({ ...scenario, status: "queued" })));
     try {
+      // Give React time to paint every NEAR AI explanation before the wallet transaction starts.
+      await wait(750);
       setAuditFeed((current) =>
         current.map((item, index) => ({ ...item, status: index === 0 ? "running" : "queued" })),
       );
@@ -166,6 +145,18 @@ export function EmergencyControls({
       setAuditComplete(complete);
       if (!complete) {
         setActionError("Security audit failed: one or more contract protections did not block the probe.");
+      } else {
+        try {
+          const summary = await generateSecuritySummary({ contractId, scenarios, results });
+          setSecuritySummary(summary.text);
+          setSummaryModelLabel(summary.modelLabel);
+        } catch (reason) {
+          setAiWarning(
+            `The on-chain audit completed, but NEAR AI could not generate the final summary. ${
+              reason instanceof Error ? reason.message : ""
+            }`.trim(),
+          );
+        }
       }
     } catch (reason) {
       setAuditFeed((current) =>
@@ -255,6 +246,11 @@ export function EmergencyControls({
 
         {auditFeed.length > 0 && (
           <div className="mt-4 space-y-2" aria-live="polite">
+            {aiModelLabel && (
+              <p className="text-[11px] text-ink/45">
+                Attack explanations powered by NEAR AI — {aiModelLabel}
+              </p>
+            )}
             {auditFeed.map((item, index) => (
               <div key={item.kind} className="rounded-[10px] border border-red-200 bg-white px-3 py-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -268,6 +264,9 @@ export function EmergencyControls({
                   </span>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-ink/50">{item.description}</p>
+                <p className="mt-1 text-xs leading-5 text-ink/45">
+                  Expected protection: {item.expected_protection}
+                </p>
                 {item.resultReason && (
                   <p className="mt-1 text-xs font-medium text-ink/65">{item.resultReason}</p>
                 )}
@@ -277,8 +276,14 @@ export function EmergencyControls({
         )}
 
         {auditComplete && (
-          <div className="mt-4 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-800" role="status">
-            Security audit complete — 5/5 attacks blocked. Your treasury is protected.
+          <div className="mt-4 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900" role="status">
+            <p className="font-semibold">Security audit complete — 5/5 attacks blocked.</p>
+            {securitySummary && <p className="mt-2 leading-6">{securitySummary}</p>}
+            {(summaryModelLabel || aiModelLabel) && (
+              <p className="mt-2 text-[11px] text-emerald-800/70">
+                Powered by NEAR AI — {summaryModelLabel || aiModelLabel}
+              </p>
+            )}
           </div>
         )}
       </div>

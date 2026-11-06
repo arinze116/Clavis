@@ -6,6 +6,7 @@ import type { IntentStore } from "./intent-store.js";
 import type { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
 import { type FactoryClient, NearClient } from "./near.js";
+import type { NotificationEventStore } from "./notification-event-store.js";
 import type { NotificationManager } from "./notifications/index.js";
 import { loadBusinessPayroll, loadPayrollCatalog } from "./payroll.js";
 import { generateDailyReport } from "./reporter.js";
@@ -21,6 +22,7 @@ export class Scheduler {
   readonly #intents: IntentClient;
   readonly #intentStore: IntentStore;
   readonly #notifications: NotificationManager;
+  readonly #notificationEvents: NotificationEventStore;
   readonly #clients = new Map<string, NearClient>();
   readonly #states = new Map<string, StateStore>();
   #stopping = false;
@@ -31,12 +33,14 @@ export class Scheduler {
     intents: IntentClient;
     intentStore: IntentStore;
     notifications: NotificationManager;
+    notificationEvents: NotificationEventStore;
   }) {
     this.#config = options.config;
     this.#factory = options.factory;
     this.#intents = options.intents;
     this.#intentStore = options.intentStore;
     this.#notifications = options.notifications;
+    this.#notificationEvents = options.notificationEvents;
   }
 
   stop(): void {
@@ -142,6 +146,8 @@ export class Scheduler {
       business,
       recipients,
       notifications: this.#notifications,
+      claimDecisionNotification: (paymentId) =>
+        this.#notificationEvents.claimDecision(contractId, paymentId),
       ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
       intentRetryDelayMs: this.#config.intentRetryDelayMs,
       now,

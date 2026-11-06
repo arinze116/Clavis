@@ -456,6 +456,9 @@ export default function BusinessDashboard() {
           contractId={data.contractId}
           auditEntries={data.auditLog}
           anomalies={data.anomalies}
+          recipients={data.recipients}
+          treasuryBalance={data.treasuryBalance}
+          dailySpent={data.dailySpent}
           onClose={() => setReportOpen(false)}
         />
       )}

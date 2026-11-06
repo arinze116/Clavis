@@ -37,6 +37,15 @@ export interface AuditEntry {
   block_height: number;
 }
 
+export interface ContractAnomalyEntry {
+  anomaly_id: number;
+  timestamp: number;
+  anomaly_type: string;
+  severity: "MEDIUM" | "HIGH";
+  description: string;
+  reviewed: boolean;
+}
+
 export interface PaymentResult {
   approved: boolean;
   payment_id: number;
