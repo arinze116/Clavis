@@ -4,12 +4,12 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link to="/" className="inline-flex items-center gap-3" aria-label="Clavis home">
       <img
-        src="/clavis-logo.jpg"
+        src="/clavis-mark.svg"
         alt=""
         aria-hidden="true"
         width={40}
         height={40}
-        className={`h-10 w-10 rounded-[11px] object-cover ring-1 ${
+        className={`h-10 w-10 rounded-[11px] ring-1 ${
           inverse ? "ring-white/10" : "ring-ink/10"
         }`}
       />
