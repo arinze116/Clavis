@@ -53,17 +53,28 @@ interface RouteConditions {
 const DEFAULT_NEAR_AI_URL = "https://cloud-api.near.ai/v1/chat/completions";
 const REQUESTED_NEAR_AI_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
 const CURRENT_NEAR_AI_FALLBACK_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
-const NEAR_AI_MODEL_PRIORITY = [REQUESTED_NEAR_AI_MODEL, CURRENT_NEAR_AI_FALLBACK_MODEL] as const;
+const DEFAULT_NEAR_AI_MODEL_PRIORITY = [
+  REQUESTED_NEAR_AI_MODEL,
+  CURRENT_NEAR_AI_FALLBACK_MODEL,
+] as const;
 const MAX_BODY_BYTES = 48 * 1_024;
-const UPSTREAM_TIMEOUT_MS = 25_000;
+const UPSTREAM_TOTAL_TIMEOUT_MS = 52_000;
+const DEFAULT_MODEL_ATTEMPT_TIMEOUT_MS = 25_000;
+const MODEL_CATALOG_TIMEOUT_MS = 1_500;
+const MODEL_CATALOG_TTL_MS = 5 * 60_000;
+const MODEL_FAILURE_COOLDOWN_MS = 2 * 60_000;
+const MAX_MODEL_ATTEMPTS = 4;
 const MAX_TEXT_LENGTH = 6_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 12;
 const MAX_RATE_LIMIT_CLIENTS = 2_000;
 const ROUTE_RPC_TIMEOUT_MS = 2_500;
 const rateLimits = new Map<string, RateLimitEntry>();
+let cachedModelCatalog: { expiresAt: number; models: string[] } | null = null;
+let lastSuccessfulModel: string | null = null;
+const modelCooldowns = new Map<string, number>();
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse): Promise<void> {
   const requestId = crypto.randomUUID();
@@ -281,8 +292,13 @@ async function callNearAi(
   user: string,
   json: boolean,
 ): Promise<{ content: string; model: string }> {
+  const startedAt = Date.now();
+  const models = orderModelsByHealth(await resolveNearAiModels(apiKey));
   let lastError: NearAiUpstreamError | Error | null = null;
-  for (const model of NEAR_AI_MODEL_PRIORITY) {
+  for (const model of models) {
+    const remainingMs = UPSTREAM_TOTAL_TIMEOUT_MS - (Date.now() - startedAt);
+    if (remainingMs < 1_000) break;
+
     try {
       const upstream = await fetch(DEFAULT_NEAR_AI_URL, {
         method: "POST",
@@ -299,7 +315,7 @@ async function callNearAi(
           temperature: json ? 0.1 : 0.3,
           max_tokens: json ? 1_200 : 1_500,
         }),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.min(modelAttemptTimeoutMs(), remainingMs)),
       });
 
       if (!upstream.ok) {
@@ -312,6 +328,7 @@ async function callNearAi(
           throw error;
         }
         lastError = error;
+        markModelUnavailable(model);
         continue;
       }
       let payload: NearAiResponse;
@@ -319,13 +336,17 @@ async function callNearAi(
         payload = (await upstream.json()) as NearAiResponse;
       } catch {
         lastError = new Error("NEAR AI returned malformed JSON");
+        markModelUnavailable(model);
         continue;
       }
       const content = payload.choices?.[0]?.message?.content?.trim();
       if (!content || content.length > MAX_TEXT_LENGTH) {
         lastError = new Error("NEAR AI returned an invalid response");
+        markModelUnavailable(model);
         continue;
       }
+      lastSuccessfulModel = model;
+      modelCooldowns.delete(model);
       return { content, model };
     } catch (error) {
       if (
@@ -335,9 +356,138 @@ async function callNearAi(
         throw error;
       }
       lastError = error instanceof Error ? error : new Error("NEAR AI request failed");
+      markModelUnavailable(model);
     }
   }
   throw lastError ?? new Error("NEAR AI did not return a completion");
+}
+
+async function resolveNearAiModels(apiKey: string): Promise<string[]> {
+  const configured = configuredModelPriority();
+  if (process.env.NEAR_AI_DISCOVER_MODELS?.trim().toLowerCase() === "false") {
+    return configured.slice(0, MAX_MODEL_ATTEMPTS);
+  }
+
+  try {
+    const available = await fetchNearAiModelCatalog(apiKey);
+    const availableSet = new Set(available);
+    const configuredAvailable = configured.filter((model) => availableSet.has(model));
+    const discovered = rankDiscoveredModels(
+      available.filter((model) => !configuredAvailable.includes(model)),
+    );
+    const catalogCandidates = uniqueModels([...configuredAvailable, ...discovered]).slice(
+      0,
+      MAX_MODEL_ATTEMPTS,
+    );
+    return catalogCandidates.length > 0
+      ? catalogCandidates
+      : configured.slice(0, MAX_MODEL_ATTEMPTS);
+  } catch (error) {
+    console.warn("near_ai.model_catalog_unavailable", {
+      error_type: error instanceof Error ? error.name : "UnknownError",
+    });
+    return configured.slice(0, MAX_MODEL_ATTEMPTS);
+  }
+}
+
+async function fetchNearAiModelCatalog(apiKey: string): Promise<string[]> {
+  const now = Date.now();
+  if (cachedModelCatalog && cachedModelCatalog.expiresAt > now) {
+    return cachedModelCatalog.models;
+  }
+
+  const endpoint = new URL(DEFAULT_NEAR_AI_URL);
+  endpoint.pathname = endpoint.pathname.replace(/\/chat\/completions\/?$/u, "/models");
+  const upstream = await fetch(endpoint, {
+    method: "GET",
+    headers: { authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
+  });
+  if (!upstream.ok) {
+    await upstream.text();
+    throw new NearAiUpstreamError(upstream.status, classifyUpstreamStatus(upstream.status));
+  }
+
+  const payload = (await upstream.json()) as unknown;
+  const data = isRecord(payload) && Array.isArray(payload.data) ? payload.data : [];
+  const models = uniqueModels(
+    data.slice(0, 500).flatMap((entry) =>
+      isRecord(entry) && typeof entry.id === "string" && isValidModelId(entry.id)
+        ? [entry.id.trim()]
+        : [],
+    ),
+  );
+  if (models.length === 0) throw new Error("NEAR AI returned an empty model catalog");
+
+  cachedModelCatalog = { expiresAt: now + MODEL_CATALOG_TTL_MS, models };
+  return models;
+}
+
+function configuredModelPriority(): string[] {
+  const configured = splitCommaList(process.env.NEAR_AI_MODELS).filter(isValidModelId);
+  return uniqueModels([...configured, ...DEFAULT_NEAR_AI_MODEL_PRIORITY]);
+}
+
+function rankDiscoveredModels(models: string[]): string[] {
+  return models
+    .map((model) => ({ model, score: modelSuitabilityScore(model) }))
+    .filter(({ score }) => score >= 0)
+    .sort((left, right) => right.score - left.score || left.model.localeCompare(right.model))
+    .map(({ model }) => model);
+}
+
+function modelSuitabilityScore(model: string): number {
+  const normalized = model.toLowerCase();
+  if (
+    ["embed", "rerank", "image", "whisper", "speech", "tts", "moderation"].some((term) =>
+      normalized.includes(term),
+    )
+  ) {
+    return -1;
+  }
+
+  let score = 0;
+  if (normalized.includes("instruct")) score += 50;
+  if (normalized.includes("chat")) score += 40;
+  if (["llama", "deepseek", "qwen", "mistral", "gemma"].some((term) => normalized.includes(term))) {
+    score += 20;
+  }
+  if (normalized.includes("flash")) score += 5;
+  return score;
+}
+
+function modelAttemptTimeoutMs(): number {
+  const parsed = Number.parseInt(process.env.NEAR_AI_MODEL_TIMEOUT_MS ?? "", 10);
+  return Number.isFinite(parsed)
+    ? Math.min(30_000, Math.max(10_000, parsed))
+    : DEFAULT_MODEL_ATTEMPT_TIMEOUT_MS;
+}
+
+function orderModelsByHealth(models: string[]): string[] {
+  const now = Date.now();
+  const available = models.filter((model) => (modelCooldowns.get(model) ?? 0) <= now);
+  const coolingDown = models.filter((model) => (modelCooldowns.get(model) ?? 0) > now);
+  if (lastSuccessfulModel && available.includes(lastSuccessfulModel)) {
+    return [
+      lastSuccessfulModel,
+      ...available.filter((model) => model !== lastSuccessfulModel),
+      ...coolingDown,
+    ];
+  }
+  return [...available, ...coolingDown];
+}
+
+function markModelUnavailable(model: string): void {
+  modelCooldowns.set(model, Date.now() + MODEL_FAILURE_COOLDOWN_MS);
+  if (lastSuccessfulModel === model) lastSuccessfulModel = null;
+}
+
+function uniqueModels(models: readonly string[]): string[] {
+  return [...new Set(models.map((model) => model.trim()).filter(Boolean))];
+}
+
+function isValidModelId(value: string): boolean {
+  return /^[a-z0-9._:/-]{1,200}$/iu.test(value.trim());
 }
 
 function classifyUpstreamStatus(status: number): string {

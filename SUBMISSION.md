@@ -63,18 +63,19 @@ Server-side endpoint: `https://cloud-api.near.ai/v1/chat/completions`
 
 Preferred model: `meta-llama/Llama-3.3-70B-Instruct`
 
-Live fallback: `deepseek-ai/DeepSeek-V4.1-Flash-1017`. NEAR AI retired the preferred Llama entry
-from its live catalog before release, so the proxy checks model availability and selects the first
-supported NEAR-hosted instruction model. Successful responses expose the active choice through the
-`x-clavis-ai-model` header.
+Default fallback: `deepseek-ai/DeepSeek-V4.1-Flash-1017`. The proxy checks NEAR AI's live model
+catalog, honors the environment-configured priority list, and can select another suitable
+NEAR-hosted instruction model when the catalog changes. Slow or failed models are temporarily
+deprioritized, and successful responses expose the active choice through the `x-clavis-ai-model`
+header.
 
 Implemented tasks:
 
 1. Plain-English policy extraction into limits, schedule, recipient caps, summary, and warnings.
-2. Cautious anomaly explanation with a recommended owner action.
+2. Cautious anomaly explanation with two recommended owner actions.
 3. CFO-style report from the latest thirty privacy-minimized audit entries.
 4. Testnet route recommendation enriched with point-in-time NEAR, Sepolia, and BNB RPC observations.
-5. Human-readable descriptions of five canonical security scenarios before the contract evaluates them.
+5. Human-readable summary after the contract evaluates five fixed canonical security scenarios.
 
 The API key stays in the Vercel serverless environment. Browser code calls same-origin `/api/ai` and never imports the secret.
 

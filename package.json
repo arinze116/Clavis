@@ -11,7 +11,8 @@
   "scripts": {
     "build": "npm run build --workspace=@clavis/agent && npm run build --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
     "typecheck": "npm run typecheck --workspace=@clavis/agent && npm run typecheck --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
-    "test": "npm run test:agent && npm run test:contract",
+    "test": "npm run test:api && npm run test:agent && npm run test:contract",
+    "test:api": "node --import tsx --test tests/api/*.test.ts",
     "test:e2e": "npm run build --workspace=@clavis/frontend && npm run test:e2e:built",
     "test:e2e:built": "playwright test",
     "test:agent": "npm run test --workspace=@clavis/agent",
