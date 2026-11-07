@@ -239,13 +239,13 @@ export const businessGuide: RoleGuide = {
       id: "monitor-payroll",
       title: "Monitor payroll",
       summary:
-        "The business console brings treasury health, recipients, policy controls, anomalies, and privacy-minimized audit decisions into one operating view.",
+        "The business console brings contract funding, authorization capacity, recipients, policy controls, anomalies, and privacy-minimized audit decisions into one operating view.",
       content: (
         <BulletList>
-          <li>Treasury status compares the current balance with today’s authorized spend and daily limit.</li>
-          <li>The payroll roster shows each worker’s route, personal cap, schedule, next payment, and active state.</li>
+          <li>Authorization status compares the contract balance with effective usage in the active 24-hour policy window; settlement funding is verified separately.</li>
+          <li>The payroll roster shows each worker’s route, personal cap, schedule, next authorization eligibility, and active state.</li>
           <li>Anomaly alerts surface off-hours, high-frequency, replay, route-change, and near-limit behavior.</li>
-          <li>Generate the AI payroll report for a CFO-style summary of approvals, rejections, anomaly trends, and policy recommendations.</li>
+          <li>Generate the verified payroll report from a fresh NEAR final-state read; AI only prioritizes an evidence-backed recommendation.</li>
         </BulletList>
       ),
       visual: {
@@ -253,7 +253,7 @@ export const businessGuide: RoleGuide = {
         title: "Payroll under control",
         caption: "Sensitive amounts stay outside the public audit while owners retain the policy context they need.",
         rows: [
-          { label: "Treasury", value: "84.2 NEAR", state: "active" },
+          { label: "Contract account", value: "84.2 NEAR", state: "active" },
           { label: "Daily capacity", value: "41% used" },
           { label: "Roster", value: "8 active · 1 suspended" },
           { label: "Open anomalies", value: "1 to review", state: "warning" },
@@ -265,13 +265,13 @@ export const businessGuide: RoleGuide = {
       id: "security-audit",
       title: "Run a security audit",
       summary:
-        "The browser runs five fixed, versioned contract probes and verifies every structured result. NEAR AI may summarize the verified outcome, but it does not choose the tests or decide whether they passed.",
+        "The browser runs five fixed, versioned contract probes. The server independently matches every payment ID and rejection reason against the live audit ledger; AI may prioritize a next step but does not choose the tests or decide whether they passed.",
       content: (
         <div className="grid gap-4">
           <BulletList>
             <li>Open Emergency controls and select Run contract security probes.</li>
             <li>Approve the wallet transaction that executes the fixed, no-funds audit method.</li>
-            <li>Watch the live feed test an unapproved recipient, over-limit payment, suspended recipient, daily-limit breach, and off-hours attempt.</li>
+            <li>Watch the verified result feed show the five fixed outcomes returned by the completed contract transaction.</li>
             <li>A successful result reads “5/5 attacks blocked”; open the public audit to inspect the matching rejected decisions.</li>
           </BulletList>
           <Note>
@@ -362,7 +362,7 @@ export const workerGuide: RoleGuide = {
         <BulletList>
           <li>Your employer adds your wallet hash, personal cap, schedule, and approved route to their isolated contract.</li>
           <li>If notifications are linked, email or Telegram confirms when you are added.</li>
-          <li>Reconnect at the worker portal; your schedule and next payment date appear automatically.</li>
+          <li>Reconnect at the worker portal; your schedule and next authorization date appear automatically.</li>
           <li>If no profile appears, confirm that both you and your employer used the exact same NEAR account address.</li>
         </BulletList>
       ),

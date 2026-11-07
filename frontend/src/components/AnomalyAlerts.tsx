@@ -9,19 +9,19 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type { AnomalyEntry, AuditEntry } from "../types";
+import type { AnomalyEntry } from "../types";
 import { formatTimestamp } from "../utils/format";
 import { analyzeAnomaly, type AiAnomalyAnalysis } from "../utils/nearAi";
 
 export function AnomalyAlerts({
+  contractId,
   anomalies,
-  recentPayments,
   writeBusy,
   busyId,
   onDismiss,
 }: {
+  contractId: string;
   anomalies: AnomalyEntry[];
-  recentPayments: AuditEntry[];
   writeBusy: boolean;
   busyId: number | null;
   onDismiss: (anomaly: AnomalyEntry) => Promise<void>;
@@ -41,7 +41,7 @@ export function AnomalyAlerts({
     setExpandedId(anomaly.anomaly_id);
     setAnalysisErrorById((current) => ({ ...current, [anomaly.anomaly_id]: "" }));
     try {
-      const analysis = await analyzeAnomaly(anomaly, recentPayments.slice(0, 30));
+      const analysis = await analyzeAnomaly(contractId, anomaly.anomaly_id);
       setAnalysisById((current) => ({ ...current, [anomaly.anomaly_id]: analysis }));
     } catch (reason) {
       setAnalysisErrorById((current) => ({
@@ -151,14 +151,18 @@ export function AnomalyAlerts({
                             {analysis.severity} severity
                           </span>
                           <span className="text-[11px] text-ink/40">
-                            Powered by NEAR AI — {analysis.modelLabel}
+                            Advisory hypothesis engine — {analysis.modelLabel}
                           </span>
                         </div>
+                        <p className="text-xs text-emerald-700">
+                          Verified from {analysis.evidence.source} at final block {analysis.evidence.block_height}.
+                        </p>
                         <p>{analysis.meaning}</p>
                         <p>
-                          <span className="font-semibold text-ink">Likely cause:</span>{" "}
+                          <span className="font-semibold text-ink">AI hypothesis:</span>{" "}
                           {causeLabel(analysis.likely_cause)} — {analysis.cause_reasoning}
                         </p>
+                        <p className="text-xs text-ink/50">{analysis.interpretation}</p>
                         <p>
                           <span className="font-semibold text-ink">Severity reasoning:</span>{" "}
                           {analysis.severity_reasoning}
@@ -179,9 +183,9 @@ export function AnomalyAlerts({
         {active.length === 0 && (
           <div className="rounded-[16px] border border-dashed border-line px-5 py-9 text-center">
             <Check className="mx-auto h-6 w-6 text-emerald-600" />
-            <p className="mt-3 text-sm font-semibold">No anomalies detected</p>
+            <p className="mt-3 text-sm font-semibold">No unreviewed anomalies in this contract view</p>
             <p className="mt-1 text-xs text-ink/45">
-              The agent and contract policy are operating normally.
+              This is a live ledger state, not a claim that every off-chain service is healthy.
             </p>
           </div>
         )}

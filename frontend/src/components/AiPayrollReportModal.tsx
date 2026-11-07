@@ -1,29 +1,19 @@
 import { Check, Clipboard, FileText, LoaderCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import type { AnomalyEntry, AuditEntry, Recipient } from "../types";
-import { generatePayrollReport } from "../utils/nearAi";
+import { generatePayrollReport, type AiPayrollReportResult } from "../utils/nearAi";
 import { Modal } from "./Modal";
 
 export function AiPayrollReportModal({
   contractId,
-  auditEntries,
-  anomalies,
-  recipients,
-  treasuryBalance,
-  dailySpent,
   onClose,
 }: {
   contractId: string;
-  auditEntries: AuditEntry[];
-  anomalies: AnomalyEntry[];
-  recipients: Recipient[];
-  treasuryBalance: string;
-  dailySpent: string;
   onClose: () => void;
 }) {
   const [report, setReport] = useState<string | null>(null);
   const [modelLabel, setModelLabel] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState<AiPayrollReportResult["evidence"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -35,20 +25,16 @@ export function AiPayrollReportModal({
     try {
       const result = await generatePayrollReport({
         contractId,
-        auditEntries: auditEntries.slice(0, 100),
-        anomalies: anomalies.slice(0, 30),
-        recipients,
-        treasuryBalance,
-        dailySpent,
       });
       setReport(result.text);
       setModelLabel(result.modelLabel);
+      setEvidence(result.evidence);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to generate the payroll report");
     } finally {
       setLoading(false);
     }
-  }, [anomalies, auditEntries, contractId, dailySpent, recipients, treasuryBalance]);
+  }, [contractId]);
 
   useEffect(() => {
     void generate();
@@ -68,7 +54,7 @@ export function AiPayrollReportModal({
   return (
     <Modal
       title="AI payroll control report"
-      description="A CFO-style summary of the latest 30 privacy-minimized audit decisions and anomaly signals."
+      description="A verified report generated from a fresh NEAR final-state read. AI only prioritizes an evidence-backed recommendation."
       onClose={onClose}
       size="lg"
     >
@@ -79,7 +65,7 @@ export function AiPayrollReportModal({
           <div className="h-28 rounded-[12px] bg-white" />
           <div className="h-24 rounded-[12px] bg-white" />
           <p className="flex items-center gap-2 text-sm text-ink/50">
-            <LoaderCircle className="h-4 w-4 animate-spin" /> NEAR AI is reviewing the ledger
+            <LoaderCircle className="h-4 w-4 animate-spin" /> Reading and verifying final-state evidence
           </p>
         </div>
       )}
@@ -105,7 +91,15 @@ export function AiPayrollReportModal({
                 <p className="mt-1 font-mono text-[10px] text-ink/40">{contractId}</p>
                 {modelLabel && (
                   <p className="mt-1 text-[11px] text-ink/40">
-                    Powered by NEAR AI — {modelLabel}
+                    Recommendation engine — {modelLabel}
+                  </p>
+                )}
+                {evidence && (
+                  <p className="mt-1 text-[11px] text-emerald-700">
+                    Verified from {evidence.source} at block{" "}
+                    {evidence.block_height_min === evidence.block_height_max
+                      ? evidence.block_height_max
+                      : `${evidence.block_height_min}-${evidence.block_height_max}`}
                   </p>
                 )}
               </div>

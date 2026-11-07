@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 import type { SecurityAuditResult, SecurityAuditScenario } from "../types";
 import {
   generateSecuritySummary,
+  type AiSecuritySummaryResult,
   type AiSecurityScenario,
   type SecurityScenarioKind,
 } from "../utils/nearAi";
@@ -92,6 +93,7 @@ export function EmergencyControls({
   const [aiWarning, setAiWarning] = useState<string | null>(null);
   const [securitySummary, setSecuritySummary] = useState<string | null>(null);
   const [summaryModelLabel, setSummaryModelLabel] = useState<string | null>(null);
+  const [summaryEvidence, setSummaryEvidence] = useState<AiSecuritySummaryResult["evidence"] | null>(null);
 
   async function togglePause() {
     setActionError(null);
@@ -122,6 +124,7 @@ export function EmergencyControls({
     setAiWarning(null);
     setSecuritySummary(null);
     setSummaryModelLabel(null);
+    setSummaryEvidence(null);
     const scenarios = canonicalSecurityProbes;
 
     setAuditFeed(scenarios.map((scenario) => ({ ...scenario, status: "queued" })));
@@ -168,9 +171,10 @@ export function EmergencyControls({
           const summary = await generateSecuritySummary({ contractId, scenarios, results });
           setSecuritySummary(summary.text);
           setSummaryModelLabel(summary.modelLabel);
+          setSummaryEvidence(summary.evidence);
         } catch (reason) {
           setAiWarning(
-            `The on-chain audit completed, but NEAR AI could not generate the final summary. ${
+            `The on-chain audit completed, but the verified summary could not be generated. ${
               reason instanceof Error ? reason.message : ""
             }`.trim(),
           );
@@ -238,7 +242,8 @@ export function EmergencyControls({
             <h3 className="text-sm font-semibold">Deterministic contract probes</h3>
             <p className="mt-1 text-xs leading-5 text-ink/55">
               Five versioned probes exercise the contract's real rule evaluator without moving
-              funds. NEAR AI only summarizes the verified results afterward.
+              funds. AI may prioritize the next step; Clavis renders the verified probe facts
+              deterministically.
             </p>
             <Link className="mt-2 inline-flex text-xs font-semibold text-red-700 underline" to="/security">
               View the reproducible threat model and CI evidence
@@ -300,7 +305,12 @@ export function EmergencyControls({
             {securitySummary && <p className="mt-2 leading-6">{securitySummary}</p>}
             {summaryModelLabel && (
               <p className="mt-2 text-[11px] text-emerald-800/70">
-                Advisory summary powered by NEAR AI — {summaryModelLabel}
+                Probe facts verified on-chain; next-step engine — {summaryModelLabel}
+              </p>
+            )}
+            {summaryEvidence && (
+              <p className="mt-1 text-[11px] text-emerald-800/70">
+                {summaryEvidence.source} · final block {summaryEvidence.block_height} · {new Date(summaryEvidence.observed_at).toLocaleString()}
               </p>
             )}
           </div>

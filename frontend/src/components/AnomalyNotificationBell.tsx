@@ -1,15 +1,15 @@
-import { AlertTriangle, Bell, CheckCheck, Settings2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Bell, CheckCheck, RefreshCw, Settings2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useWallet } from "../contexts/WalletContext";
 import { useOwnerContract } from "../hooks/useContractState";
 import type { AnomalyEntry } from "../types";
-import { view } from "../utils/contract";
+import { loadLatestAnomalies } from "../utils/contract";
 import { formatTimestamp } from "../utils/format";
 import { NotificationSettingsModal } from "./NotificationSettingsModal";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 10_000;
 
 export function AnomalyNotificationBell() {
   const { accountId, wallet } = useWallet();
@@ -17,50 +17,68 @@ export function AnomalyNotificationBell() {
   const contractId = ownerContract.contract?.contract_id ?? null;
   const [anomalies, setAnomalies] = useState<AnomalyEntry[]>([]);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  const [verifiedContractId, setVerifiedContractId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(contractId));
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const activeContractIdRef = useRef<string | null>(contractId);
+  const refreshingContractIdRef = useRef<string | null>(null);
+  activeContractIdRef.current = contractId;
+
+  const refresh = useCallback(async () => {
+    if (!contractId || refreshingContractIdRef.current === contractId) return;
+    const requestedContractId = contractId;
+    refreshingContractIdRef.current = requestedContractId;
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await loadLatestAnomalies(requestedContractId);
+      if (activeContractIdRef.current !== requestedContractId) return;
+      setAnomalies(next);
+      setVerifiedContractId(requestedContractId);
+    } catch (reason) {
+      if (activeContractIdRef.current !== requestedContractId) return;
+      setError(reason instanceof Error ? reason.message : "The live contract read failed.");
+    } finally {
+      if (refreshingContractIdRef.current === requestedContractId) {
+        refreshingContractIdRef.current = null;
+      }
+      if (activeContractIdRef.current === requestedContractId) setLoading(false);
+    }
+  }, [contractId]);
 
   useEffect(() => {
     if (!contractId) {
       setAnomalies([]);
       setReadIds(new Set());
+      setVerifiedContractId(null);
+      setLoading(false);
+      setError(null);
       return;
     }
     const activeContractId = contractId;
+    setAnomalies([]);
     setReadIds(loadReadIds(activeContractId));
-    let active = true;
-    let refreshing = false;
-    async function refresh() {
-      if (refreshing) return;
-      refreshing = true;
-      try {
-        const next = await view<AnomalyEntry[]>(activeContractId, "get_anomalies", {
-          from: 0,
-          limit: 100,
-          active_only: false,
-        });
-        if (active) setAnomalies(next);
-      } catch {
-        // Header alerts are best-effort; dashboard error handling remains authoritative.
-      } finally {
-        refreshing = false;
-      }
-    }
+    setVerifiedContractId(null);
+    setLoading(true);
+    setError(null);
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void refresh();
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
     window.addEventListener("online", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
-      active = false;
       window.clearInterval(timer);
       window.removeEventListener("online", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [contractId]);
+  }, [contractId, refresh]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +103,19 @@ export function AnomalyNotificationBell() {
   const unread = anomalies.filter(
     (anomaly) => !anomaly.reviewed && !readIds.has(anomaly.anomaly_id),
   );
+  const hasVerifiedSnapshot = Boolean(contractId) && verifiedContractId === contractId;
+  const verificationLoading = ownerContract.loading || loading;
+  const verificationError = ownerContract.error ?? error;
+  const bellLabel = hasVerifiedSnapshot
+    ? `${unread.length} unread anomaly alerts`
+    : verificationError
+      ? "Anomaly alert verification unavailable"
+      : "Anomaly alerts awaiting verified contract data";
+
+  function retryVerification() {
+    if (contractId) void refresh();
+    else void ownerContract.refresh();
+  }
 
   function markAllRead() {
     if (!contractId) return;
@@ -101,7 +132,7 @@ export function AnomalyNotificationBell() {
         type="button"
         className="relative grid h-11 w-11 place-items-center rounded-[10px] border border-ink/10 bg-white text-ink/60 transition-colors hover:border-ink/25 hover:text-ink"
         onClick={() => setOpen((value) => !value)}
-        aria-label={`${unread.length} unread anomaly alerts`}
+        aria-label={bellLabel}
         aria-expanded={open}
       >
         <Bell className="h-4 w-4" />
@@ -117,7 +148,13 @@ export function AnomalyNotificationBell() {
           <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-4">
             <div>
               <p className="text-sm font-semibold">Anomaly alerts</p>
-              <p className="mt-1 text-xs text-ink/45">{unread.length} unread</p>
+              <p className="mt-1 text-xs text-ink/45">
+                {hasVerifiedSnapshot
+                  ? `${unread.length} unread`
+                  : verificationError
+                    ? "Verification unavailable"
+                    : "Waiting for verified contract data"}
+              </p>
             </div>
             <button
               type="button"
@@ -129,6 +166,25 @@ export function AnomalyNotificationBell() {
             </button>
           </div>
           <div className="max-h-[360px] divide-y divide-line overflow-y-auto">
+            {error && hasVerifiedSnapshot && (
+              <div className="flex items-start gap-3 bg-amber-50 px-4 py-3 text-amber-950">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold">Unable to refresh anomaly state</p>
+                  <p className="mt-1 text-xs leading-5 text-amber-900/70">
+                    Showing the last verified contract snapshot.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold"
+                  onClick={() => void refresh()}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Retry
+                </button>
+              </div>
+            )}
             {latest.map((anomaly) => (
               <Link
                 key={anomaly.anomaly_id}
@@ -159,10 +215,47 @@ export function AnomalyNotificationBell() {
                 </span>
               </Link>
             ))}
-            {latest.length === 0 && (
+            {!hasVerifiedSnapshot && verificationLoading && (
+              <div className="px-5 py-10 text-center">
+                <RefreshCw className="mx-auto h-5 w-5 animate-spin text-moss" />
+                <p className="mt-3 text-sm font-semibold">Checking anomaly state</p>
+                <p className="mt-1 text-xs text-ink/45">Reading the latest final contract state.</p>
+              </div>
+            )}
+            {!hasVerifiedSnapshot && verificationError && !verificationLoading && (
+              <div className="px-5 py-10 text-center">
+                <AlertTriangle className="mx-auto h-5 w-5 text-amber-700" />
+                <p className="mt-3 text-sm font-semibold">Unable to verify anomaly state</p>
+                <p className="mt-1 text-xs leading-5 text-ink/45">
+                  No clean result is shown because the live contract read failed.
+                </p>
+                <button
+                  type="button"
+                  className="button-secondary mt-4"
+                  onClick={retryVerification}
+                  disabled={verificationLoading}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${verificationLoading ? "animate-spin" : ""}`}
+                  />{" "}
+                  Retry
+                </button>
+              </div>
+            )}
+            {!hasVerifiedSnapshot && !contractId && !verificationLoading && !verificationError && (
+              <div className="px-5 py-10 text-center">
+                <p className="text-sm font-semibold">No payroll contract found</p>
+                <p className="mt-1 text-xs leading-5 text-ink/45">
+                  Connect an owner account with a deployed contract to monitor anomaly alerts.
+                </p>
+              </div>
+            )}
+            {hasVerifiedSnapshot && latest.length === 0 && !error && (
               <div className="px-5 py-10 text-center">
                 <p className="text-sm font-semibold">No anomaly alerts</p>
-                <p className="mt-1 text-xs text-ink/45">Contract monitoring is quiet.</p>
+                <p className="mt-1 text-xs text-ink/45">
+                  The latest verified contract snapshot contains no alerts.
+                </p>
               </div>
             )}
           </div>

@@ -5,6 +5,7 @@ export interface AnomalyInput {
   auditLog: AuditEntry[];
   dailySpent: bigint;
   dailyLimit: bigint;
+  lastResetTimestampNanoseconds: bigint;
   payroll: BusinessPayroll;
   state: Readonly<AgentState>;
   now?: Date;
@@ -18,9 +19,12 @@ export interface AnomalyResult {
 export function detectAnomalies(input: AnomalyInput): AnomalyResult {
   const now = input.now ?? new Date();
   const nowMs = now.getTime();
+  const nowNanoseconds = BigInt(nowMs) * 1_000_000n;
   const anomalies: Anomaly[] = [];
   const lastHour = input.auditLog.filter(
-    (entry) => nowMs - Math.floor(entry.timestamp / 1_000_000) <= 3_600_000,
+    (entry) =>
+      !isSecurityProbe(entry) &&
+      nowMs - Math.floor(entry.timestamp / 1_000_000) <= 3_600_000,
   );
 
   if (lastHour.length > 10) {
@@ -34,19 +38,24 @@ export function detectAnomalies(input: AnomalyInput): AnomalyResult {
 
   const hasOffHoursActivity = lastHour.some((entry) => {
     const hour = new Date(Math.floor(entry.timestamp / 1_000_000)).getUTCHours();
-    return hour >= 0 && hour < 4;
+    return hour >= 0 && hour < 6;
   });
   if (hasOffHoursActivity) {
     anomalies.push({
       type: "OFF_HOURS",
       severity: "MEDIUM",
-      description: "Payment activity occurred between 00:00 and 04:00 UTC",
+      description: "Payment activity occurred between 00:00 and 06:00 UTC",
       timestamp: nowMs,
     });
   }
 
-  if (input.dailyLimit > 0n && input.dailySpent * 100n >= input.dailyLimit * 90n) {
-    const percentage = Number((input.dailySpent * 100n) / input.dailyLimit);
+  const dailyWindowExpired =
+    nowNanoseconds >= input.lastResetTimestampNanoseconds &&
+    nowNanoseconds - input.lastResetTimestampNanoseconds >=
+      24n * 60n * 60n * 1_000_000_000n;
+  const effectiveDailySpent = dailyWindowExpired ? 0n : input.dailySpent;
+  if (input.dailyLimit > 0n && effectiveDailySpent * 100n >= input.dailyLimit * 90n) {
+    const percentage = Number((effectiveDailySpent * 100n) / input.dailyLimit);
     anomalies.push({
       type: "NEAR_DAILY_LIMIT",
       severity: "MEDIUM",
@@ -91,4 +100,12 @@ export function detectAnomalies(input: AnomalyInput): AnomalyResult {
   }
 
   return { anomalies, routeFingerprints };
+}
+
+function isSecurityProbe(entry: AuditEntry): boolean {
+  return (
+    typeof entry.outcome === "object" &&
+    entry.outcome !== null &&
+    entry.outcome.Rejected.startsWith("Security audit:")
+  );
 }

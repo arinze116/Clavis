@@ -5,6 +5,7 @@ import type { Wallet } from "@near-wallet-selector/core";
 import type {
   AnomalyEntry,
   AuditEntry,
+  ContractEvidence,
   ContractRecord,
   ContractSnapshot,
   Recipient,
@@ -107,6 +108,7 @@ async function callViewWithBackoff(
   targetContractId: string,
   methodName: string,
   args: Record<string, unknown>,
+  blockId?: string,
 ): Promise<RpcViewResult> {
   for (let attempt = 0; attempt < MAX_VIEW_ATTEMPTS; attempt += 1) {
     try {
@@ -114,7 +116,7 @@ async function callViewWithBackoff(
         targetContractId,
         methodName,
         args,
-        { finality: "final" },
+        blockId ? { blockId } : { finality: "final" },
       );
       if (result === undefined) throw new Error("The contract returned an empty response");
       return result;
@@ -124,6 +126,72 @@ async function callViewWithBackoff(
     }
   }
   throw new Error("The contract view request exhausted its retry attempts");
+}
+
+async function finalContractEvidence(): Promise<ContractEvidence> {
+  for (let attempt = 0; attempt < MAX_VIEW_ATTEMPTS; attempt += 1) {
+    try {
+      const block = await provider.viewBlock({ finality: "final" });
+      if (!Number.isSafeInteger(block.header.height) || block.header.height < 0 || !block.header.hash) {
+        throw new Error("The RPC returned an invalid final block");
+      }
+      const blockTimestamp = BigInt(block.header.timestamp_nanosec);
+      return {
+        source: "NEAR testnet RPC",
+        finality: "final",
+        observedAt: new Date(Number(blockTimestamp / 1_000_000n)).toISOString(),
+        fetchedAt: new Date().toISOString(),
+        blockHeight: block.header.height,
+        blockHash: block.header.hash,
+        blockTimestampNanoseconds: String(block.header.timestamp_nanosec),
+      };
+    } catch (reason) {
+      if (attempt === MAX_VIEW_ATTEMPTS - 1 || !retryableViewError(reason)) throw reason;
+      await wait(INITIAL_BACKOFF_MS * 2 ** attempt);
+    }
+  }
+  throw new Error("Unable to resolve a final NEAR block");
+}
+
+async function viewAtBlock<T>(
+  targetContractId: string,
+  methodName: string,
+  blockId: string,
+  args: Record<string, unknown> = {},
+): Promise<T> {
+  try {
+    return (await callViewWithBackoff(targetContractId, methodName, args, blockId)) as T;
+  } catch (reason) {
+    const detail = reason instanceof Error ? reason.message : "Unknown RPC error";
+    throw new Error(
+      `Unable to read ${targetContractId}.${methodName} at final block ${blockId} via ${rpcUrl}: ${detail}`,
+    );
+  }
+}
+
+async function latestAnomaliesAtBlock(
+  contractId: string,
+  blockId: string,
+  limit = 100,
+): Promise<AnomalyEntry[]> {
+  const count = await viewAtBlock<number>(contractId, "get_anomaly_count", blockId);
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error("The contract returned an invalid anomaly count");
+  }
+  const safeLimit = Math.min(100, Math.max(1, limit));
+  return viewAtBlock<AnomalyEntry[]>(contractId, "get_anomalies", blockId, {
+    from: Math.max(0, count - safeLimit),
+    limit: safeLimit,
+    active_only: false,
+  });
+}
+
+export async function loadLatestAnomalies(
+  contractId: string,
+  limit = 100,
+): Promise<AnomalyEntry[]> {
+  const evidence = await finalContractEvidence();
+  return latestAnomaliesAtBlock(contractId, evidence.blockHash, limit);
 }
 
 function invalidateViewCache(): void {
@@ -275,11 +343,13 @@ async function accountExists(accountId: string): Promise<boolean> {
 }
 
 export async function loadContractSnapshot(contractId: string): Promise<ContractSnapshot> {
+  const evidence = await finalContractEvidence();
   const [
     owner,
     agent,
     dailyLimit,
     dailySpent,
+    lastResetTimestamp,
     perPaymentLimit,
     treasuryBalance,
     paused,
@@ -288,28 +358,36 @@ export async function loadContractSnapshot(contractId: string): Promise<Contract
     anomalies,
     logCount,
   ] = await Promise.all([
-    view<string>(contractId, "get_owner"),
-    view<string>(contractId, "get_agent"),
-    view<string>(contractId, "get_daily_limit"),
-    view<string>(contractId, "get_daily_spent"),
-    view<string>(contractId, "get_per_payment_limit"),
-    view<string>(contractId, "get_treasury_balance"),
-    view<boolean>(contractId, "is_paused"),
-    view<Recipient[]>(contractId, "get_recipients", { from: 0, limit: 100 }),
-    view<AuditEntry[]>(contractId, "get_audit_log_reverse", { from: 0, limit: 100 }),
-    view<AnomalyEntry[]>(contractId, "get_anomalies", {
-      from: 0,
-      limit: 100,
-      active_only: false,
-    }),
-    view<number>(contractId, "get_log_count"),
+    viewAtBlock<string>(contractId, "get_owner", evidence.blockHash),
+    viewAtBlock<string>(contractId, "get_agent", evidence.blockHash),
+    viewAtBlock<string>(contractId, "get_daily_limit", evidence.blockHash),
+    viewAtBlock<string>(contractId, "get_daily_spent", evidence.blockHash),
+    viewAtBlock<string | number>(contractId, "get_last_reset_timestamp", evidence.blockHash),
+    viewAtBlock<string>(contractId, "get_per_payment_limit", evidence.blockHash),
+    viewAtBlock<string>(contractId, "get_treasury_balance", evidence.blockHash),
+    viewAtBlock<boolean>(contractId, "is_paused", evidence.blockHash),
+    viewAtBlock<Recipient[]>(contractId, "get_recipients", evidence.blockHash, { from: 0, limit: 100 }),
+    viewAtBlock<AuditEntry[]>(contractId, "get_audit_log_reverse", evidence.blockHash, { from: 0, limit: 100 }),
+    latestAnomaliesAtBlock(contractId, evidence.blockHash),
+    viewAtBlock<number>(contractId, "get_log_count", evidence.blockHash),
   ]);
+  const blockTimestamp = timestampNanoseconds(evidence.blockTimestampNanoseconds);
+  const resetTimestamp = timestampNanoseconds(lastResetTimestamp);
+  if (resetTimestamp > blockTimestamp) {
+    throw new Error("The contract authorization window starts after the verified final block");
+  }
+  const dailyWindowExpired =
+    blockTimestamp - resetTimestamp >= 24n * 60n * 60n * 1_000_000_000n;
   return {
     contractId,
+    evidence,
     owner,
     agent,
     dailyLimit,
-    dailySpent,
+    dailySpent: dailyWindowExpired ? "0" : dailySpent,
+    storedDailySpent: dailySpent,
+    dailyWindowExpired,
+    lastResetTimestampNanoseconds: resetTimestamp.toString(),
     perPaymentLimit,
     treasuryBalance,
     paused,
@@ -322,16 +400,18 @@ export async function loadContractSnapshot(contractId: string): Promise<Contract
 
 export interface AuditSnapshot {
   contractId: string;
+  evidence: ContractEvidence;
   auditLog: AuditEntry[];
   logCount: number;
 }
 
 export async function loadAuditSnapshot(contractId: string): Promise<AuditSnapshot> {
+  const evidence = await finalContractEvidence();
   const [auditLog, logCount] = await Promise.all([
-    view<AuditEntry[]>(contractId, "get_audit_log_reverse", { from: 0, limit: 100 }),
-    view<number>(contractId, "get_log_count"),
+    viewAtBlock<AuditEntry[]>(contractId, "get_audit_log_reverse", evidence.blockHash, { from: 0, limit: 100 }),
+    viewAtBlock<number>(contractId, "get_log_count", evidence.blockHash),
   ]);
-  return { contractId, auditLog, logCount };
+  return { contractId, evidence, auditLog, logCount };
 }
 
 export async function enrichAuditSnapshot(snapshot: AuditSnapshot): Promise<AuditSnapshot> {
@@ -489,6 +569,11 @@ export async function runSecurityAudit(
   accountId: string,
   targetContractId: string,
 ): Promise<SecurityAuditSubmission> {
+  invalidateViewCache();
+  const baselineLogCount = await view<number>(targetContractId, "get_log_count");
+  if (!Number.isSafeInteger(baselineLogCount) || baselineLogCount < 0) {
+    throw new Error("The contract returned an invalid audit-log count");
+  }
   const outcome = await wallet.signAndSendTransaction({
     signerId: accountId,
     receiverId: targetContractId,
@@ -511,7 +596,7 @@ export async function runSecurityAudit(
 
   const results =
     securityResultsFromOutcome(outcome) ??
-    (await waitForSecurityAuditResults(targetContractId));
+    (await waitForSecurityAuditResults(targetContractId, baselineLogCount));
   if (!results) {
     throw new Error(
       "The security audit transaction confirmed, but its five on-chain results could not be verified.",
@@ -570,6 +655,7 @@ function normalizeSecurityResults(value: unknown): SecurityAuditResult[] | null 
 
 async function waitForSecurityAuditResults(
   targetContractId: string,
+  baselineLogCount: number,
 ): Promise<SecurityAuditResult[] | null> {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     invalidateViewCache();
@@ -583,16 +669,25 @@ async function waitForSecurityAuditResults(
           const reason = rejectedReason(entry);
           return reason?.startsWith("Security audit:") ? [{ entry, reason }] : [];
         })
-        .sort((left, right) => left.entry.payment_id - right.entry.payment_id)
-        .slice(-securityScenarioOrder.length);
-      if (candidates.length === securityScenarioOrder.length) {
+        .filter(({ entry }) => entry.payment_id > baselineLogCount)
+        .sort((left, right) => left.entry.payment_id - right.entry.payment_id);
+      for (let start = 0; start <= candidates.length - securityScenarioOrder.length; start += 1) {
+        const group = candidates.slice(start, start + securityScenarioOrder.length);
         const verified: SecurityAuditResult[] = [];
         for (let index = 0; index < securityScenarioOrder.length; index += 1) {
-          const candidate = candidates[index];
+          const candidate = group[index];
           const scenario = securityScenarioOrder[index];
           const expectedReason = securityReasonFragments[index];
-          if (!candidate || !scenario || !expectedReason || !candidate.reason.includes(expectedReason)) {
-            return null;
+          const previous = index > 0 ? group[index - 1] : null;
+          if (
+            !candidate ||
+            !scenario ||
+            !expectedReason ||
+            !candidate.reason.includes(expectedReason) ||
+            (previous && candidate.entry.payment_id !== previous.entry.payment_id + 1)
+          ) {
+            verified.length = 0;
+            break;
           }
           verified.push({
             scenario,
@@ -601,7 +696,7 @@ async function waitForSecurityAuditResults(
             payment_id: candidate.entry.payment_id,
           });
         }
-        return verified;
+        if (verified.length === securityScenarioOrder.length) return verified;
       }
     } catch {
       // The transaction can be final before a selected RPC endpoint serves the new state.
@@ -746,4 +841,14 @@ function transactionSubmission(
       ? `${explorerUrl}/txns/${hash}`
       : `${explorerUrl}/address/${fallbackContractId}`,
   };
+}
+
+function timestampNanoseconds(value: unknown): bigint {
+  try {
+    const timestamp = BigInt(String(value));
+    if (timestamp < 0n) throw new Error("negative timestamp");
+    return timestamp;
+  } catch {
+    throw new Error("The contract returned an invalid nanosecond timestamp");
+  }
 }

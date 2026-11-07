@@ -9,6 +9,16 @@ export interface ContractRecord {
   created_at: number;
 }
 
+export interface ContractEvidence {
+  source: "NEAR testnet RPC";
+  finality: "final";
+  observedAt: string;
+  fetchedAt: string;
+  blockHeight: number;
+  blockHash: string;
+  blockTimestampNanoseconds: string;
+}
+
 export interface SplitConfig {
   chain: Chain;
   token: Token;
@@ -65,10 +75,14 @@ export interface SecurityAuditResult {
 
 export interface ContractSnapshot {
   contractId: string;
+  evidence: ContractEvidence;
   owner: string;
   agent: string;
   dailyLimit: string;
   dailySpent: string;
+  storedDailySpent: string;
+  dailyWindowExpired: boolean;
+  lastResetTimestampNanoseconds: string;
   perPaymentLimit: string;
   treasuryBalance: string;
   paused: boolean;

@@ -205,6 +205,10 @@ export class NearClient {
     return this.view<string>("get_daily_limit");
   }
 
+  async getLastResetTimestamp(): Promise<number> {
+    return this.view<number>("get_last_reset_timestamp");
+  }
+
   async requestPayment(args: {
     recipientHash: string;
     amountYocto: string;
