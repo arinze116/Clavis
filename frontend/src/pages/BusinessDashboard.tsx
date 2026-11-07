@@ -66,7 +66,7 @@ export default function BusinessDashboard() {
     if (loading && !data) {
       return <PublicDashboardLoading />;
     }
-    if (error || !data) {
+    if (!data) {
       return (
         <AppShell>
           <ErrorState
@@ -77,17 +77,17 @@ export default function BusinessDashboard() {
       );
     }
     return (
-      <PublicDashboard snapshot={data} loading={loading} refresh={refresh} />
+      <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={error} />
     );
   }
   if (ownerContract.loading) {
     return data
-      ? <PublicDashboard snapshot={data} loading={loading} refresh={refresh} />
+      ? <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={error} />
       : <PublicDashboardLoading />;
   }
   if (ownerContract.error) {
     return data
-      ? <PublicDashboard snapshot={data} loading={loading} refresh={refresh} />
+      ? <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={ownerContract.error ?? error} />
       : (
           <AppShell>
             <ErrorState message={ownerContract.error} retry={() => void ownerContract.refresh()} />
@@ -96,23 +96,23 @@ export default function BusinessDashboard() {
   }
   if (!ownerContract.contract) {
     if (loading && !data) return <PublicDashboardLoading />;
-    if (error || !data) {
+    if (!data) {
       return (
         <AppShell>
           <ErrorState message={error ?? "No public contract state returned"} retry={() => void refresh()} />
         </AppShell>
       );
     }
-    return <PublicDashboard snapshot={data} loading={loading} refresh={refresh} />;
+    return <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={error} />;
   }
-  if (loading) {
+  if (loading && !data) {
     return (
       <AppShell>
         <LoadingState label="Reading your on-chain payroll state" />
       </AppShell>
     );
   }
-  if (error || !data) {
+  if (!data) {
     return (
       <AppShell>
         <ErrorState
@@ -333,6 +333,13 @@ export default function BusinessDashboard() {
           CONTRACT PAUSED — All payments blocked
         </div>
       )}
+      {error && (
+        <StaleEvidenceWarning
+          message={error}
+          blockHeight={data.evidence.blockHeight}
+          refresh={refresh}
+        />
+      )}
       <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-5 lg:px-10 lg:py-14">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -343,6 +350,9 @@ export default function BusinessDashboard() {
             <p className="mt-3 max-w-2xl text-sm text-ink/50">
               <span className="font-mono text-xs">{data.contractId}</span> · Policy is enforced
               on-chain while sensitive payroll data stays off the public dashboard.
+            </p>
+            <p className="mt-2 font-mono text-[10px] text-ink/40">
+              Final block {data.evidence.blockHeight} · block time {new Date(data.evidence.observedAt).toLocaleString()}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -362,6 +372,7 @@ export default function BusinessDashboard() {
                 balance={data.treasuryBalance}
                 dailyLimit={data.dailyLimit}
                 dailySpent={data.dailySpent}
+                dailyWindowExpired={data.dailyWindowExpired}
               />
             </ErrorBoundary>
             <ErrorBoundary compact>
@@ -482,10 +493,12 @@ function PublicDashboard({
   snapshot,
   loading,
   refresh,
+  refreshError,
 }: {
   snapshot: ContractSnapshot;
   loading: boolean;
   refresh: () => Promise<void>;
+  refreshError?: string | null;
 }) {
   const activeAnomalies = snapshot.anomalies.filter((anomaly) => !anomaly.reviewed);
   const activeRecipients = snapshot.recipients.filter((recipient) => recipient.active).length;
@@ -499,6 +512,13 @@ function PublicDashboard({
         >
           CONTRACT PAUSED — All payments blocked
         </div>
+      )}
+      {refreshError && (
+        <StaleEvidenceWarning
+          message={refreshError}
+          blockHeight={snapshot.evidence.blockHeight}
+          refresh={refresh}
+        />
       )}
       <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-5 lg:px-10 lg:py-14">
         <div className="rounded-[28px] border border-moss/20 bg-[#eef3e9] px-5 py-5 sm:px-7 sm:py-6">
@@ -518,6 +538,9 @@ function PublicDashboard({
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-ink/55">
                   This console reads <span className="font-mono text-xs">{snapshot.contractId}</span> directly
                   from NEAR testnet. Connect the owner wallet only when you need to change policy.
+                </p>
+                <p className="mt-1 font-mono text-[10px] text-ink/40">
+                  Final block {snapshot.evidence.blockHeight} · block time {new Date(snapshot.evidence.observedAt).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -571,6 +594,7 @@ function PublicDashboard({
                 balance={snapshot.treasuryBalance}
                 dailyLimit={snapshot.dailyLimit}
                 dailySpent={snapshot.dailySpent}
+                dailyWindowExpired={snapshot.dailyWindowExpired}
               />
             </ErrorBoundary>
             <PublicRoster snapshot={snapshot} />
@@ -598,6 +622,29 @@ function PublicDashboard({
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function StaleEvidenceWarning({
+  message,
+  blockHeight,
+  refresh,
+}: {
+  message: string;
+  blockHeight: number;
+  refresh: () => Promise<void>;
+}) {
+  return (
+    <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          Latest refresh failed. Showing verified final block {blockHeight}. {message}
+        </span>
+        <button type="button" className="shrink-0 font-semibold underline" onClick={() => void refresh()}>
+          Retry now
+        </button>
+      </div>
+    </div>
   );
 }
 

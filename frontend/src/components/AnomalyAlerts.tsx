@@ -151,17 +151,18 @@ export function AnomalyAlerts({
                             {analysis.severity} severity
                           </span>
                           <span className="text-[11px] text-ink/40">
-                            Advisory explanation by NEAR AI — {analysis.modelLabel}
+                            Advisory hypothesis engine — {analysis.modelLabel}
                           </span>
                         </div>
                         <p className="text-xs text-emerald-700">
-                          The anomaly and severity come from contract evidence. Cause analysis is an AI hypothesis.
+                          Verified from {analysis.evidence.source} at final block {analysis.evidence.block_height}.
                         </p>
                         <p>{analysis.meaning}</p>
                         <p>
                           <span className="font-semibold text-ink">AI hypothesis:</span>{" "}
                           {causeLabel(analysis.likely_cause)} — {analysis.cause_reasoning}
                         </p>
+                        <p className="text-xs text-ink/50">{analysis.interpretation}</p>
                         <p>
                           <span className="font-semibold text-ink">Severity reasoning:</span>{" "}
                           {analysis.severity_reasoning}
@@ -182,9 +183,9 @@ export function AnomalyAlerts({
         {active.length === 0 && (
           <div className="rounded-[16px] border border-dashed border-line px-5 py-9 text-center">
             <Check className="mx-auto h-6 w-6 text-emerald-600" />
-            <p className="mt-3 text-sm font-semibold">No anomalies detected</p>
+            <p className="mt-3 text-sm font-semibold">No unreviewed anomalies in this contract view</p>
             <p className="mt-1 text-xs text-ink/45">
-              The agent and contract policy are operating normally.
+              This is a live ledger state, not a claim that every off-chain service is healthy.
             </p>
           </div>
         )}

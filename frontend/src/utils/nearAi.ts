@@ -5,6 +5,19 @@ export interface AiAttribution {
   modelLabel: string;
 }
 
+export interface AiEvidence {
+  source: string;
+  observed_at: string;
+  fetched_at?: string;
+  finality?: string;
+  block_height?: number;
+  block_hash?: string;
+  block_height_min?: number;
+  block_height_max?: number;
+  grounding?: string;
+  networks?: unknown;
+}
+
 export interface AiPolicyResult extends AiAttribution {
   daily_limit: number | null;
   per_payment_limit: number | null;
@@ -17,6 +30,7 @@ export interface AiPolicyResult extends AiAttribution {
   requires_clarification: boolean;
   too_vague: boolean;
   clarification_message: string | null;
+  evidence: AiEvidence;
 }
 
 export interface AiRouteResult extends AiAttribution {
@@ -27,6 +41,7 @@ export interface AiRouteResult extends AiAttribution {
   gas_comparison: string;
   observed_at: string;
   confidence: "high" | "medium" | "low";
+  evidence: AiEvidence;
 }
 
 export interface AiAnomalyAnalysis extends AiAttribution {
@@ -36,6 +51,8 @@ export interface AiAnomalyAnalysis extends AiAttribution {
   actions: [string, string];
   severity: "Low" | "Medium" | "High";
   severity_reasoning: string;
+  interpretation: string;
+  evidence: AiEvidence;
 }
 
 export interface AiTextResult extends AiAttribution {
@@ -44,12 +61,18 @@ export interface AiTextResult extends AiAttribution {
 
 export interface AiPayrollReportResult extends AiTextResult {
   recommendation_code: string;
-  evidence: {
-    source: string;
+  evidence: AiEvidence & {
     finality: string;
-    observed_at: string;
     block_height_min: number;
     block_height_max: number;
+  };
+}
+
+export interface AiSecuritySummaryResult extends AiTextResult {
+  next_step_code: string;
+  evidence: AiEvidence & {
+    finality: string;
+    block_height: number;
   };
 }
 
@@ -120,9 +143,9 @@ export async function generateSecuritySummary(options: {
   contractId: string;
   scenarios: AiSecurityScenario[];
   results: Array<{ scenario: string; blocked: boolean; reason: string }>;
-}): Promise<AiTextResult> {
+}): Promise<AiSecuritySummaryResult> {
   return withAttribution(
-    await requestNearAi<{ text: string }>("security-summary", {
+    await requestNearAi<Omit<AiSecuritySummaryResult, keyof AiAttribution>>("security-summary", {
       contract_id: options.contractId,
       scenarios: options.scenarios,
       results: options.results,

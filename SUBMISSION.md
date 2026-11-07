@@ -21,9 +21,9 @@ Payroll automation creates a dangerous tradeoff: the more useful an agent become
 **Full description**
 Clavis is a NEAR testnet payroll control plane for remote teams. A business owner deploys an isolated contract, defines global and per-recipient limits, approves destination routes, configures a private scheduled amount, and appoints an agent account. The TypeScript scheduler checks due work every 60 seconds, but the Rust contract remains the authority for pause state, caller identity, recipient approval, active status, off-hours policy, per-payment limits, personal caps, daily limits, schedules, and routes.
 
-NEAR AI is used where language adds value: it converts plain-English policy into a grounded editable draft, explains anomalies, recommends an executable testnet route from live RPC observations, and prioritizes an evidence-backed report recommendation. Report facts are composed deterministically after a server-side NEAR final-state read. Security probes are fixed and versioned rather than model-generated; returned payment IDs and rejection reasons are independently matched against the live audit ledger before Clavis renders the summary.
+NEAR AI is used where language adds value: it converts plain-English policy into a source-grounded editable draft, prioritizes an anomaly hypothesis, selects a code-supported testnet route from timestamped multi-network RPC observations, and prioritizes an evidence-backed report recommendation. Contract-backed report, anomaly, and security facts are rendered deterministically from coherent NEAR final-block evidence. Security probes are fixed and versioned rather than model-generated; returned payment IDs and rejection reasons are independently matched against the live audit ledger before Clavis renders the summary.
 
-The AI boundary is fail-closed: extracted policy numbers must exist in the owner's text, anomaly facts are reloaded from the contract by ID, route measurements are server-rendered from the live RPC snapshot, and model prose cannot alter contract severity, executable-route status, report facts, or probe outcomes.
+The AI boundary is fail-closed: extracted policy numbers must exist in the owner's text, anomaly facts are reloaded from the contract by ID, route measurements are server-rendered from the live RPC snapshot, and model prose cannot alter contract severity, route-support status, report facts, or probe outcomes.
 
 Sensitive delivery configuration is signed by the owner in the browser and stored in the access-controlled agent service rather than in the public audit log. Approved work is prepared for a NEAR Intents settlement adapter. The current hackathon deployment is testnet-only; routes are preflighted and completed cross-chain settlement is not claimed without a filled solver reference.
 
@@ -76,7 +76,7 @@ Implemented tasks:
 1. Plain-English policy extraction into limits, schedule, recipient caps, summary, and warnings.
 2. Cautious anomaly explanation with two recommended owner actions.
 3. Recommendation prioritization for a deterministic report built from fresh NEAR final-state evidence.
-4. Executable testnet route recommendation enriched with point-in-time NEAR, Sepolia, and BNB RPC observations.
+4. Code-supported testnet route recommendation enriched with point-in-time NEAR, Sepolia, and BNB RPC observations, without claiming agent uptime or delivery.
 5. Next-step prioritization after five fixed canonical security results are matched against the live audit ledger.
 
 The API key stays in the Vercel serverless environment. Browser code calls same-origin `/api/ai` and never imports the secret.
@@ -131,13 +131,14 @@ git diff --check
 
 Most recent component evidence before final release:
 
-- Agent tests: `50/50` passing.
-- Contract tests: `21/21` passing.
+- API evidence tests: `23/23` passing.
+- Agent tests: `54/54` passing.
+- Contract tests: `22/22` passing.
 - Factory tests: `3/3` passing.
 - Frontend, agent, and API TypeScript checks pass.
 - Production frontend build and both release WASM builds pass.
 - Playwright public-proof suite: `5/5` passing across landing, dashboard, audit, security, and 390px mobile navigation; no horizontal overflow or console errors.
-- Root and factory testnet code matched the locally built release WASM when checked.
+- The previously deployed root and factory matched their then-current release WASM. Current contract-source hardening changes require a fresh approved upgrade and post-upgrade hash verification before submission.
 - Live security audit transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc` returned five blocked results and wrote payment IDs 5–9.
 - Production dependency audit has no moderate, high, or critical findings. It reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack; the available forced remediation is a breaking dependency upgrade and is documented rather than applied blindly.
 
@@ -151,7 +152,8 @@ Replace this section with the final command timestamp and commit SHA before subm
 - AI output is advisory. Owners can edit generated policy, and the contract—not the model—makes authorization decisions.
 - Route advice is a point-in-time testnet recommendation. RPC latency is not settlement time, and gas-unit values are not compared directly across chains.
 - Existing child contracts must run the release WASM before they can expose new contract methods. The root and factory release state must be rechecked at submission time.
-- A production `NEAR_AI_API_KEY` is required. Do not submit screenshots or copy implying live AI if the production endpoint is not verified.
+- Current local payroll-contract source is not claimed as deployed until the approved upgrade and hash checks complete.
+- A production `NEAR_AI_API_KEY` is required for model-backed policy extraction and bounded model choices. Verified report, security, anomaly, and route fallbacks remain available without it. Do not imply live model use unless the production endpoint is verified.
 
 ## Likely judge questions
 

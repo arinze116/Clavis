@@ -1,5 +1,18 @@
 # Clavis judge-ready build plan
 
+## Verified realtime truth pass (2026-11-07)
+
+| ID | Outcome | Acceptance and verification |
+| --- | --- | --- |
+| R1 | Coherent live evidence | Contract-backed dashboard, report, anomaly, and security evidence bundles are pinned to one exact NEAR final block; policy is grounded to owner text, route advice uses timestamped multi-network observations, and stale refresh failures are labelled |
+| R2 | No model-authored facts | Payroll, security, anomaly, route, and policy facts are deterministically rendered or source-grounded; models choose only bounded codes/candidates |
+| R3 | Honest authorization language | Reports distinguish contract authorization from off-chain delivery and never call `last_paid` delivery proof |
+| R4 | Newest anomaly coverage | API, dashboard, notification bell, and VPS monitor page from the newest anomaly records instead of permanently reading the oldest 100 |
+| R5 | Near-real-time integration | Dashboard, audit, and anomaly bell poll final state every 10 seconds and refresh on focus; documentation explicitly avoids claiming a simulated stream |
+| R6 | Verified fallback | Reports, security summaries, anomaly guidance, and route guidance remain evidence-backed when NEAR AI is unavailable; policy extraction fails visibly without a configured key |
+
+Verification: 23 API tests, 54 agent tests, 22 payroll-contract tests, 3 factory tests, full typecheck, both release WASM builds, production build, 5 Playwright proof-path tests, and live read-only smokes against `clavis.testnet` for report, anomaly, route, and security evidence.
+
 ## Judge-evidence hardening pass (2026-11-06)
 
 | ID | Outcome | Owned paths | Depends on | Owner | Acceptance and verification |
@@ -32,7 +45,7 @@ Critical path: `H1/H2/H3/H4 -> H5/H6 -> H7`. No fabricated mainnet or cross-chai
 | T3 | Complete business, worker, and developer guides | New guide-only page/layout/content files | T0 | Guide worker | All supplied guide copy present; sidebar/mobile selector, progress, previous/next, try-it links, accessible semantics; frontend typecheck passes |
 | T4 | Setup AI policy generation and route recommendation | `frontend/src/pages/SetupWizard.tsx` and new setup/recipient form components assigned in brief | T1 | Setup worker | Plain-English extraction auto-fills editable limits and recipient caps; readable summary; route recommendation can be accepted or overridden; mobile/keyboard behavior passes |
 | T5 | Production dashboard controls and visible AI | Dashboard page/components, transaction helpers, toast lifecycle | T1, T2 | Parent | Anomaly analysis, CFO report, add/edit/delete recipient, validated limits/agent, pause banner/confirmation, two-step withdrawal, deterministic security probe feed, all writes use lifecycle toasts |
-| T6 | Realtime audit and anomaly notification center | Audit/payment-history components, app notification component/hook | T5 | Parent | 30-second polling, animated new rows, useful empty state, unread anomaly badge/dropdown/mark-read, dashboard anchor links |
+| T6 | Near-real-time audit and anomaly notification center | Audit/payment-history components, app notification component/hook | T5 | Parent | 10-second final-state polling plus focus refresh, newest-page anomaly reads, useful empty state, unread anomaly badge/dropdown/mark-read, dashboard anchor links |
 | T7 | Guide/routes/navigation/SEO/404/mobile/loading integration | `App.tsx`, navigation/footer/landing, metadata hook, 404, global CSS, public banner | T3–T6 | Parent | Guide links everywhere, required CTAs, per-route OG metadata, branded 404, 375px behavior, skeletons replace blank loading states |
 | T8 | Documentation and submission polish | `HACKATHON.md`, `.env.example`, README/guide references if needed | T1–T7 | Parent | Velo placeholder text exact; setup/deployment variables documented; no terminal instruction remains in user-facing UI |
 | T9 | Independent QA and remediation | Read-only full repo review, then parent fixes | T2–T8 | QA reviewer + Parent | Security, correctness, accessibility, acceptance coverage, console/network errors, responsive screenshots; all critical findings closed |
@@ -56,12 +69,14 @@ The contract audit path `T0 → T2 → T5 → T9 → T10` runs in parallel. Guid
 
 ## Evidence log
 
-- Final agent tests: 31 passed, including private-plan persistence, owner authorization, worker notifications, and off-hours submission suppression.
-- Final payroll-contract tests: 21 passed; factory tests: 3 passed.
+- Final API tests: 23 passed, including exact-block evidence, source-association rejection, semantic model failover, newest-page anomalies, and no-key verified fallbacks.
+- Final agent tests: 54 passed, including newest-page anomaly monitoring, expired-window handling, security-probe filtering, private-plan persistence, owner authorization, worker notifications, and the complete off-hours window.
+- Final payroll-contract tests: 22 passed; factory tests: 3 passed.
 - Full TypeScript typecheck and production build passed.
-- Desktop and 375px browser smoke passed with no horizontal overflow or console errors in tested routes.
+- Five desktop/mobile browser proof-path tests passed with no horizontal overflow or console errors in tested routes.
+- Live read-only report, anomaly, route, and security requests returned current evidence from `clavis.testnet` through `clavis/verified-evidence-engine`; contract-backed tasks exposed their final block provenance.
 - Root contract upgraded in transaction `9EeKUbazVtDoNrEC1NsQixmigpeRuB2LbU9AwMmLFtAf`.
 - Factory upgraded in transaction `AffW7NpTMUPvjaWenxemkSgFYdp4yzdp2HM6vLzsMnNh`.
-- Local and deployed root/factory WASM SHA-256 hashes match.
+- The earlier root/factory release matched its deployed WASM; current contract-source hardening requires an approved upgrade and fresh hash verification before submission.
 - Live five-scenario audit passed in transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc`.
-- Remaining external release gate: configure a valid `NEAR_AI_API_KEY` in Vercel and verify all five live AI tasks.
+- Remaining external release gate: configure a valid `NEAR_AI_API_KEY` in Vercel and verify live model-backed policy extraction plus the bounded model choices. Evidence-backed report, security, anomaly, and route fallbacks already work without the key.

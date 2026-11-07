@@ -22,6 +22,8 @@ test("landing page states the public proof boundary", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: /Payroll that keeps its promises/i })).toBeVisible();
+  await expect(page.getByText("Illustrative policy flow", { exact: true })).toBeVisible();
+  await expect(page.getByText("Live policy engine", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /What the live demo proves/i })).toBeVisible();
   await expect(page.getByText("Native NEAR settlement", { exact: true })).toBeVisible();
   await expect(page.getByText("Filled cross-chain settlement", { exact: true })).toBeVisible();
@@ -36,6 +38,7 @@ test("public dashboard distinguishes native and cross-chain evidence", async ({ 
   await page.goto("/dashboard");
 
   await expect(page.getByText("Live contract evidence", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Final block \d+ · block time/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "What the demo proves" })).toBeVisible();
   await expect(page.getByText(/Direct testnet delivery is supported for NEAR routes/i)).toBeVisible();
   await expect(page.getByText(/No filled solver intent is published for this demo/i)).toBeVisible();
@@ -63,6 +66,7 @@ test("audit copy does not imply transaction confidentiality", async ({ page }) =
 
   await expect(page.getByRole("heading", { name: "Proof without payroll exposure." })).toBeVisible();
   await expect(page.getByText("Minimized audit fields", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Final block \d+ · refreshes every 10 seconds/i)).toBeVisible();
   await expect(page.getByText(/Recipient policy and normal transaction data remain public/i)).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);

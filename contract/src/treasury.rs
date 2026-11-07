@@ -24,7 +24,7 @@ impl Clavis {
         );
         assert!(
             next_daily >= self.daily_spent,
-            "Daily limit cannot be lower than today's authorized spend"
+            "Daily limit cannot be lower than current authorization-window spend"
         );
 
         self.daily_limit = next_daily;

@@ -65,7 +65,7 @@ export function AiPayrollReportModal({
           <div className="h-28 rounded-[12px] bg-white" />
           <div className="h-24 rounded-[12px] bg-white" />
           <p className="flex items-center gap-2 text-sm text-ink/50">
-            <LoaderCircle className="h-4 w-4 animate-spin" /> NEAR AI is reviewing the ledger
+            <LoaderCircle className="h-4 w-4 animate-spin" /> Reading and verifying final-state evidence
           </p>
         </div>
       )}

@@ -586,7 +586,7 @@ export default function SetupWizard() {
                       </div>
                     )}
 
-                    {(policyResult.too_vague || policyResult.ambiguities.length > 0) && (
+                    {policyResult.requires_clarification && (
                       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-950">
                         <p className="font-semibold">Clarification required</p>
                         {policyResult.clarification_message && (
@@ -600,7 +600,7 @@ export default function SetupWizard() {
 
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-[11px] text-ink/40">
-                        Powered by NEAR AI — {policyResult.modelLabel}
+                        Grounded to {policyResult.evidence.source}; unassociated model values are discarded — {policyResult.modelLabel}
                       </p>
                       <button
                         type="button"

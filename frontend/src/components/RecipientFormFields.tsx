@@ -236,7 +236,7 @@ export function RecipientFormFields({
           ) : (
             <BrainCircuit className="h-4 w-4" aria-hidden="true" />
           )}
-          {routeBusy ? "Reviewing testnet routes" : "AI suggests best route"}
+          {routeBusy ? "Checking supported routes" : "Check supported route"}
         </button>
 
         {value.preferredChain === "near" ? (
@@ -290,7 +290,7 @@ export function RecipientFormFields({
                 <p className="mt-1 text-xs leading-5 text-ink/55">{recommendation.reason}</p>
                 <dl className="mt-3 grid gap-2 text-xs leading-5 text-ink/55">
                   <div>
-                    <dt className="font-semibold text-ink">Region fit</dt>
+                    <dt className="font-semibold text-ink">Region note</dt>
                     <dd>{recommendation.region_rationale}</dd>
                   </div>
                   <div>
@@ -299,14 +299,14 @@ export function RecipientFormFields({
                   </div>
                 </dl>
                 <p className="mt-2 text-[11px] text-emerald-700">
-                  RPC snapshot: {new Date(recommendation.observed_at).toLocaleString()}
+                  {recommendation.evidence.source} · {new Date(recommendation.observed_at).toLocaleString()}
                 </p>
                 <p className="mt-2 text-[11px] text-ink/40">
                   {recommendation.confidence === "high"
                     ? "High"
                     : recommendation.confidence === "low"
                       ? "Low"
-                      : "Medium"} confidence · AI accessibility rationale — {recommendation.modelLabel}
+                      : "Medium"} confidence · recommendation selected only from code-supported routes — {recommendation.modelLabel}
                 </p>
               </div>
             </div>

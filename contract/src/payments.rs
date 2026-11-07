@@ -68,6 +68,12 @@ impl Clavis {
             if now.saturating_sub(entry.timestamp) > HOUR_NS {
                 break;
             }
+            if matches!(
+                &entry.outcome,
+                PaymentOutcome::Rejected(reason) if reason.starts_with("Security audit:")
+            ) {
+                continue;
+            }
             recent_requests += 1;
         }
 

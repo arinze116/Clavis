@@ -357,7 +357,7 @@ export default function WorkerDashboard() {
                     step="5"
                     value={nearPercentage}
                     onChange={(event) => setNearPercentage(Number(event.target.value))}
-                    aria-label="Percentage delivered on NEAR"
+                    aria-label="Configured percentage for the NEAR route"
                   />
                 </div>
               )}
@@ -423,7 +423,7 @@ export default function WorkerDashboard() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-acid">
-                    Next payment
+                    Next authorization window
                   </p>
                   <h2 className="mt-3 font-display text-3xl font-semibold">
                     {recipient.schedule} cycle
@@ -454,10 +454,13 @@ export default function WorkerDashboard() {
                   <p className="mt-2 text-sm font-semibold">
                     {recipient.last_paid
                       ? formatTimestamp(recipient.last_paid)
-                      : "Not paid yet"}
+                      : "No authorization yet"}
                   </p>
                 </div>
               </div>
+              <p className="mt-5 text-xs leading-5 text-white/45">
+                Eligibility and authorization do not guarantee agent uptime or completed delivery.
+              </p>
             </section>
 
             <section>

@@ -366,6 +366,23 @@ fn owner_security_audit_logs_five_blocked_scenarios_without_mutating_policy() {
 }
 
 #[test]
+fn security_probe_entries_do_not_trigger_high_frequency_payment_anomalies() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    testing_env!(context("owner.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+    contract.run_security_audit();
+    contract.run_security_audit();
+
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS + 1).build());
+    let result = request(&mut contract, RECIPIENT_HASH, 100);
+
+    assert!(result.approved);
+    assert!(contract
+        .get_anomalies(0, 20, false)
+        .iter()
+        .all(|anomaly| anomaly.anomaly_type != "HIGH_FREQUENCY"));
+}
+
+#[test]
 fn security_audit_is_stable_at_u128_limit_boundaries() {
     let mut contract = configured_contract(PaymentSchedule::Weekly);
     contract.daily_limit = u128::MAX;

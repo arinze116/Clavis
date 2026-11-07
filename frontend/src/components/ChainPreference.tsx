@@ -26,7 +26,7 @@ export function ChainPreference({ recipient }: { recipient: Recipient }) {
         <label className="text-xs font-semibold text-ink/50">Token<select className="field mt-2" value={token} disabled><option>{token}</option></select></label>
       </div>
       <button type="button" className="button-primary mt-4 w-full" disabled title="Route changes require owner approval in this security model"><Save className="h-4 w-4" /> Request route update</button>
-      <p className="mt-3 text-xs leading-5 text-ink/40">Route updates are owner-signed and trigger an anomaly review before the next payment.</p>
+      <p className="mt-3 text-xs leading-5 text-ink/40">Route updates are owner-signed and trigger an anomaly review before the next authorization request.</p>
     </section>
   );
 }

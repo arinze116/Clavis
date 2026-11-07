@@ -60,6 +60,19 @@ export function useContractState(contractId: string | null, pollIntervalMs = 0) 
   }, [contractId, pollIntervalMs, refresh]);
 
   useEffect(() => {
+    if (!contractId) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [contractId, refresh]);
+
+  useEffect(() => {
     if (!loading) {
       setShowLoading(false);
       return;
@@ -69,8 +82,9 @@ export function useContractState(contractId: string | null, pollIntervalMs = 0) 
   }, [loading]);
 
   const resolvingContract = Boolean(contractId) && resolvedContractId !== contractId;
+  const matchingData = data?.contractId === contractId ? data : null;
   return {
-    data: resolvingContract ? null : data,
+    data: resolvingContract ? null : matchingData,
     loading: loading || resolvingContract,
     showLoading,
     error: resolvingContract ? null : error,
@@ -87,6 +101,7 @@ export function useAuditState(contractId: string, pollIntervalMs = 0) {
   const [data, setData] = useState<AuditSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedContractId, setResolvedContractId] = useState<string | null>(null);
   const requestId = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -97,12 +112,14 @@ export function useAuditState(contractId: string, pollIntervalMs = 0) {
       const snapshot = await loadAuditSnapshot(contractId);
       if (requestId.current !== currentRequest) return;
       setData(snapshot);
+      setResolvedContractId(contractId);
       void enrichAuditSnapshot(snapshot).then((enriched) => {
         if (requestId.current === currentRequest) setData(enriched);
       });
     } catch (reason) {
       if (requestId.current !== currentRequest) return;
       setError(reason instanceof Error ? reason.message : "Unable to load the audit ledger");
+      setResolvedContractId(contractId);
     } finally {
       if (requestId.current === currentRequest) setLoading(false);
     }
@@ -118,7 +135,26 @@ export function useAuditState(contractId: string, pollIntervalMs = 0) {
     return () => window.clearInterval(timer);
   }, [pollIntervalMs, refresh]);
 
-  return { data, loading, error, refresh };
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refresh]);
+
+  const resolvingContract = resolvedContractId !== contractId;
+  const matchingData = data?.contractId === contractId ? data : null;
+  return {
+    data: resolvingContract ? null : matchingData,
+    loading: loading || resolvingContract,
+    error: resolvingContract ? null : error,
+    refresh,
+  };
 }
 
 export function useOwnerContract(accountId: string | null, fallbackToRootContract = true) {
@@ -159,8 +195,9 @@ export function useOwnerContract(accountId: string | null, fallbackToRootContrac
   }, [refresh]);
 
   const resolvingOwner = Boolean(accountId) && resolvedAccountId !== accountId;
+  const matchingContract = contract?.owner === accountId ? contract : null;
   return {
-    contract: resolvingOwner ? null : contract,
+    contract: resolvingOwner ? null : matchingContract,
     loading: loading || resolvingOwner,
     error: resolvingOwner ? null : error,
     refresh,

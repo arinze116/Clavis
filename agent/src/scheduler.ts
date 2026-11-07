@@ -108,17 +108,19 @@ export class Scheduler {
       this.getNearClient(contractId),
       this.getState(contractId),
     ]);
-    const [recipients, auditLog, dailySpent, dailyLimit] = await Promise.all([
+    const [recipients, auditLog, dailySpent, dailyLimit, lastResetTimestamp] = await Promise.all([
       near.getRecipients(),
       near.getAuditLog(100),
       near.getDailySpent(),
       near.getDailyLimit(),
+      near.getLastResetTimestamp(),
     ]);
 
     const anomalyResult = detectAnomalies({
       auditLog,
       dailySpent: BigInt(dailySpent),
       dailyLimit: BigInt(dailyLimit),
+      lastResetTimestampNanoseconds: BigInt(Math.trunc(lastResetTimestamp)),
       payroll: business,
       state: state.value,
       now,

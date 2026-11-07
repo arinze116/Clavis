@@ -155,7 +155,7 @@ export function RecipientTable({
                 <dd className="mt-1 font-medium">{formatNear(recipient.personal_cap)}</dd>
               </div>
               <div>
-                <dt className="text-ink/40">Next payment</dt>
+                <dt className="text-ink/40">Next authorization</dt>
                 <dd className="mt-1 text-ink/65">
                   {recipient.next_payment_at
                     ? formatTimestamp(recipient.next_payment_at)
@@ -186,7 +186,7 @@ export function RecipientTable({
               <th className="px-6 py-4 font-semibold lg:px-8">Recipient</th>
               <th className="px-4 py-4 font-semibold">Route</th>
               <th className="px-4 py-4 font-semibold">Personal cap</th>
-              <th className="px-4 py-4 font-semibold">Next payment</th>
+              <th className="px-4 py-4 font-semibold">Next authorization</th>
               <th className="px-4 py-4 font-semibold">Status</th>
               <th className="px-6 py-4 text-right font-semibold lg:px-8">
                 <MoreHorizontal className="ml-auto h-4 w-4" />

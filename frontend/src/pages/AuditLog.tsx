@@ -11,7 +11,7 @@ export default function AuditLog() {
   const { accountId } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
-  const { data, loading, error, refresh } = useAuditState(contractId, 30_000);
+  const { data, loading, error, refresh } = useAuditState(contractId, 10_000);
 
   if (loading && !data) {
     return (
@@ -59,7 +59,7 @@ export default function AuditLog() {
         <div className="mt-6 flex items-center justify-between gap-4 text-xs text-ink/45">
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-            Live ledger · refreshes every 30 seconds
+            Final block {data.evidence.blockHeight} · refreshes every 10 seconds
           </span>
           {loading && <span>Checking for new decisions…</span>}
         </div>

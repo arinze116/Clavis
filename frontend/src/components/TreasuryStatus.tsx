@@ -6,9 +6,15 @@ interface TreasuryStatusProps {
   balance: string;
   dailyLimit: string;
   dailySpent: string;
+  dailyWindowExpired: boolean;
 }
 
-export function TreasuryStatus({ balance, dailyLimit, dailySpent }: TreasuryStatusProps) {
+export function TreasuryStatus({
+  balance,
+  dailyLimit,
+  dailySpent,
+  dailyWindowExpired,
+}: TreasuryStatusProps) {
   const limit = BigInt(dailyLimit || "0");
   const spent = BigInt(dailySpent || "0");
   const percentage = limit > 0n ? Number((spent * 100n) / limit) : 0;
@@ -18,11 +24,13 @@ export function TreasuryStatus({ balance, dailyLimit, dailySpent }: TreasuryStat
     <section className="panel overflow-hidden p-6 lg:p-8">
       <div className="flex items-start justify-between gap-5">
         <div>
-          <p className="eyebrow">Treasury status</p>
+          <p className="eyebrow">Contract authorization</p>
           <p className="mt-3 font-display text-4xl font-semibold tracking-tight lg:text-5xl">
             {formatNear(balance)}
           </p>
-          <p className="mt-2 text-sm text-ink/50">Contract balance on NEAR testnet</p>
+          <p className="mt-2 text-sm leading-6 text-ink/50">
+            Contract account balance on NEAR testnet; settlement funding is separate and not verified here.
+          </p>
         </div>
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-acid">
           <Wallet className="h-5 w-5" />
@@ -42,6 +50,11 @@ export function TreasuryStatus({ balance, dailyLimit, dailySpent }: TreasuryStat
           <span>{formatNear(dailySpent)} authorized</span>
           <span>{formatNear(dailyLimit)} limit</span>
         </div>
+        {dailyWindowExpired && (
+          <p className="mt-3 text-xs leading-5 text-ink/50">
+            The stored counter expired; the next contract request evaluates this window from zero.
+          </p>
+        )}
       </div>
     </section>
   );

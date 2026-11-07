@@ -100,17 +100,25 @@ export class ContractEventMonitor {
         recipients: [],
       } satisfies BusinessPayroll);
 
-    const [decisions, anomalies] = await Promise.all([
+    const [decisions, anomalyCount] = await Promise.all([
       this.#rpc.view<AuditEntry[]>(contract.contract_id, "get_audit_log_reverse", {
         from: 0,
         limit: 100,
       }),
-      this.#rpc.view<ContractAnomalyEntry[]>(contract.contract_id, "get_anomalies", {
-        from: 0,
+      this.#rpc.view<number>(contract.contract_id, "get_anomaly_count"),
+    ]);
+    if (!Number.isSafeInteger(anomalyCount) || anomalyCount < 0) {
+      throw new Error("Contract returned an invalid anomaly count");
+    }
+    const anomalies = await this.#rpc.view<ContractAnomalyEntry[]>(
+      contract.contract_id,
+      "get_anomalies",
+      {
+        from: Math.max(0, anomalyCount - 100),
         limit: 100,
         active_only: false,
-      }),
-    ]);
+      },
+    );
 
     if (baselineOnly || !this.#events.hasBaseline(contract.contract_id)) {
       await this.#events.baseline(
