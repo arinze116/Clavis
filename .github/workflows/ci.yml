@@ -25,6 +25,7 @@ jobs:
       - name: Typecheck and test TypeScript
         run: |
           npm run typecheck
+          npm run test:api
           npm run test:agent
       - name: Build frontend and agent
         run: npm run build
