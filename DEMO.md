@@ -118,7 +118,13 @@ Capture after the second clean run:
 - 375px dashboard and guide screenshots
 - Final demo video URL
 
+Release source merge: `a7acd65` (PR #9).
+
 Latest verified security-audit transaction: `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc`.
+
+Root upgrade transaction: `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`.
+
+Factory upgrade transaction: `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`.
 
 ## Closing line
 

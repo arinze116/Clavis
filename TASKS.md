@@ -74,9 +74,10 @@ The contract audit path `T0 → T2 → T5 → T9 → T10` runs in parallel. Guid
 - Final payroll-contract tests: 22 passed; factory tests: 3 passed.
 - Full TypeScript typecheck and production build passed.
 - Five desktop/mobile browser proof-path tests passed with no horizontal overflow or console errors in tested routes.
-- Live read-only report, anomaly, route, and security requests returned current evidence from `clavis.testnet` through `clavis/verified-evidence-engine`; contract-backed tasks exposed their final block provenance.
-- Root contract upgraded in transaction `9EeKUbazVtDoNrEC1NsQixmigpeRuB2LbU9AwMmLFtAf`.
-- Factory upgraded in transaction `AffW7NpTMUPvjaWenxemkSgFYdp4yzdp2HM6vLzsMnNh`.
-- The earlier root/factory release matched its deployed WASM; current contract-source hardening requires an approved upgrade and fresh hash verification before submission.
+- PR #9 was merged to `main` as `a7acd65`; main-branch CI, security evidence, browser smoke, and both Vercel production checks passed.
+- Live policy, report, anomaly, route, and security requests returned HTTP 200 through `deepseek-ai/DeepSeek-V4.1-Flash-1017`; contract-backed tasks exposed exact final-block provenance.
+- Root contract upgraded in transaction `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`; deployed hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV` matches the release WASM.
+- Factory upgraded in transaction `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`; deployed hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` matches the factory release WASM.
+- Oracle VPS runs `a7acd65`; PM2 and the private notification API are healthy, and the Vercel notification bridge reached the agent.
 - Live five-scenario audit passed in transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc`.
-- Remaining external release gate: configure a valid `NEAR_AI_API_KEY` in Vercel and verify live model-backed policy extraction plus the bounded model choices. Evidence-backed report, security, anomaly, and route fallbacks already work without the key.
+- Release infrastructure gates are complete. Remaining work is limited to manual demo rehearsals, final video/submission assets, and any intentionally funded cross-chain settlement beyond the documented dry-run boundary.

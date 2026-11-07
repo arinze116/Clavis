@@ -202,8 +202,10 @@ records so later entries cannot disappear behind the first 100.
 The owner-only `run_security_audit()` contract method records five privacy-minimized rejected audit
 entries without moving funds or changing treasury policy. These browser probes are demonstration
 evidence; the versioned threat model and CI-mapped tests at `/security` are the primary security
-evidence. The upgraded root and factory-embedded payroll WASM must be deployed before this control
-is available on testnet.
+evidence. On 2026-11-07, the root and factory were upgraded from merged release commit `a7acd65`;
+their deployed code hashes were verified byte-for-byte against the release WASM. Existing child
+accounts retain the bytecode they were originally created with, while new factory deployments use
+the upgraded embedded payroll WASM.
 
 ## Multi-business payroll configuration
 
@@ -387,10 +389,11 @@ pm2 save
 pm2 startup
 ```
 
-The current deployment branch defaults to `feat/clavis-mvp`. Override it when promoting to `main`:
+Production setup and deployment default to `main`. Override `CLAVIS_BRANCH` only for an intentional
+non-production environment:
 
 ```bash
-CLAVIS_BRANCH=main bash scripts/vps-setup.sh
+CLAVIS_BRANCH=your-branch bash scripts/vps-setup.sh
 ```
 
 Update and verify:
