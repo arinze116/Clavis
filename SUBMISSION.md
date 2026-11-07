@@ -144,7 +144,7 @@ Most recent component evidence before final release:
 - `clavis.testnet` was upgraded in transaction `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`; deployed code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV` matches release SHA-256 `4f0781cb30195800be283b9bbd864355657fff9f77ab0fb78c6b91e1d2a14e2e`.
 - `factory.clavis.testnet` was upgraded in transaction `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`; deployed code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` matches release SHA-256 `bc70097e6b85a4196eb494d09a433b72d7557478d3c3690f7564285c9cbc90b1`.
 - Production policy extraction and all four bounded-choice tasks returned HTTP 200 through NEAR AI model `deepseek-ai/DeepSeek-V4.1-Flash-1017`; contract-backed tasks were pinned to NEAR final block `276654783` during release verification.
-- The Oracle VPS runs `a7acd65`; PM2 reports `clavis-agent online`, the notification API is healthy, and the Vercel bridge reached the agent successfully.
+- The Oracle VPS runs the merged `main` release; PM2 reports `clavis-agent online`, the notification API is healthy, and the Vercel bridge reached the agent successfully.
 - Live security audit transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc` returned five blocked results and wrote payment IDs 5–9.
 - Production dependency audit has no moderate, high, or critical findings. It reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack; the available forced remediation is a breaking dependency upgrade and is documented rather than applied blindly.
 

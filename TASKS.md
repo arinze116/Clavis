@@ -78,6 +78,6 @@ The contract audit path `T0 → T2 → T5 → T9 → T10` runs in parallel. Guid
 - Live policy, report, anomaly, route, and security requests returned HTTP 200 through `deepseek-ai/DeepSeek-V4.1-Flash-1017`; contract-backed tasks exposed exact final-block provenance.
 - Root contract upgraded in transaction `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`; deployed hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV` matches the release WASM.
 - Factory upgraded in transaction `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`; deployed hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` matches the factory release WASM.
-- Oracle VPS runs `a7acd65`; PM2 and the private notification API are healthy, and the Vercel notification bridge reached the agent.
+- Oracle VPS runs the merged `main` release; PM2 and the private notification API are healthy, and the Vercel notification bridge reached the agent.
 - Live five-scenario audit passed in transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc`.
 - Release infrastructure gates are complete. Remaining work is limited to manual demo rehearsals, final video/submission assets, and any intentionally funded cross-chain settlement beyond the documented dry-run boundary.
