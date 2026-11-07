@@ -34,3 +34,29 @@ jobs:
           cargo test --manifest-path contract/Cargo.toml
           bash scripts/build-contracts.sh
           cargo test --manifest-path contract/Cargo.toml --package clavis-factory
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run public proof browser tests
+        run: npm run test:e2e
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clavis-playwright-${{ github.sha }}
+          path: |
+            artifacts/playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

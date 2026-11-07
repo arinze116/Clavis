@@ -10,4 +10,5 @@ cargo test --manifest-path contract/Cargo.toml --package clavis-factory
 npm run typecheck
 npm run test:agent
 npm run build
+npm run test:e2e:built
 echo "Clavis verification complete."
