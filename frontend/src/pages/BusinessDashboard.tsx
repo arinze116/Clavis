@@ -52,7 +52,7 @@ export default function BusinessDashboard() {
   const { accountId, wallet, loading: walletLoading } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
-  const { data, loading, error, refresh } = useContractState(contractId);
+  const { data, loading, error, refresh } = useContractState(contractId, 10_000);
   const { showToast, updateToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [busyRecipient, setBusyRecipient] = useState<string | null>(null);
@@ -347,7 +347,7 @@ export default function BusinessDashboard() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <button type="button" className="button-primary" onClick={() => setReportOpen(true)}>
-              <FileText className="h-4 w-4" /> Generate AI report
+              <FileText className="h-4 w-4" /> Generate verified report
             </button>
             <button type="button" className="button-secondary" onClick={() => void refresh()}>
               <RefreshCw className="h-4 w-4" /> Refresh state
@@ -382,8 +382,8 @@ export default function BusinessDashboard() {
           <aside className="min-w-0 space-y-6">
             <ErrorBoundary compact>
               <AnomalyAlerts
+                contractId={data.contractId}
                 anomalies={data.anomalies}
-                recentPayments={data.auditLog}
                 writeBusy={busy}
                 busyId={busyAnomaly}
                 onDismiss={dismissAnomaly}
@@ -471,11 +471,6 @@ export default function BusinessDashboard() {
       {reportOpen && (
         <AiPayrollReportModal
           contractId={data.contractId}
-          auditEntries={data.auditLog}
-          anomalies={data.anomalies}
-          recipients={data.recipients}
-          treasuryBalance={data.treasuryBalance}
-          dailySpent={data.dailySpent}
           onClose={() => setReportOpen(false)}
         />
       )}

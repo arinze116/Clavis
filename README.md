@@ -31,7 +31,7 @@ Clavis is a production-oriented NEAR testnet payroll platform for remote teams. 
 - Multi-contract payroll scheduling every 60 seconds
 - Email notifications through Resend and Telegram Bot API notifications
 - Per-contract anomaly state, audit state, intent state, and daily reports
-- NEAR AI policy extraction, anomaly explanations, route advice, and CFO-style reports
+- Grounded NEAR AI policy extraction, anomaly explanations, live-RPC route advice, and verified payroll reports
 - CI-backed threat model plus five deterministic browser probes recorded in the public contract log
 - Interactive business, worker, and developer guides at `/guide`
 - PM2 deployment scripts for Ubuntu 22.04 on Oracle Cloud
@@ -183,6 +183,17 @@ server allow enough time for longer payroll reports while still terminating stal
 `NEAR_AI_MODELS` in Vercel to change model priority without deploying code. The browser never
 receives the API key. Models that fail are temporarily deprioritized, so the same server instance
 reuses the most recently successful fallback instead of repeating a slow failure on every request.
+
+Payroll reports do not trust metrics supplied by the browser. The server reloads the audit ledger,
+anomalies, recipients, treasury balance, and rolling spend directly from NEAR final-state RPC,
+builds every factual sentence deterministically, and lets the model choose only from
+evidence-backed recommendation codes. Security summaries independently match all five returned
+probe payment IDs and rejection reasons against the live contract audit ledger. If NEAR AI is
+temporarily unavailable, those two evidence views still return verified deterministic output.
+Anomaly analysis reloads the selected anomaly and recent decisions from the contract by ID,
+policy values are discarded unless they appear in the owner's source text, and route measurements
+are rendered from the RPC snapshot rather than model-written numbers. The business dashboard polls
+contract state every ten seconds while it is open.
 
 The owner-only `run_security_audit()` contract method records five privacy-minimized rejected audit
 entries without moving funds or changing treasury policy. These browser probes are demonstration
@@ -434,8 +445,8 @@ No terminal required. Everything runs from the browser.
    - Treasury: 9.94 NEAR live from contract
    - Payroll roster: 3 recipients across NEAR, Ethereum, BNB Chain
    - Click "Analyze with AI" on the anomaly alert
-   - Click "Generate AI report" — NEAR AI generates a CFO-style summary
-   - Click "Run contract security probes" — 5 deterministic scenarios, all rejected onchain; NEAR AI only summarizes the verified result
+   - Click "Generate verified report" — Clavis reloads NEAR final state, composes the factual report, and uses AI only to prioritize a valid recommendation
+   - Click "Run contract security probes" — 5 deterministic scenarios are rejected onchain and independently matched against the live audit ledger
 7. Switch wallet to `arinze-worker1.testnet`
    - Go to `/worker` — "Hello, Worker 1." recognized from contract
    - Shows weekly cycle, primary route, cross-chain allocation

@@ -245,7 +245,7 @@ export const businessGuide: RoleGuide = {
           <li>Treasury status compares the current balance with today’s authorized spend and daily limit.</li>
           <li>The payroll roster shows each worker’s route, personal cap, schedule, next payment, and active state.</li>
           <li>Anomaly alerts surface off-hours, high-frequency, replay, route-change, and near-limit behavior.</li>
-          <li>Generate the AI payroll report for a CFO-style summary of approvals, rejections, anomaly trends, and policy recommendations.</li>
+          <li>Generate the verified payroll report from a fresh NEAR final-state read; AI only prioritizes an evidence-backed recommendation.</li>
         </BulletList>
       ),
       visual: {
@@ -265,7 +265,7 @@ export const businessGuide: RoleGuide = {
       id: "security-audit",
       title: "Run a security audit",
       summary:
-        "The browser runs five fixed, versioned contract probes and verifies every structured result. NEAR AI may summarize the verified outcome, but it does not choose the tests or decide whether they passed.",
+        "The browser runs five fixed, versioned contract probes. The server independently matches every payment ID and rejection reason against the live audit ledger; AI may prioritize a next step but does not choose the tests or decide whether they passed.",
       content: (
         <div className="grid gap-4">
           <BulletList>

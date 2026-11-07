@@ -300,7 +300,7 @@ export function EmergencyControls({
             {securitySummary && <p className="mt-2 leading-6">{securitySummary}</p>}
             {summaryModelLabel && (
               <p className="mt-2 text-[11px] text-emerald-800/70">
-                Advisory summary powered by NEAR AI — {summaryModelLabel}
+                Probe facts verified on-chain; next-step engine — {summaryModelLabel}
               </p>
             )}
           </div>

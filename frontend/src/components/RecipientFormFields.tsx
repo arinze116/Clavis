@@ -294,16 +294,19 @@ export function RecipientFormFields({
                     <dd>{recommendation.region_rationale}</dd>
                   </div>
                   <div>
-                    <dt className="font-semibold text-ink">Gas comparison</dt>
+                    <dt className="font-semibold text-ink">Live RPC evidence</dt>
                     <dd>{recommendation.gas_comparison}</dd>
                   </div>
                 </dl>
+                <p className="mt-2 text-[11px] text-emerald-700">
+                  RPC snapshot: {new Date(recommendation.observed_at).toLocaleString()}
+                </p>
                 <p className="mt-2 text-[11px] text-ink/40">
                   {recommendation.confidence === "high"
                     ? "High"
                     : recommendation.confidence === "low"
                       ? "Low"
-                      : "Medium"} confidence · Powered by NEAR AI — {recommendation.modelLabel}
+                      : "Medium"} confidence · AI accessibility rationale — {recommendation.modelLabel}
                 </p>
               </div>
             </div>

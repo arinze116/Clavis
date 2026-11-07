@@ -1,4 +1,4 @@
-import type { AnomalyEntry, AuditEntry, Chain, Recipient, Token } from "../types";
+import type { Chain, Token } from "../types";
 
 export interface AiAttribution {
   model: string;
@@ -25,6 +25,7 @@ export interface AiRouteResult extends AiAttribution {
   reason: string;
   region_rationale: string;
   gas_comparison: string;
+  observed_at: string;
   confidence: "high" | "medium" | "low";
 }
 
@@ -39,6 +40,17 @@ export interface AiAnomalyAnalysis extends AiAttribution {
 
 export interface AiTextResult extends AiAttribution {
   text: string;
+}
+
+export interface AiPayrollReportResult extends AiTextResult {
+  recommendation_code: string;
+  evidence: {
+    source: string;
+    finality: string;
+    observed_at: string;
+    block_height_min: number;
+    block_height_max: number;
+  };
 }
 
 export type SecurityScenarioKind =
@@ -69,86 +81,23 @@ export async function generatePolicy(description: string): Promise<AiPolicyResul
 }
 
 export async function analyzeAnomaly(
-  anomaly: AnomalyEntry,
-  recentPayments: AuditEntry[],
+  contractId: string,
+  anomalyId: number,
 ): Promise<AiAnomalyAnalysis> {
-  const milliseconds = BigInt(String(anomaly.timestamp)) / 1_000_000n;
   return withAttribution(
     await requestNearAi<Omit<AiAnomalyAnalysis, keyof AiAttribution>>("anomaly", {
-      anomaly_type: anomaly.anomaly_type,
-      contract_severity: anomaly.severity,
-      description: anomaly.description,
-      timestamp: new Date(Number(milliseconds)).toISOString(),
-      recent_payments: recentPayments.slice(0, 30),
+      contract_id: contractId,
+      anomaly_id: anomalyId,
     }),
   );
 }
 
 export async function generatePayrollReport(options: {
   contractId: string;
-  auditEntries: AuditEntry[];
-  anomalies: AnomalyEntry[];
-  recipients: Recipient[];
-  treasuryBalance: string;
-  dailySpent: string;
-}): Promise<AiTextResult> {
-  const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1_000;
-  const thisWeekStart = now - weekMs;
-  const lastWeekStart = now - weekMs * 2;
-  const approvedTimes = options.auditEntries.flatMap((entry) =>
-    entry.outcome === "Approved" ? [timestampMilliseconds(entry.timestamp)] : [],
-  );
-  const thisWeekPayments = approvedTimes.filter((timestamp) => timestamp >= thisWeekStart).length;
-  const lastWeekPayments = approvedTimes.filter(
-    (timestamp) => timestamp >= lastWeekStart && timestamp < thisWeekStart,
-  ).length;
-  const percentageChange =
-    lastWeekPayments === 0
-      ? thisWeekPayments === 0
-        ? 0
-        : null
-      : Number((((thisWeekPayments - lastWeekPayments) / lastWeekPayments) * 100).toFixed(1));
-  const rejectionReasons = options.auditEntries.flatMap((entry) =>
-    typeof entry.outcome === "object" ? [entry.outcome.Rejected] : [],
-  );
-  const paidRecipients = options.recipients
-    .filter((recipient) => timestampMilliseconds(recipient.last_paid) >= thisWeekStart)
-    .map((recipient) => recipient.name);
-  const pendingRecipients = options.recipients
-    .filter((recipient) => {
-      if (!recipient.active) return false;
-      if (recipient.next_payment_at === null) return recipient.schedule === "Milestone";
-      return timestampMilliseconds(recipient.next_payment_at) <= now;
-    })
-    .map((recipient) => recipient.name);
-
+}): Promise<AiPayrollReportResult> {
   return withAttribution(
-    await requestNearAi<{ text: string }>("payroll-report", {
+    await requestNearAi<Omit<AiPayrollReportResult, keyof AiAttribution>>("payroll-report", {
       contract_id: options.contractId,
-      generated_at: new Date(now).toISOString(),
-      payment_comparison: {
-        this_week: thisWeekPayments,
-        last_week: lastWeekPayments,
-        percentage_change: percentageChange,
-        note: percentageChange === null ? "No prior-week payments for a percentage baseline" : null,
-      },
-      recipients: {
-        paid_this_week: paidRecipients,
-        pending: pendingRecipients,
-        active_total: options.recipients.filter((recipient) => recipient.active).length,
-      },
-      policy_violations: rejectionReasons,
-      anomalies: options.anomalies.slice(0, 30).map((anomaly) => ({
-        type: anomaly.anomaly_type,
-        severity: anomaly.severity,
-        description: anomaly.description,
-        reviewed: anomaly.reviewed,
-      })),
-      treasury_health: {
-        runway_days: calculateRunwayDays(options.treasuryBalance, options.dailySpent),
-        basis: "Current on-chain treasury balance divided by today's on-chain spend",
-      },
     }),
   );
 }
@@ -219,20 +168,4 @@ function displayModelName(model: string): string {
   if (model.includes("Llama-3.3")) return "Llama 3.3";
   if (model.includes("DeepSeek-V4.1")) return "DeepSeek V4.1 Flash";
   return model.split("/").at(-1)?.replaceAll("-", " ") || "NEAR AI";
-}
-
-function timestampMilliseconds(timestamp: number): number {
-  if (!timestamp) return 0;
-  return Number(BigInt(String(timestamp)) / 1_000_000n);
-}
-
-function calculateRunwayDays(balance: string, dailySpent: string): number | null {
-  try {
-    const balanceYocto = BigInt(balance);
-    const spentYocto = BigInt(dailySpent);
-    if (balanceYocto <= 0n || spentYocto <= 0n) return null;
-    return Number((balanceYocto * 10n) / spentYocto) / 10;
-  } catch {
-    return null;
-  }
 }

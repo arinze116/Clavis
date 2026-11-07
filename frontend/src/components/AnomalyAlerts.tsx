@@ -9,19 +9,19 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import type { AnomalyEntry, AuditEntry } from "../types";
+import type { AnomalyEntry } from "../types";
 import { formatTimestamp } from "../utils/format";
 import { analyzeAnomaly, type AiAnomalyAnalysis } from "../utils/nearAi";
 
 export function AnomalyAlerts({
+  contractId,
   anomalies,
-  recentPayments,
   writeBusy,
   busyId,
   onDismiss,
 }: {
+  contractId: string;
   anomalies: AnomalyEntry[];
-  recentPayments: AuditEntry[];
   writeBusy: boolean;
   busyId: number | null;
   onDismiss: (anomaly: AnomalyEntry) => Promise<void>;
@@ -41,7 +41,7 @@ export function AnomalyAlerts({
     setExpandedId(anomaly.anomaly_id);
     setAnalysisErrorById((current) => ({ ...current, [anomaly.anomaly_id]: "" }));
     try {
-      const analysis = await analyzeAnomaly(anomaly, recentPayments.slice(0, 30));
+      const analysis = await analyzeAnomaly(contractId, anomaly.anomaly_id);
       setAnalysisById((current) => ({ ...current, [anomaly.anomaly_id]: analysis }));
     } catch (reason) {
       setAnalysisErrorById((current) => ({
@@ -151,12 +151,15 @@ export function AnomalyAlerts({
                             {analysis.severity} severity
                           </span>
                           <span className="text-[11px] text-ink/40">
-                            Powered by NEAR AI — {analysis.modelLabel}
+                            Advisory explanation by NEAR AI — {analysis.modelLabel}
                           </span>
                         </div>
+                        <p className="text-xs text-emerald-700">
+                          The anomaly and severity come from contract evidence. Cause analysis is an AI hypothesis.
+                        </p>
                         <p>{analysis.meaning}</p>
                         <p>
-                          <span className="font-semibold text-ink">Likely cause:</span>{" "}
+                          <span className="font-semibold text-ink">AI hypothesis:</span>{" "}
                           {causeLabel(analysis.likely_cause)} — {analysis.cause_reasoning}
                         </p>
                         <p>

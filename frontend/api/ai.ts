@@ -50,6 +50,18 @@ interface RouteConditions {
   };
 }
 
+type PayrollRecommendationCode =
+  | "review_anomalies"
+  | "resolve_policy_rejections"
+  | "process_pending_payroll"
+  | "fund_treasury"
+  | "monitor_operations";
+
+type SecurityNextStepCode =
+  | "expand_property_tests"
+  | "schedule_external_review"
+  | "review_key_governance";
+
 const DEFAULT_NEAR_AI_URL = "https://cloud-api.near.ai/v1/chat/completions";
 const REQUESTED_NEAR_AI_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
 const CURRENT_NEAR_AI_FALLBACK_MODEL = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
@@ -106,11 +118,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   const apiKey = process.env.NEAR_AI_API_KEY?.trim();
-  if (!apiKey) {
-    response.status(503).json({ error: "NEAR AI is not configured", request_id: requestId });
-    return;
-  }
-
   const encodedBody = JSON.stringify(request.body ?? null);
   if (Buffer.byteLength(encodedBody, "utf8") > MAX_BODY_BYTES) {
     response.status(413).json({ error: "AI request is too large", request_id: requestId });
@@ -123,9 +130,39 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     task = body.task;
     if (body.task === "route") {
       body = await enrichRouteRequest(body);
+    } else if (body.task === "payroll-report") {
+      body = await enrichPayrollReportRequest(body);
+    } else if (body.task === "security-summary") {
+      body = await enrichSecuritySummaryRequest(body);
+    } else if (body.task === "anomaly") {
+      body = await enrichAnomalyRequest(body);
     }
     const prompt = buildPrompt(body);
-    const completion = await callNearAi(apiKey, prompt.system, prompt.user, prompt.json);
+    let completion: { content: string; model: string };
+    if (!apiKey) {
+      if (body.task !== "payroll-report" && body.task !== "security-summary") {
+        response.status(503).json({ error: "NEAR AI is not configured", request_id: requestId });
+        return;
+      }
+      completion = { content: "{}", model: "clavis/verified-evidence-engine" };
+      console.warn("near_ai.verified_fallback", {
+        request_id: requestId,
+        task,
+        error_type: "MissingConfiguration",
+      });
+    } else {
+      try {
+        completion = await callNearAi(apiKey, prompt.system, prompt.user, prompt.json);
+      } catch (error) {
+        if (body.task !== "payroll-report" && body.task !== "security-summary") throw error;
+        completion = { content: "{}", model: "clavis/verified-evidence-engine" };
+        console.warn("near_ai.verified_fallback", {
+          request_id: requestId,
+          task,
+          error_type: error instanceof Error ? error.name : "UnknownError",
+        });
+      }
+    }
     response.setHeader("x-clavis-ai-model", completion.model);
     console.info("near_ai.completed", { request_id: requestId, task, model: completion.model });
     response.status(200).json({
@@ -197,24 +234,13 @@ function sanitizeInput(task: AiTask, value: unknown): unknown {
   if (task === "anomaly") {
     const input = requiredRecord(value);
     return {
-      anomaly_type: requiredText(input, "anomaly_type", 100),
-      contract_severity: optionalText(input.contract_severity, 20),
-      description: requiredText(input, "description", 1_000),
-      timestamp: requiredText(input, "timestamp", 100),
-      recent_payments: limitedArray(input.recent_payments, 30),
+      contract_id: validNearAccountId(requiredText(input, "contract_id", 100)),
+      anomaly_id: clientNonNegativeInteger(input.anomaly_id, "anomaly id"),
     };
   }
   if (task === "payroll-report") {
     const input = requiredRecord(value);
-    return {
-      contract_id: optionalText(input.contract_id, 100),
-      generated_at: requiredText(input, "generated_at", 100),
-      payment_comparison: sanitizeJson(input.payment_comparison, 0),
-      recipients: sanitizeJson(input.recipients, 0),
-      policy_violations: limitedArray(input.policy_violations, 100),
-      anomalies: limitedArray(input.anomalies, 30),
-      treasury_health: sanitizeJson(input.treasury_health, 0),
-    };
+    return { contract_id: validNearAccountId(requiredText(input, "contract_id", 100)) };
   }
   if (task === "route") {
     const input = requiredRecord(value);
@@ -229,12 +255,7 @@ function sanitizeInput(task: AiTask, value: unknown): unknown {
     };
   }
   if (task === "security-summary") {
-    const input = requiredRecord(value);
-    return {
-      contract_id: optionalText(input.contract_id, 100),
-      scenarios: limitedArray(input.scenarios, 5),
-      results: limitedArray(input.results, 5),
-    };
+    return sanitizeSecuritySummary(value);
   }
   throw new ClientInputError("Unsupported AI task");
 }
@@ -263,10 +284,14 @@ function buildPrompt(body: AiRequestBody): {
     };
   }
   if (body.task === "payroll-report") {
+    const input = requiredRecord(body.input);
     return {
-      json: false,
-      system: `${dataRule} You are a CFO writing a concise payroll operations report from privacy-minimized, precomputed contract metrics. Include: total approved payments this week versus last week and the percentage change or lack of baseline; which named recipients were paid and which are pending; every supplied policy rejection reason; anomalies and their severity; treasury runway in days or a clear statement that spend is too low for a runway estimate; and exactly one specific operational recommendation tied to the supplied facts. Use the headings "Weekly payment trend", "Recipient status", "Policy controls", "Anomalies", "Treasury health", and "Recommendation". Do not invent payments, recipients, amounts, dates, or causes. Finish with the exact sign-off format "Generated by NEAR AI · [contract_id] · [generated_at]" using the supplied values. Write 250-450 words.`,
-      user: JSON.stringify(body.input),
+      json: true,
+      system: `${dataRule} You prioritize one operational recommendation for a verified payroll report. Clavis generates every factual sentence deterministically from live NEAR contract data. Return only JSON with this exact shape: {"recommendation_code":string}. Choose exactly one code from recommendation_options. Never add prose, names, amounts, claims, or findings.`,
+      user: JSON.stringify({
+        evidence_summary: input.evidence_summary,
+        recommendation_options: input.recommendation_options,
+      }),
     };
   }
   if (body.task === "route") {
@@ -278,8 +303,8 @@ function buildPrompt(body: AiRequestBody): {
   }
   if (body.task === "security-summary") {
     return {
-      json: false,
-      system: `${dataRule} You are a smart-contract security reviewer. Write one concise paragraph of 80-140 words summarizing the supplied five attack results. State how many were blocked, identify the contract controls demonstrated, distinguish a successful test from a guarantee of complete security, and give one sensible next security step. Do not invent findings.`,
+      json: true,
+      system: `${dataRule} You prioritize the next security action after five verified on-chain contract probes. Clavis generates the factual summary deterministically. Return only JSON with this exact shape: {"next_step_code":"expand_property_tests"|"schedule_external_review"|"review_key_governance"}. Never add prose or findings.`,
       user: JSON.stringify(body.input),
     };
   }
@@ -500,6 +525,7 @@ function classifyUpstreamStatus(status: number): string {
 }
 
 function displayModelName(model: string): string {
+  if (model === "clavis/verified-evidence-engine") return "Clavis verified evidence engine";
   if (model === REQUESTED_NEAR_AI_MODEL) return "Llama 3.3";
   if (model === CURRENT_NEAR_AI_FALLBACK_MODEL) return "DeepSeek V4.1 Flash";
   return model.split("/").at(-1)?.replaceAll("-", " ") || "NEAR AI";
@@ -507,12 +533,10 @@ function displayModelName(model: string): string {
 
 function normalizeResult(body: AiRequestBody, content: string): unknown {
   if (body.task === "payroll-report") {
-    const input = requiredRecord(body.input);
-    const signoff = `Generated by NEAR AI · ${requiredText(input, "contract_id", 100)} · ${requiredText(input, "generated_at", 100)}`;
-    return { text: content.includes(signoff) ? content : `${content}\n\n${signoff}` };
+    return normalizePayrollReport(requiredRecord(body.input), content);
   }
   if (body.task === "security-summary") {
-    return { text: content };
+    return normalizeSecuritySummary(requiredRecord(body.input), content);
   }
   const parsed = parseProviderJson(stripCodeFence(content));
   if (!isRecord(parsed)) throw new Error("NEAR AI returned invalid structured JSON");
@@ -520,17 +544,172 @@ function normalizeResult(body: AiRequestBody, content: string): unknown {
     const input = requiredRecord(body.input);
     return normalizePolicy(parsed, requiredText(input, "description", 2_500));
   }
-  if (body.task === "anomaly") return normalizeAnomaly(parsed);
-  if (body.task === "route") return normalizeRoute(parsed);
+  if (body.task === "anomaly") return normalizeAnomaly(parsed, requiredRecord(body.input));
+  if (body.task === "route") return normalizeRoute(parsed, requiredRecord(body.input));
   throw new Error("NEAR AI returned an unsupported structured response");
+}
+
+function normalizePayrollReport(input: Record<string, unknown>, content: string): unknown {
+  const options = limitedArray(input.recommendation_options, 5).flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const code = optionalText(item.code, 80) as PayrollRecommendationCode;
+    const reason = optionalText(item.reason, 240);
+    return code && reason ? [{ code, reason }] : [];
+  });
+  if (options.length === 0) throw new Error("Verified payroll evidence has no recommendation");
+
+  let requestedCode = "";
+  try {
+    const parsed = parseProviderJson(stripCodeFence(content));
+    requestedCode = isRecord(parsed) ? optionalText(parsed.recommendation_code, 80) : "";
+  } catch {
+    // The factual report remains deterministic even when the model formats its choice incorrectly.
+  }
+  const selected = options.find((option) => option.code === requestedCode) ?? options[0];
+  if (!selected) throw new Error("Verified payroll recommendation could not be selected");
+
+  return {
+    text: buildVerifiedPayrollReport(input, selected.reason),
+    recommendation_code: selected.code,
+    evidence: sanitizeJson(input.evidence, 0),
+  };
+}
+
+function buildVerifiedPayrollReport(input: Record<string, unknown>, recommendation: string): string {
+  const comparison = requiredRecord(input.payment_comparison);
+  const recipients = requiredRecord(input.recipients);
+  const treasury = requiredRecord(input.treasury_health);
+  const evidence = requiredRecord(input.evidence);
+  const thisWeek = nonNegativeInteger(comparison.this_week);
+  const lastWeek = nonNegativeInteger(comparison.last_week);
+  const percentage = optionalFiniteNumber(comparison.percentage_change);
+  const auditWindowComplete = comparison.audit_window_complete === true;
+  const auditEntriesLoaded = nonNegativeInteger(comparison.audit_entries_loaded);
+  const paid = stringArray(recipients.paid_this_week, 100, 80);
+  const pending = stringArray(recipients.pending, 100, 80);
+  const awaitingMilestone = stringArray(recipients.awaiting_milestone, 100, 80);
+  const activeTotal = nonNegativeInteger(recipients.active_total);
+  const violations = stringArray(input.policy_violations, 100, 240);
+  const securityProbeRejections = stringArray(input.security_probe_rejections, 100, 240);
+  const anomalies = limitedArray(input.anomalies, 30).flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const type = optionalText(item.type, 100);
+    const severity = optionalText(item.severity, 20);
+    const description = optionalText(item.description, 500);
+    const reviewState = item.reviewed === true ? "reviewed" : "open";
+    return type && severity && description
+      ? [`${severity} ${type} (${reviewState}): ${description}`]
+      : [];
+  });
+  const runwayDays = optionalFiniteNumber(treasury.runway_days);
+  const blockMin = nonNegativeInteger(evidence.block_height_min);
+  const blockMax = nonNegativeInteger(evidence.block_height_max);
+  const generatedAt = requiredText(input, "generated_at", 100);
+  const contractId = requiredText(input, "contract_id", 100);
+
+  const trendPrefix = auditWindowComplete
+    ? "The complete contract audit window shows"
+    : `Within the latest ${auditEntriesLoaded} contract decisions`;
+  const trend =
+    lastWeek === 0
+      ? thisWeek === 0
+        ? `${trendPrefix} 0 approved authorization decisions in both the current and previous seven-day windows.`
+        : `${trendPrefix} ${thisWeek} approved authorization decision${thisWeek === 1 ? "" : "s"} in the current seven-day window and 0 in the previous window, so no percentage baseline is available.`
+      : `${trendPrefix} ${thisWeek} approved authorization decision${thisWeek === 1 ? "" : "s"} in the current seven-day window versus ${lastWeek} previously (${formatSignedPercentage(percentage)}).`;
+  const recipientStatus = `Paid in the current window: ${formatList(paid)}. Due by the on-chain schedule: ${formatList(pending)}. Awaiting a milestone trigger: ${formatList(awaitingMilestone)}. Active recipients: ${activeTotal}.`;
+  const policy =
+    violations.length > 0
+      ? `Verified operational rejection reasons: ${violations.join("; ")}.`
+      : "No operational payroll rejection was present in the latest on-chain audit window.";
+  const securityEvidence =
+    securityProbeRejections.length > 0
+      ? ` The same audit window contains ${securityProbeRejections.length} fixed security-probe rejection entr${securityProbeRejections.length === 1 ? "y" : "ies"}; these are test evidence, not payroll attempts.`
+      : "";
+  const anomalyText =
+    anomalies.length > 0
+      ? `Contract anomalies in the fetched window: ${anomalies.join("; ")}.`
+      : "No contract anomaly was present in the fetched window.";
+  const treasuryText =
+    runwayDays === null
+      ? "A runway estimate is unavailable because the current rolling spend counter is zero or the treasury balance is empty."
+      : `Estimated runway is ${runwayDays} days using the current on-chain treasury balance divided by the current rolling daily-spend counter.`;
+
+  return [
+    "Weekly payment trend",
+    trend,
+    "",
+    "Recipient status",
+    recipientStatus,
+    "",
+    "Policy controls",
+    `${policy}${securityEvidence}`,
+    "",
+    "Anomalies",
+    anomalyText,
+    "",
+    "Treasury health",
+    treasuryText,
+    "",
+    "Recommendation",
+    recommendation,
+    "",
+    `Verified from NEAR testnet final-state RPC · ${contractId} · block ${blockMin === blockMax ? blockMax : `${blockMin}-${blockMax}`} · ${generatedAt}`,
+  ].join("\n");
+}
+
+function normalizeSecuritySummary(input: Record<string, unknown>, content: string): unknown {
+  const results = limitedArray(input.results, 5).filter(isRecord);
+  const allowed: SecurityNextStepCode[] = [
+    "expand_property_tests",
+    "schedule_external_review",
+    "review_key_governance",
+  ];
+  let selected: SecurityNextStepCode = "expand_property_tests";
+  try {
+    const parsed = parseProviderJson(stripCodeFence(content));
+    if (isRecord(parsed) && allowed.includes(parsed.next_step_code as SecurityNextStepCode)) {
+      selected = parsed.next_step_code as SecurityNextStepCode;
+    }
+  } catch {
+    // Verified probe facts are rendered without relying on model prose.
+  }
+
+  const blocked = results.filter((result) => result.blocked === true);
+  const failed = results.filter((result) => result.blocked !== true);
+  const controls = blocked.map((result) => securityScenarioLabel(requiredText(result, "scenario", 80)));
+  const failureText =
+    failed.length === 0
+      ? "All five fixed probes were blocked."
+      : `Unblocked probes: ${failed.map((result) => securityScenarioLabel(requiredText(result, "scenario", 80))).join(", ")}.`;
+  const nextStep = securityNextStepText(selected);
+  const evidence = requiredRecord(input.evidence);
+  const contractId = requiredText(input, "contract_id", 100);
+  const blockHeight = nonNegativeInteger(evidence.block_height);
+  const observedAt = requiredText(evidence, "observed_at", 100);
+  return {
+    text: `${failureText} Verified controls exercised: ${controls.join(", ") || "none"}. These owner-triggered sandbox probes execute the contract's production rule evaluator without moving funds. They are reproducible evidence, not a guarantee that every vulnerability is absent. Next step: ${nextStep} Verified against ${contractId} at NEAR final block ${blockHeight} on ${observedAt}.`,
+    next_step_code: selected,
+    evidence: sanitizeJson(evidence, 0),
+  };
 }
 
 function normalizePolicy(value: Record<string, unknown>, description: string): unknown {
   const schedules = ["Weekly", "Biweekly", "Milestone"] as const;
-  const schedule = schedules.includes(value.schedule as (typeof schedules)[number])
-    ? value.schedule
+  const proposedSchedule: (typeof schedules)[number] | null = schedules.includes(
+    value.schedule as (typeof schedules)[number],
+  )
+    ? (value.schedule as (typeof schedules)[number])
     : null;
-  const caps = Array.isArray(value.recipient_caps)
+  const sourceNumbers = numericValues(description);
+  const groundingWarnings: string[] = [];
+  const schedule =
+    proposedSchedule && scheduleAppearsInText(proposedSchedule, description)
+      ? proposedSchedule
+      : null;
+  if (proposedSchedule && !schedule) {
+    groundingWarnings.push(`Ignored an AI schedule that was not present in the policy text.`);
+  }
+  const proposedCaps = Array.isArray(value.recipient_caps)
     ? value.recipient_caps.slice(0, 20).flatMap((item) => {
         if (!isRecord(item)) return [];
         const name = optionalText(item.name, 80);
@@ -538,8 +717,29 @@ function normalizePolicy(value: Record<string, unknown>, description: string): u
         return name && cap !== null ? [{ name, cap }] : [];
       })
     : [];
-  const dailyLimit = optionalPositiveNumber(value.daily_limit);
-  const perPaymentLimit = optionalPositiveNumber(value.per_payment_limit);
+  const caps = proposedCaps.filter((cap) => {
+    const grounded =
+      description.toLowerCase().includes(cap.name.toLowerCase()) &&
+      numberAppearsInSource(cap.cap, sourceNumbers);
+    if (!grounded) groundingWarnings.push(`Ignored an ungrounded cap suggested for ${cap.name}.`);
+    return grounded;
+  });
+  const proposedDailyLimit = optionalPositiveNumber(value.daily_limit);
+  const proposedPerPaymentLimit = optionalPositiveNumber(value.per_payment_limit);
+  const dailyLimit =
+    proposedDailyLimit !== null && numberAppearsInSource(proposedDailyLimit, sourceNumbers)
+      ? proposedDailyLimit
+      : null;
+  const perPaymentLimit =
+    proposedPerPaymentLimit !== null && numberAppearsInSource(proposedPerPaymentLimit, sourceNumbers)
+      ? proposedPerPaymentLimit
+      : null;
+  if (proposedDailyLimit !== null && dailyLimit === null) {
+    groundingWarnings.push("Ignored an AI daily limit that was not present in the policy text.");
+  }
+  if (proposedPerPaymentLimit !== null && perPaymentLimit === null) {
+    groundingWarnings.push("Ignored an AI per-payment limit that was not present in the policy text.");
+  }
   const modelAmbiguities = stringArray(value.ambiguities, 6, 240);
   const approximateAmount = description.match(
     /\b(?:around|about|roughly|approximately)\s+(?:NEAR\s*)?(\d+(?:\.\d+)?)/iu,
@@ -555,10 +755,10 @@ function normalizePolicy(value: Record<string, unknown>, description: string): u
     daily_limit: dailyLimit,
     per_payment_limit: perPaymentLimit,
     schedule,
-    schedule_details: optionalText(value.schedule_details, 180) || null,
+    schedule_details: schedule ? groundedScheduleDetails(schedule, description) : null,
     recipient_caps: caps,
-    summary: stringArray(value.summary, 8, 240),
-    warnings: stringArray(value.warnings, 6, 240),
+    summary: verifiedPolicySummary(dailyLimit, perPaymentLimit, schedule, caps),
+    warnings: [...stringArray(value.warnings, 6, 240), ...groundingWarnings].slice(0, 8),
     ambiguities: dedupedAmbiguities,
     requires_clarification:
       tooVague || dedupedAmbiguities.length > 0 || value.requires_clarification === true,
@@ -569,14 +769,16 @@ function normalizePolicy(value: Record<string, unknown>, description: string): u
   };
 }
 
-function normalizeAnomaly(value: Record<string, unknown>): unknown {
+function normalizeAnomaly(
+  value: Record<string, unknown>,
+  input: Record<string, unknown>,
+): unknown {
   const causes = ["configuration_issue", "compromised_agent", "normal_behavior"] as const;
-  const severities = ["Low", "Medium", "High"] as const;
   const likelyCause = causes.includes(value.likely_cause as (typeof causes)[number])
     ? value.likely_cause
     : "configuration_issue";
-  const severity = severities.includes(value.severity as (typeof severities)[number])
-    ? value.severity
+  const severity = requiredText(input, "contract_severity", 20).toUpperCase() === "HIGH"
+    ? "High"
     : "Medium";
   const actions = stringArray(value.actions, 2, 240);
   if (actions.length !== 2) throw new Error("NEAR AI must return exactly two anomaly actions");
@@ -596,27 +798,349 @@ function normalizeAnomaly(value: Record<string, unknown>): unknown {
   };
 }
 
-function normalizeRoute(value: Record<string, unknown>): unknown {
+function normalizeRoute(value: Record<string, unknown>, input: Record<string, unknown>): unknown {
   const pairs = { near: "NEAR", ethereum: "USDC", bnb: "BUSD" } as const;
   const chain = typeof value.chain === "string" ? value.chain.toLowerCase() : "";
   if (!(chain in pairs) || value.token !== pairs[chain as keyof typeof pairs]) {
     throw new Error("NEAR AI returned an unsupported route");
   }
-  const reason = optionalText(value.reason, 200);
+  const capabilities = requiredRecord(input.settlement_capabilities);
+  const capability = optionalText(capabilities[chain], 100);
+  if (!capability.startsWith("executable_")) {
+    throw new Error("NEAR AI recommended a route that is not currently executable");
+  }
   const regionRationale = optionalText(value.region_rationale, 240);
-  const gasComparison = optionalText(value.gas_comparison, 320);
-  if (!reason || !regionRationale || !gasComparison) {
+  if (!regionRationale) {
     throw new Error("NEAR AI returned an incomplete route recommendation");
   }
+  const conditions = requiredRecord(input.current_testnet_conditions);
   return {
     chain,
     token: pairs[chain as keyof typeof pairs],
-    reason,
+    reason: `Testnet guidance: ${chain}/${pairs[chain as keyof typeof pairs]} is marked executable by the current Clavis settlement adapter.`,
     region_rationale: regionRationale,
-    gas_comparison: gasComparison,
+    gas_comparison: verifiedRouteObservation(conditions),
+    observed_at: requiredText(conditions, "observed_at", 100),
     confidence:
       value.confidence === "high" ? "high" : value.confidence === "low" ? "low" : "medium",
   };
+}
+
+async function enrichAnomalyRequest(body: AiRequestBody): Promise<AiRequestBody> {
+  const input = requiredRecord(body.input);
+  const contractId = requiredText(input, "contract_id", 100);
+  const anomalyId = nonNegativeInteger(input.anomaly_id);
+  const [anomalyView, auditView] = await Promise.all([
+    viewNearContract(contractId, "get_anomalies", { from: 0, limit: 100, active_only: false }),
+    viewNearContract(contractId, "get_audit_log_reverse", { from: 0, limit: 30 }),
+  ]);
+  const anomalies = Array.isArray(anomalyView.value) ? anomalyView.value.filter(isRecord) : [];
+  const anomaly = anomalies.find(
+    (candidate) => nonNegativeInteger(candidate.anomaly_id) === anomalyId,
+  );
+  if (!anomaly) {
+    throw new ClientInputError("The requested anomaly is not present in the live contract state");
+  }
+  const anomalyType = requiredText(anomaly, "anomaly_type", 100);
+  const severity = requiredText(anomaly, "severity", 20);
+  const description = requiredText(anomaly, "description", 1_000);
+  const timestamp = new Date(nearTimestampMilliseconds(anomaly.timestamp)).toISOString();
+  return {
+    ...body,
+    input: {
+      contract_id: contractId,
+      anomaly_id: anomalyId,
+      anomaly_type: anomalyType,
+      contract_severity: severity,
+      description,
+      timestamp,
+      recent_payments: Array.isArray(auditView.value) ? auditView.value.slice(0, 30) : [],
+      evidence: {
+        source: "NEAR testnet RPC",
+        finality: "final",
+        observed_at: new Date().toISOString(),
+        block_height_min: Math.min(anomalyView.blockHeight, auditView.blockHeight),
+        block_height_max: Math.max(anomalyView.blockHeight, auditView.blockHeight),
+      },
+    },
+  };
+}
+
+async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiRequestBody> {
+  const input = requiredRecord(body.input);
+  const contractId = validNearAccountId(requiredText(input, "contract_id", 100));
+  const observedAt = new Date().toISOString();
+  const [auditView, anomalyView, recipientView, treasuryView, spentView, logCountView] = await Promise.all([
+    viewNearContract(contractId, "get_audit_log_reverse", { from: 0, limit: 100 }),
+    viewNearContract(contractId, "get_anomalies", { from: 0, limit: 100, active_only: false }),
+    viewNearContract(contractId, "get_recipients", { from: 0, limit: 100 }),
+    viewNearContract(contractId, "get_treasury_balance", {}),
+    viewNearContract(contractId, "get_daily_spent", {}),
+    viewNearContract(contractId, "get_log_count", {}),
+  ]);
+  const auditEntries = Array.isArray(auditView.value) ? auditView.value.filter(isRecord) : [];
+  const anomalies = Array.isArray(anomalyView.value) ? anomalyView.value.filter(isRecord) : [];
+  const recipients = Array.isArray(recipientView.value) ? recipientView.value.filter(isRecord) : [];
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1_000;
+  const thisWeekStart = now - weekMs;
+  const lastWeekStart = now - weekMs * 2;
+  const approvedTimes = auditEntries.flatMap((entry) =>
+    entry.outcome === "Approved" ? [nearTimestampMilliseconds(entry.timestamp)] : [],
+  );
+  const thisWeekPayments = approvedTimes.filter((timestamp) => timestamp >= thisWeekStart).length;
+  const lastWeekPayments = approvedTimes.filter(
+    (timestamp) => timestamp >= lastWeekStart && timestamp < thisWeekStart,
+  ).length;
+  const percentageChange =
+    lastWeekPayments === 0
+      ? thisWeekPayments === 0
+        ? 0
+        : null
+      : Number((((thisWeekPayments - lastWeekPayments) / lastWeekPayments) * 100).toFixed(1));
+  const rejectionReasons = auditEntries.flatMap((entry) => {
+    if (!isRecord(entry.outcome)) return [];
+    const reason = optionalText(entry.outcome.Rejected, 240);
+    return reason ? [reason] : [];
+  });
+  const securityProbeRejections = rejectionReasons.filter((reason) =>
+    reason.startsWith("Security audit:"),
+  );
+  const policyViolations = rejectionReasons.filter(
+    (reason) => !reason.startsWith("Security audit:"),
+  );
+  const paidRecipients = recipients.flatMap((recipient) => {
+    const name = optionalText(recipient.name, 80);
+    return name && nearTimestampMilliseconds(recipient.last_paid) >= thisWeekStart ? [name] : [];
+  });
+  const pendingRecipients = recipients.flatMap((recipient) => {
+    if (recipient.active !== true) return [];
+    const name = optionalText(recipient.name, 80);
+    if (!name) return [];
+    if (recipient.next_payment_at === null) return [];
+    return nearTimestampMilliseconds(recipient.next_payment_at) <= now ? [name] : [];
+  });
+  const awaitingMilestoneRecipients = recipients.flatMap((recipient) => {
+    const name = optionalText(recipient.name, 80);
+    return recipient.active === true && recipient.schedule === "Milestone" &&
+      recipient.next_payment_at === null && name
+      ? [name]
+      : [];
+  });
+  const verifiedAnomalies = anomalies.slice(0, 30).flatMap((anomaly) => {
+    const type = optionalText(anomaly.anomaly_type, 100);
+    const severity = optionalText(anomaly.severity, 20);
+    const description = optionalText(anomaly.description, 500);
+    return type && severity && description
+      ? [{ type, severity, description, reviewed: anomaly.reviewed === true }]
+      : [];
+  });
+  const balance = atomicAmount(treasuryView.value);
+  const dailySpent = atomicAmount(spentView.value);
+  const logCount = nonNegativeInteger(logCountView.value);
+  const runwayDays = calculateVerifiedRunwayDays(balance, dailySpent);
+  const blockHeights = [
+    auditView.blockHeight,
+    anomalyView.blockHeight,
+    recipientView.blockHeight,
+    treasuryView.blockHeight,
+    spentView.blockHeight,
+    logCountView.blockHeight,
+  ];
+  const recommendationOptions = payrollRecommendationOptions({
+    anomalies: verifiedAnomalies.filter((anomaly) => !anomaly.reviewed),
+    policyViolations,
+    pendingRecipients,
+    runwayDays,
+  });
+
+  return {
+    ...body,
+    input: {
+      contract_id: contractId,
+      generated_at: observedAt,
+      payment_comparison: {
+        this_week: thisWeekPayments,
+        last_week: lastWeekPayments,
+        percentage_change: percentageChange,
+        audit_entries_loaded: auditEntries.length,
+        audit_window_complete: logCount <= auditEntries.length,
+      },
+      recipients: {
+        paid_this_week: paidRecipients,
+        pending: pendingRecipients,
+        awaiting_milestone: awaitingMilestoneRecipients,
+        active_total: recipients.filter((recipient) => recipient.active === true).length,
+      },
+      policy_violations: policyViolations,
+      security_probe_rejections: securityProbeRejections,
+      anomalies: verifiedAnomalies,
+      treasury_health: {
+        runway_days: runwayDays,
+        balance_atomic: balance,
+        rolling_spend_atomic: dailySpent,
+      },
+      evidence: {
+        source: "NEAR testnet RPC",
+        finality: "final",
+        observed_at: observedAt,
+        block_height_min: Math.min(...blockHeights),
+        block_height_max: Math.max(...blockHeights),
+      },
+      evidence_summary: {
+        approved_this_week: thisWeekPayments,
+        policy_rejections: policyViolations.length,
+        anomalies: verifiedAnomalies.length,
+        pending_recipients: pendingRecipients.length,
+        runway_days: runwayDays,
+      },
+      recommendation_options: recommendationOptions,
+    },
+  };
+}
+
+async function enrichSecuritySummaryRequest(body: AiRequestBody): Promise<AiRequestBody> {
+  const input = requiredRecord(body.input);
+  const contractId = requiredText(input, "contract_id", 100);
+  const results = limitedArray(input.results, 5).filter(isRecord);
+  const auditView = await viewNearContract(contractId, "get_audit_log_reverse", {
+    from: 0,
+    limit: 100,
+  });
+  const auditEntries = Array.isArray(auditView.value) ? auditView.value.filter(isRecord) : [];
+  for (const result of results) {
+    const paymentId = nonNegativeInteger(result.payment_id);
+    const reason = requiredText(result, "reason", 240);
+    const verified = auditEntries.some((entry) => {
+      if (nonNegativeInteger(entry.payment_id) !== paymentId || !isRecord(entry.outcome)) return false;
+      return optionalText(entry.outcome.Rejected, 240) === reason;
+    });
+    if (!verified) {
+      throw new ClientInputError(
+        `Security result ${paymentId} could not be verified in the live contract audit ledger`,
+      );
+    }
+  }
+  return {
+    ...body,
+    input: {
+      ...input,
+      evidence: {
+        source: "NEAR testnet RPC",
+        finality: "final",
+        block_height: auditView.blockHeight,
+        observed_at: new Date().toISOString(),
+      },
+    },
+  };
+}
+
+async function viewNearContract(
+  contractId: string,
+  methodName: string,
+  args: Record<string, unknown>,
+): Promise<{ value: unknown; blockHeight: number }> {
+  let lastError: Error | null = null;
+  for (const endpoint of nearRpcEndpoints()) {
+    try {
+      const rpcResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: `clavis-ai-${methodName}`,
+          method: "query",
+          params: {
+            request_type: "call_function",
+            finality: "final",
+            account_id: contractId,
+            method_name: methodName,
+            args_base64: Buffer.from(JSON.stringify(args), "utf8").toString("base64"),
+          },
+        }),
+        signal: AbortSignal.timeout(6_000),
+      });
+      if (!rpcResponse.ok) {
+        lastError = new Error(`NEAR RPC returned HTTP ${rpcResponse.status}`);
+        continue;
+      }
+      const payload = (await rpcResponse.json()) as unknown;
+      if (!isRecord(payload) || !isRecord(payload.result) || !Array.isArray(payload.result.result)) {
+        lastError = new Error(`NEAR RPC returned an invalid ${methodName} response`);
+        continue;
+      }
+      const blockHeight = nonNegativeInteger(payload.result.block_height);
+      const bytes = payload.result.result.filter(
+        (value): value is number => Number.isInteger(value) && value >= 0 && value <= 255,
+      );
+      if (bytes.length !== payload.result.result.length) {
+        lastError = new Error(`NEAR RPC returned invalid bytes for ${methodName}`);
+        continue;
+      }
+      return {
+        value: JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown,
+        blockHeight,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("NEAR RPC request failed");
+    }
+  }
+  throw lastError ?? new Error(`NEAR RPC could not complete ${methodName}`);
+}
+
+function nearRpcEndpoints(): URL[] {
+  const values = [
+    process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
+    process.env.NEAR_RPC_URL?.trim(),
+    "https://rpc.testnet.fastnear.com",
+    "https://rpc.testnet.near.org",
+  ];
+  return [...new Set(values.filter((value): value is string => Boolean(value)))].flatMap((value) => {
+    try {
+      const endpoint = new URL(value);
+      return endpoint.protocol === "https:" ? [endpoint] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function payrollRecommendationOptions(options: {
+  anomalies: Array<{ severity: string; reviewed: boolean }>;
+  policyViolations: string[];
+  pendingRecipients: string[];
+  runwayDays: number | null;
+}): Array<{ code: PayrollRecommendationCode; reason: string }> {
+  const recommendations: Array<{ code: PayrollRecommendationCode; reason: string }> = [];
+  if (options.anomalies.length > 0) {
+    recommendations.push({
+      code: "review_anomalies",
+      reason: "Review the recorded contract anomalies before approving the next payroll cycle.",
+    });
+  }
+  if (options.policyViolations.length > 0) {
+    recommendations.push({
+      code: "resolve_policy_rejections",
+      reason: "Review the recorded policy rejection reasons and correct the payroll plan before retrying.",
+    });
+  }
+  if (options.runwayDays !== null && options.runwayDays < 7) {
+    recommendations.push({
+      code: "fund_treasury",
+      reason: "Fund the treasury or reduce scheduled spend because the verified runway estimate is below seven days.",
+    });
+  }
+  if (options.pendingRecipients.length > 0) {
+    recommendations.push({
+      code: "process_pending_payroll",
+      reason: "Review the recipients currently due and confirm that the agent remains online for the next cycle.",
+    });
+  }
+  recommendations.push({
+    code: "monitor_operations",
+    reason: "Continue monitoring the live contract ledger and investigate any new rejection or anomaly before changing policy.",
+  });
+  return recommendations.slice(0, 5);
 }
 
 async function enrichRouteRequest(body: AiRequestBody): Promise<AiRequestBody> {
@@ -865,6 +1389,188 @@ function splitCommaList(value: string | undefined): string[] {
         .map((item) => item.trim())
         .filter(Boolean)
     : [];
+}
+
+function sanitizeSecuritySummary(value: unknown): Record<string, unknown> {
+  const input = requiredRecord(value);
+  const contractId = validNearAccountId(requiredText(input, "contract_id", 100));
+  const expectedReasons: Record<string, string> = {
+    UNAPPROVED_RECIPIENT: "Recipient not approved",
+    OVER_LIMIT_PAYMENT: "Exceeds per-payment limit",
+    SUSPENDED_RECIPIENT: "Recipient suspended",
+    DAILY_LIMIT_BREACH: "Daily limit exceeded",
+    OFF_HOURS_PAYMENT: "Off-hours payment blocked",
+  };
+  const rawResults = Array.isArray(input.results) ? input.results : [];
+  if (rawResults.length !== 5) {
+    throw new ClientInputError("Five verified security results are required");
+  }
+  const seen = new Set<string>();
+  const results = rawResults.map((item) => {
+    const result = requiredRecord(item);
+    const scenario = requiredText(result, "scenario", 80);
+    if (!(scenario in expectedReasons) || seen.has(scenario)) {
+      throw new ClientInputError("Security results contain an unsupported or duplicate scenario");
+    }
+    seen.add(scenario);
+    if (typeof result.blocked !== "boolean") {
+      throw new ClientInputError("Security result blocked status is required");
+    }
+    const reason = requiredText(result, "reason", 240);
+    const expectedReason = expectedReasons[scenario];
+    if (result.blocked && expectedReason && !reason.includes(expectedReason)) {
+      throw new ClientInputError("Security result does not match the canonical contract control");
+    }
+    if (!result.blocked && !reason.includes("Attack was not blocked")) {
+      throw new ClientInputError("Unblocked security result is invalid");
+    }
+    return {
+      scenario,
+      blocked: result.blocked,
+      reason,
+      payment_id: nonNegativeInteger(result.payment_id),
+    };
+  });
+  if (seen.size !== Object.keys(expectedReasons).length) {
+    throw new ClientInputError("Security results are incomplete");
+  }
+  return { contract_id: contractId, results };
+}
+
+function validNearAccountId(value: string): string {
+  const accountId = value.trim().toLowerCase();
+  if (!/^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/u.test(accountId)) {
+    throw new ClientInputError("A valid NEAR contract account is required");
+  }
+  return accountId;
+}
+
+function atomicAmount(value: unknown): string {
+  const amount = typeof value === "string" ? value : String(value ?? "");
+  if (!/^\d+$/u.test(amount)) throw new Error("NEAR RPC returned an invalid atomic amount");
+  return amount;
+}
+
+function calculateVerifiedRunwayDays(balance: string, dailySpent: string): number | null {
+  const balanceAtomic = BigInt(balance);
+  const spentAtomic = BigInt(dailySpent);
+  if (balanceAtomic <= 0n || spentAtomic <= 0n) return null;
+  return Number((balanceAtomic * 10n) / spentAtomic) / 10;
+}
+
+function nearTimestampMilliseconds(value: unknown): number {
+  try {
+    const timestamp = BigInt(String(value ?? 0));
+    return Number(timestamp / 1_000_000n);
+  } catch {
+    return 0;
+  }
+}
+
+function nonNegativeInteger(value: unknown): number {
+  const number = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) {
+    throw new Error("Verified evidence contained an invalid integer");
+  }
+  return number;
+}
+
+function clientNonNegativeInteger(value: unknown, label: string): number {
+  try {
+    return nonNegativeInteger(value);
+  } catch {
+    throw new ClientInputError(`${label} must be a non-negative integer`);
+  }
+}
+
+function optionalFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatSignedPercentage(value: number | null): string {
+  if (value === null) return "percentage change unavailable";
+  return `${value > 0 ? "+" : ""}${value}%`;
+}
+
+function formatList(values: string[]): string {
+  return values.length > 0 ? values.join(", ") : "none";
+}
+
+function securityScenarioLabel(scenario: string): string {
+  const labels: Record<string, string> = {
+    UNAPPROVED_RECIPIENT: "recipient allowlist",
+    OVER_LIMIT_PAYMENT: "per-payment limit",
+    SUSPENDED_RECIPIENT: "recipient suspension",
+    DAILY_LIMIT_BREACH: "daily treasury limit",
+    OFF_HOURS_PAYMENT: "operating-hours restriction",
+  };
+  return labels[scenario] ?? scenario.replaceAll("_", " ").toLowerCase();
+}
+
+function securityNextStepText(code: SecurityNextStepCode): string {
+  if (code === "schedule_external_review") {
+    return "schedule an independent smart-contract review before any mainnet deployment.";
+  }
+  if (code === "review_key_governance") {
+    return "review agent-key rotation, signer separation, and owner recovery procedures.";
+  }
+  return "expand property and fuzz tests around policy boundaries and state transitions.";
+}
+
+function numericValues(text: string): number[] {
+  return [...text.matchAll(/\d+(?:,\d{3})*(?:\.\d+)?/gu)].flatMap((match) => {
+    const value = Number(match[0].replaceAll(",", ""));
+    return Number.isFinite(value) && value > 0 ? [Number(value.toFixed(6))] : [];
+  });
+}
+
+function numberAppearsInSource(value: number, source: number[]): boolean {
+  return source.some((candidate) => Math.abs(candidate - value) < 0.000001);
+}
+
+function scheduleAppearsInText(schedule: "Weekly" | "Biweekly" | "Milestone", text: string): boolean {
+  if (schedule === "Weekly") return /\bweekly\b|\bevery\s+week\b/iu.test(text);
+  if (schedule === "Biweekly") return /\bbiweekly\b|\bbi-weekly\b|\bevery\s+(?:two|2)\s+weeks\b/iu.test(text);
+  return /\bmilestone\b/iu.test(text);
+}
+
+function groundedScheduleDetails(
+  schedule: "Weekly" | "Biweekly" | "Milestone",
+  text: string,
+): string {
+  if (schedule === "Milestone") return "Milestone only";
+  const weekday = text.match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)s?\b/iu)?.[1];
+  return weekday ? `${schedule} on ${weekday}` : schedule;
+}
+
+function verifiedPolicySummary(
+  dailyLimit: number | null,
+  perPaymentLimit: number | null,
+  schedule: "Weekly" | "Biweekly" | "Milestone" | null,
+  caps: Array<{ name: string; cap: number }>,
+): string[] {
+  return [
+    ...(dailyLimit === null ? [] : [`Daily limit: ${dailyLimit} NEAR.`]),
+    ...(perPaymentLimit === null ? [] : [`Per-payment limit: ${perPaymentLimit} NEAR.`]),
+    ...(schedule === null ? [] : [`Default schedule: ${schedule}.`]),
+    ...caps.map((cap) => `${cap.name} cap: ${cap.cap} NEAR.`),
+  ];
+}
+
+function verifiedRouteObservation(conditions: Record<string, unknown>): string {
+  const networks = requiredRecord(conditions.networks);
+  const summaries = ["near", "ethereum", "bnb"].map((key) => {
+    const observation = requiredRecord(networks[key]);
+    const network = requiredText(observation, "network", 80);
+    if (observation.status !== "available") return `${network}: RPC unavailable`;
+    const latency = nonNegativeInteger(observation.latency_ms);
+    const gasPrice = requiredText(observation, "gas_price_atomic", 100);
+    const unit = requiredText(observation, "gas_price_unit", 40);
+    return `${network}: ${latency} ms RPC latency, gas-unit price ${gasPrice} ${unit}`;
+  });
+  return `${summaries.join("; ")}. These point-in-time values are not settlement times or total fees.`;
 }
 
 function requiredRecord(value: unknown): Record<string, unknown> {
