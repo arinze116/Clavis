@@ -185,12 +185,20 @@ async function requestNearAi<T extends object>(
   task: string,
   input: unknown,
 ): Promise<NearAiProxyResponse<T>> {
-  const response = await fetch("/api/ai", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ task, input }),
-    signal: AbortSignal.timeout(30_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ task, input }),
+      signal: AbortSignal.timeout(58_000),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error("NEAR AI took too long to respond. Please try again.");
+    }
+    throw error;
+  }
   const payload = (await response.json().catch(() => null)) as NearAiProxyResponse<T> | null;
   if (!response.ok || payload?.result === undefined) {
     throw new Error(payload?.error || `NEAR AI request failed with HTTP ${response.status}`);

@@ -172,13 +172,14 @@ never imported into browser code. Configure these as server-side Vercel variable
 ```dotenv
 NEAR_AI_API_KEY=replace-with-near-ai-cloud-key
 NEAR_AI_MODELS=meta-llama/Llama-3.3-70B-Instruct,deepseek-ai/DeepSeek-V4.1-Flash-1017
-NEAR_AI_MODEL_TIMEOUT_MS=10000
+NEAR_AI_MODEL_TIMEOUT_MS=25000
 ```
 
 The proxy checks NEAR AI's `/v1/models` catalog, caches it briefly, and uses the first available
 configured model. If NEAR changes the catalog, the proxy can select another instruction/chat model
 automatically; if catalog discovery is unavailable, it falls back to the configured priority list.
-Each slow model receives a bounded attempt within a 24-second total request budget. Update
+Each model receives a bounded attempt within a 52-second total request budget. The browser and
+server allow enough time for longer payroll reports while still terminating stalled requests. Update
 `NEAR_AI_MODELS` in Vercel to change model priority without deploying code. The browser never
 receives the API key. Models that fail are temporarily deprioritized, so the same server instance
 reuses the most recently successful fallback instead of repeating a slow failure on every request.

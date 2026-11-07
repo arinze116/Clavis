@@ -58,8 +58,8 @@ const DEFAULT_NEAR_AI_MODEL_PRIORITY = [
   CURRENT_NEAR_AI_FALLBACK_MODEL,
 ] as const;
 const MAX_BODY_BYTES = 48 * 1_024;
-const UPSTREAM_TOTAL_TIMEOUT_MS = 24_000;
-const DEFAULT_MODEL_ATTEMPT_TIMEOUT_MS = 10_000;
+const UPSTREAM_TOTAL_TIMEOUT_MS = 52_000;
+const DEFAULT_MODEL_ATTEMPT_TIMEOUT_MS = 25_000;
 const MODEL_CATALOG_TIMEOUT_MS = 1_500;
 const MODEL_CATALOG_TTL_MS = 5 * 60_000;
 const MODEL_FAILURE_COOLDOWN_MS = 2 * 60_000;
@@ -74,7 +74,7 @@ let cachedModelCatalog: { expiresAt: number; models: string[] } | null = null;
 let lastSuccessfulModel: string | null = null;
 const modelCooldowns = new Map<string, number>();
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse): Promise<void> {
   const requestId = crypto.randomUUID();
@@ -459,7 +459,7 @@ function modelSuitabilityScore(model: string): number {
 function modelAttemptTimeoutMs(): number {
   const parsed = Number.parseInt(process.env.NEAR_AI_MODEL_TIMEOUT_MS ?? "", 10);
   return Number.isFinite(parsed)
-    ? Math.min(20_000, Math.max(5_000, parsed))
+    ? Math.min(30_000, Math.max(10_000, parsed))
     : DEFAULT_MODEL_ATTEMPT_TIMEOUT_MS;
 }
 
