@@ -3,7 +3,7 @@ set -euo pipefail
 
 INSTALL_DIR="/opt/clavis"
 LOG_DIR="/var/log/clavis"
-DEPLOY_BRANCH="${CLAVIS_BRANCH:-feat/clavis-mvp}"
+DEPLOY_BRANCH="${CLAVIS_BRANCH:-main}"
 
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get update

@@ -2,7 +2,7 @@
 
 ## Release status
 
-Do not submit until every item in the final checklist is checked. In particular, the production NEAR AI key and live `/api/ai` verification are external release gates, not optional polish.
+The production infrastructure gates were verified on 2026-11-07: merged source, Vercel, NEAR AI, the VPS agent, notification bridge, and root/factory bytecode are live. Complete the remaining manual product rehearsal and submission-asset items before publishing the final entry.
 
 ## Submission fields
 
@@ -109,6 +109,8 @@ The API key stays in the Vercel serverless environment. Browser code calls same-
 - Guide: https://clavisapp.vercel.app/guide
 - Demo video: **[add final video URL]**
 - Security-audit transaction: https://testnet.nearblocks.io/txns/Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc
+- Root upgrade transaction: https://testnet.nearblocks.io/txns/6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj
+- Factory upgrade transaction: https://testnet.nearblocks.io/txns/7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn
 
 ## Track fit
 
@@ -138,11 +140,15 @@ Most recent component evidence before final release:
 - Frontend, agent, and API TypeScript checks pass.
 - Production frontend build and both release WASM builds pass.
 - Playwright public-proof suite: `5/5` passing across landing, dashboard, audit, security, and 390px mobile navigation; no horizontal overflow or console errors.
-- The previously deployed root and factory matched their then-current release WASM. Current contract-source hardening changes require a fresh approved upgrade and post-upgrade hash verification before submission.
+- Release source PR #9 was merged as `a7acd65`; main-branch CI, security evidence, browser smoke, and both Vercel production checks passed.
+- `clavis.testnet` was upgraded in transaction `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`; deployed code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV` matches release SHA-256 `4f0781cb30195800be283b9bbd864355657fff9f77ab0fb78c6b91e1d2a14e2e`.
+- `factory.clavis.testnet` was upgraded in transaction `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`; deployed code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` matches release SHA-256 `bc70097e6b85a4196eb494d09a433b72d7557478d3c3690f7564285c9cbc90b1`.
+- Production policy extraction and all four bounded-choice tasks returned HTTP 200 through NEAR AI model `deepseek-ai/DeepSeek-V4.1-Flash-1017`; contract-backed tasks were pinned to NEAR final block `276654783` during release verification.
+- The Oracle VPS runs `a7acd65`; PM2 reports `clavis-agent online`, the notification API is healthy, and the Vercel bridge reached the agent successfully.
 - Live security audit transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc` returned five blocked results and wrote payment IDs 5–9.
 - Production dependency audit has no moderate, high, or critical findings. It reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack; the available forced remediation is a breaking dependency upgrade and is documented rather than applied blindly.
 
-Replace this section with the final command timestamp and commit SHA before submission.
+Final local release verification completed on 2026-11-07 with `bash scripts/verify.sh`; the deployed application and contract source merge is `a7acd65`.
 
 ## Honest disclosures
 
@@ -151,9 +157,8 @@ Replace this section with the final command timestamp and commit SHA before subm
 - The public audit omits recipient identities and amounts. Standard NEAR function-call arguments and current recipient policy configuration are still public; complete confidentiality requires the documented confidential-executor boundary.
 - AI output is advisory. Owners can edit generated policy, and the contract—not the model—makes authorization decisions.
 - Route advice is a point-in-time testnet recommendation. RPC latency is not settlement time, and gas-unit values are not compared directly across chains.
-- Existing child contracts must run the release WASM before they can expose new contract methods. The root and factory release state must be rechecked at submission time.
-- Current local payroll-contract source is not claimed as deployed until the approved upgrade and hash checks complete.
-- A production `NEAR_AI_API_KEY` is required for model-backed policy extraction and bounded model choices. Verified report, security, anomaly, and route fallbacks remain available without it. Do not imply live model use unless the production endpoint is verified.
+- Existing child contracts retain the bytecode they were created with; the two registry children are not claimed as upgraded. The active root is upgraded, and future factory-created contracts use the verified embedded release WASM.
+- The production `NEAR_AI_API_KEY` is configured and model-backed policy extraction plus bounded model choices were verified. Evidence-backed report, security, anomaly, and route fallbacks remain available during upstream model outages.
 
 ## Likely judge questions
 
@@ -205,29 +210,29 @@ Confidential submission of payment arguments, production Intents settlement, per
 
 ### Product
 
-- [ ] Production `/api/ai` succeeds for policy, anomaly, report, route, and security-scenario tasks.
+- [x] Production `/api/ai` succeeds for policy, anomaly, report, route, and security-scenario tasks.
 - [ ] Add/edit/remove recipient updates both contract state and the private scheduler plan.
 - [ ] Limits, agent update, pause/unpause, and emergency withdrawal each show pending/success/failure transaction toasts.
-- [ ] Security audit returns verified `5/5` and the public audit receives five entries.
+- [x] Security audit returns verified `5/5` and the public audit receives five entries.
 - [ ] Audit polling, anomaly bell, mark-all-read, empty states, skeletons, Escape-to-close, and Enter-to-submit are verified.
 - [ ] Home, dashboard, audit, worker, setup, guides, legal pages, and 404 pass desktop and 375px smoke with zero console errors.
 
 ### Deployment
 
-- [ ] `NEAR_AI_API_KEY` is configured as a Vercel server-side secret.
-- [ ] Vercel production deployment is the final commit and `clavisapp.vercel.app` is healthy.
-- [ ] VPS agent is the final commit, PM2 reports `clavis-agent online`, and the private API health check passes.
-- [ ] Root and factory code hashes match the final release WASM.
-- [ ] The deployed agent key mode shown in the pitch matches the real access-key permission.
+- [x] `NEAR_AI_API_KEY` is configured as a Vercel server-side secret.
+- [x] Vercel production deployment is the merged release and `clavisapp.vercel.app` is healthy.
+- [x] VPS agent runs the merged release, PM2 reports `clavis-agent online`, and the private API health check passes.
+- [x] Root and factory code hashes match the final release WASM.
+- [x] The deployed agent logs confirm restricted per-contract key mode.
 
 ### Repository and verification
 
-- [ ] `bash scripts/verify.sh` passes on the final commit.
-- [ ] `git diff --check` passes.
-- [ ] Production dependency audit is reviewed and any accepted upstream advisories are documented.
-- [ ] `feat/clavis-mvp` is pushed, reviewed, and merged to `main`.
-- [ ] Repository visibility or explicit judge access is confirmed.
-- [ ] README, HACKATHON.md, DEMO.md, SUBMISSION.md, SECURITY.md, LICENSE, and `.env.example` are current.
+- [x] `bash scripts/verify.sh` passes on the final release evidence branch.
+- [x] `git diff --check` passes.
+- [x] Production dependency audit is reviewed and accepted low-severity upstream advisories are documented.
+- [x] PR #9 (`feat/verified-realtime-ai-evidence`) is pushed, reviewed, and merged to `main`.
+- [x] Repository visibility or explicit judge access is confirmed.
+- [x] README, HACKATHON.md, DEMO.md, SUBMISSION.md, SECURITY.md, LICENSE, and `.env.example` are current.
 
 ### Submission assets
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEPLOY_BRANCH="${CLAVIS_BRANCH:-feat/clavis-mvp}"
+DEPLOY_BRANCH="${CLAVIS_BRANCH:-main}"
 
 cd /opt/clavis
 git fetch origin "$DEPLOY_BRANCH"
