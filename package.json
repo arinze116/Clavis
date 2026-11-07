@@ -12,6 +12,8 @@
     "build": "npm run build --workspace=@clavis/agent && npm run build --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
     "typecheck": "npm run typecheck --workspace=@clavis/agent && npm run typecheck --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
     "test": "npm run test:agent && npm run test:contract",
+    "test:e2e": "npm run build --workspace=@clavis/frontend && npm run test:e2e:built",
+    "test:e2e:built": "playwright test",
     "test:agent": "npm run test --workspace=@clavis/agent",
     "test:contract": "cargo test --manifest-path contract/Cargo.toml",
     "build:contract": "cargo build --manifest-path contract/Cargo.toml --target wasm32-unknown-unknown --release",
@@ -34,6 +36,7 @@
     "decode-uri-component@0.2.2": "0.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@remotion/cli": "4.0.540",
     "@remotion/transitions": "4.0.540",
     "@types/node": "22.10.5",

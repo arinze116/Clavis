@@ -119,9 +119,9 @@ function AuditHero() {
       </div>
       <div className="rounded-[28px] bg-ink p-7 text-white">
         <EyeOff className="h-6 w-6 text-acid" />
-        <p className="mt-7 font-display text-3xl font-semibold">Zero salary data</p>
+        <p className="mt-7 font-display text-3xl font-semibold">Minimized audit fields</p>
         <p className="mt-3 text-sm leading-6 text-white/45">
-          A privacy-minimized audit of policy outcomes—not complete transaction privacy.
+          Audit entries omit payroll details. Recipient policy and normal transaction data remain public.
         </p>
       </div>
     </div>

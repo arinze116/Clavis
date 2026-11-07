@@ -26,7 +26,7 @@ Clavis is a production-oriented NEAR testnet payroll platform for remote teams. 
 - Self-service business contract deployment under `*.clavis.testnet`
 - Public read-only dashboard with owner-only mutation controls
 - Worker registration checks, preferences, QR wallet sharing, and payment history
-- Live NEAR Intents solver-relay submission with persisted status and retries
+- NEAR Intents relay adapter with preflight, persisted status, and retries; no filled public demo intent is claimed
 - Direct NEAR settlement only for native NEAR routes; unsupported cross-chain routes fail visibly
 - Multi-contract payroll scheduling every 60 seconds
 - Email notifications through Resend and Telegram Bot API notifications
@@ -68,6 +68,8 @@ Business owner
 
 The privacy-minimized public audit contains payment ID, timestamp, block height, outcome, and rejection reason. It does not store salary amounts, recipient hashes, wallet addresses, or destination routes. Normal NEAR transaction arguments and chain metadata remain public; see [docs/PRIVACY.md](docs/PRIVACY.md) for the exact boundary.
 
+The current hackathon contract also exposes recipient policy configuration, including display labels, caps, schedules, and preferred routes. Use pseudonymous labels on testnet. Clavis does not claim confidential payroll until that policy state and payment authorization move behind the documented confidential-execution boundary.
+
 ## Repository
 
 ```text
@@ -88,6 +90,7 @@ docs/       Privacy and security notes
 ```bash
 rustup target add wasm32-unknown-unknown
 npm ci
+npx playwright install chromium
 cp .env.example agent/.env
 cp .env.example frontend/.env
 ```
@@ -110,6 +113,7 @@ cargo test --manifest-path contract/Cargo.toml --package clavis-factory
 npm run test:agent
 npm run typecheck
 npm run build
+npm run test:e2e:built
 ```
 
 ## Factory deployment

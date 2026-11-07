@@ -16,7 +16,7 @@ Privacy-minimized, rule-bound payroll automation for autonomous agents on NEAR t
 Clavis lets an AI payroll agent schedule work while an isolated Rust contract enforces recipients, caps, schedules, routes, emergency controls, and a privacy-minimized public audit.
 
 **Short pitch**
-Payroll automation creates a dangerous tradeoff: the more useful an agent becomes, the more treasury authority it usually receives. Clavis breaks that link. Owners configure payroll in the browser, use NEAR AI to draft and understand policy, and deploy an isolated NEAR contract that independently approves or rejects every request. The public audit omits recipient identities and amounts from its own entries while the product explicitly discloses normal NEAR transaction visibility.
+Payroll automation creates a dangerous tradeoff: the more useful an agent becomes, the more treasury authority it usually receives. Clavis breaks that link. Owners configure payroll in the browser, use NEAR AI to draft and understand policy, and deploy an isolated NEAR contract that independently approves or rejects every request. The public audit omits recipient identities and amounts from its own entries while the product explicitly discloses normal NEAR transaction visibility and public recipient policy configuration.
 
 **Full description**
 Clavis is a NEAR testnet payroll control plane for remote teams. A business owner deploys an isolated contract, defines global and per-recipient limits, approves destination routes, configures a private scheduled amount, and appoints an agent account. The TypeScript scheduler checks due work every 60 seconds, but the Rust contract remains the authority for pause state, caller identity, recipient approval, active status, off-hours policy, per-payment limits, personal caps, daily limits, schedules, and routes.
@@ -128,12 +128,12 @@ git diff --check
 
 Most recent component evidence before final release:
 
-- Agent tests: `31/31` passing.
+- Agent tests: `50/50` passing.
 - Contract tests: `21/21` passing.
 - Factory tests: `3/3` passing.
 - Frontend, agent, and API TypeScript checks pass.
 - Production frontend build and both release WASM builds pass.
-- Desktop and 375px route smoke found no horizontal overflow or console errors.
+- Playwright public-proof suite: `5/5` passing across landing, dashboard, audit, security, and 390px mobile navigation; no horizontal overflow or console errors.
 - Root and factory testnet code matched the locally built release WASM when checked.
 - Live security audit transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc` returned five blocked results and wrote payment IDs 5–9.
 - Production dependency audit has no moderate, high, or critical findings. It reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack; the available forced remediation is a breaking dependency upgrade and is documented rather than applied blindly.
@@ -144,7 +144,7 @@ Replace this section with the final command timestamp and commit SHA before subm
 
 - Clavis is **NEAR testnet only**.
 - Completed cross-chain settlement is not claimed without a `FILLED` solver intent and verifiable relay reference. Unsupported cross-chain preferences fail visibly instead of being replaced with direct NEAR.
-- The public audit omits recipient identities and amounts. Standard NEAR function-call arguments are still public; complete transaction-input confidentiality requires the documented confidential-executor boundary.
+- The public audit omits recipient identities and amounts. Standard NEAR function-call arguments and current recipient policy configuration are still public; complete confidentiality requires the documented confidential-executor boundary.
 - AI output is advisory. Owners can edit generated policy, and the contract—not the model—makes authorization decisions.
 - Route advice is a point-in-time testnet recommendation. RPC latency is not settlement time, and gas-unit values are not compared directly across chains.
 - Existing child contracts must run the release WASM before they can expose new contract methods. The root and factory release state must be rechecked at submission time.
