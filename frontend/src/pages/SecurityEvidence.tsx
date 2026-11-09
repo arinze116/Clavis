@@ -11,6 +11,18 @@ import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { securityEvidence } from "../data/securityEvidence.generated";
 
+interface SecurityEvidenceCase {
+  id: string;
+  category: string;
+  threat: string;
+  protection: string;
+  source: string;
+  test: string;
+  line: number;
+  source_url: string;
+}
+
+const evidenceCases: readonly SecurityEvidenceCase[] = securityEvidence.cases;
 const evidenceStatus: string = securityEvidence.verification.status;
 const evidenceTreeState: string = securityEvidence.verification.tree_state;
 const evidenceRunUrl: string = securityEvidence.verification.run_url;
@@ -141,7 +153,7 @@ export default function SecurityEvidence() {
           </div>
 
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            {securityEvidence.cases.map((item) => (
+            {evidenceCases.map((item) => (
               <article key={item.id} className="panel flex flex-col p-6 sm:p-7">
                 <div className="flex items-center justify-between gap-4">
                   <span className="rounded-full bg-ink px-3 py-1 font-mono text-[10px] font-bold tracking-wide text-acid">

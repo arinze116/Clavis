@@ -2,14 +2,30 @@
 
 ## Current status
 
-The v0.2 source has passed the local repository gate and is **not yet deployed or ready to publish as the live release**.
+The v0.2 source is merged and the public frontend is deployed. The root contract, factory, and scheduler remain on the legacy deployment boundary, so the release is presented as **source-verified, not live-v0.2 settlement**.
 
 Verified live state on 2026-11-09:
 
 - `clavis.testnet` reports contract v0.1.0;
 - `factory.clavis.testnet` has no `contract_version` method and is treated as legacy;
 - the live contracts therefore authorize requests but do not provide v0.2 contract-controlled settlement;
-- no v0.2 deployment, Vercel publication, final rehearsal, or demo video was performed in this change.
+- the production web app is live at <https://clavisapp.vercel.app> and visibly discloses that boundary;
+- the required root and factory Full Access signers are absent from this host and GitHub Actions, so no v0.2 contract upgrade or agent restart was attempted;
+- two production rehearsals, responsive screenshots, and a caption-led source-and-test demo are complete.
+
+## Public release links
+
+| Item | URL |
+| --- | --- |
+| Web app | <https://clavisapp.vercel.app> |
+| Repository | <https://github.com/arinze116/Clavis> |
+| Settlement implementation PR | <https://github.com/arinze116/Clavis/pull/13> |
+| Source verification CI | <https://github.com/arinze116/Clavis/actions/runs/42602465954> |
+| Security evidence CI | <https://github.com/arinze116/Clavis/actions/runs/42602465956> |
+| Caption-led demo | <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4> |
+| Release evidence and screenshots | <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified> |
+| Live root contract | <https://testnet.nearblocks.io/address/clavis.testnet> |
+| Live factory | <https://testnet.nearblocks.io/address/factory.clavis.testnet> |
 
 ## Accurate product description
 
@@ -56,8 +72,13 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 | Playwright proof paths | 5 passed, including six delayed-load mobile-menu trials |
 | Responsive visual QA | Inspected at 320, 375, 390, 768, 1024, and 1440 px with no horizontal overflow, duplicate main landmarks, console errors, or sub-44px visible controls |
 | Production dependency audit | 0 moderate/high/critical; 17 low transitive `elliptic` advisories in the NEAR wallet stack |
-| Live exact-link enrichment | Not verified: both available RPCs timed out on historical transaction-outcome lookup; deterministic event-mapping tests passed |
-| Deployment scripts | `bash -n` syntax checks and NEAR CLI RS v0.31.1 source comparison passed; not executed because the CLI is absent and deployment is approval-gated |
+| Production frontend | Published at <https://clavisapp.vercel.app>; both same-origin RPC deployments return live final-block data |
+| Production rehearsals | Two uninterrupted runs across `/`, `/setup`, `/dashboard`, `/audit`, `/worker`, and `/security`; no application errors or horizontal overflow |
+| Production screenshots | 390, 768, and 1440 px inspected; one `main`, one `h1`, zero horizontal overflow, and no visible layout defects |
+| Demo render | H.264 High, 1920×1080, 30 fps, 95.9 s, 2,877 decoded frames, zero detected black segments; caption-led with no audio stream |
+| Live exact-link enrichment | Production verification found no v0.2 `payment_decision` event mapping for the legacy audit, so the UI correctly fell back to block links. Deterministic event-mapping tests passed; a live exact transaction link requires the signer-gated v0.2 settlement transaction. |
+| Live contract hashes | Root `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`; factory `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` |
+| Deployment scripts | `bash -n` syntax checks and NEAR CLI RS v0.31.1 source comparison passed; not executed because the CLI and required Full Access signers are absent |
 
 ## Submission checklist
 
@@ -71,13 +92,16 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 - [x] Explorer links use emitted payment IDs.
 - [x] README, architecture, privacy, threat-model, and demo claims are aligned with source behavior.
 - [x] Complete the local release gate with final recorded counts.
+- [x] Deploy and verify the production frontend and same-origin RPC proxy.
+- [x] Run two uninterrupted production browser rehearsals.
+- [x] Capture and inspect production desktop, tablet, and mobile screenshots.
+- [x] Render and inspect a truthful source-and-test demo without presenting v0.2 as live.
+- [x] Add final app, repository, release, contract, CI, and demo URLs.
 - [ ] Upgrade `clavis.testnet` with owner-authorized `migrate`.
 - [ ] Upgrade `factory.clavis.testnet` so new children embed v0.2.
-- [ ] Deploy the updated frontend and agent.
-- [ ] Confirm deployed code hashes and `contract_version` responses.
-- [ ] Run two uninterrupted browser rehearsals and record the results.
-- [ ] Capture desktop, tablet, and mobile screenshots from the deployed release.
-- [ ] Record and inspect the final demo video.
-- [ ] Add final app, repository, video, contract, and security-transaction URLs.
+- [ ] Deploy and restart the updated agent after both contracts report v0.2.0 or newer.
+- [ ] Confirm the upgraded v0.2 code hashes and `contract_version` responses.
+- [ ] Execute and link one successful native settlement and one failed-transfer rollback transaction.
+- [ ] Verify a live event-derived transaction link from a v0.2 `payment_decision` event.
 
-Do not mark any unchecked item complete without its evidence.
+The unchecked items all require the segregated root/factory signers. The available `clavis-agent.testnet` key is Function Call restricted to `request_payment` on `clavis.testnet`; it cannot deploy or upgrade code. Do not mark an unchecked item complete without signed testnet evidence.

@@ -40,13 +40,15 @@ Regenerate the source-linked security report after the final test run and verify
 
 - [ ] Upgrade `clavis.testnet` and call owner-authorized `migrate`.
 - [ ] Upgrade `factory.clavis.testnet`.
-- [ ] Deploy the verified frontend and agent revision.
-- [ ] Verify deployed code hashes and contract versions.
+- [x] Deploy and verify the production frontend at <https://clavisapp.vercel.app>.
+- [ ] Deploy the verified agent revision after the contracts report v0.2.0 or newer.
+- [x] Verify the current legacy code hashes and contract-version boundary.
+- [ ] Verify upgraded v0.2 code hashes and contract versions.
 - [ ] Execute and verify native settlement and rollback evidence on testnet.
-- [ ] Run two uninterrupted deployed browser rehearsals.
-- [ ] Capture and inspect deployed desktop, tablet, and mobile screenshots.
-- [ ] Record, render, inspect, and publish the final demo video.
-- [ ] Add final public URLs to the submission documents.
-- [ ] Push or publish only after explicit owner approval.
+- [x] Run two uninterrupted deployed browser rehearsals.
+- [x] Capture and inspect deployed desktop, tablet, and mobile screenshots.
+- [x] Record, render, inspect, and publish a truthful source-and-test demo.
+- [x] Add final public app, repository, CI, contract, release, and demo URLs to the submission documents.
+- [x] Push and publish only after explicit owner approval.
 
-Until those items are evidenced, the public root and factory remain legacy and v0.2 must be described as verified source behavior, not deployed behavior.
+The remaining unchecked items require root and factory Full Access signers that are not present on this host or in GitHub Actions. The available agent key is restricted to `request_payment` and cannot deploy code. Until signer-connected upgrades and transactions are evidenced, the public root and factory remain legacy and v0.2 must be described as verified source behavior, not deployed behavior.

@@ -37,8 +37,6 @@ const obsUrl = process.env.OBS_WEBSOCKET_URL?.trim() || "ws://127.0.0.1:4455";
 const obsPassword = process.env.OBS_WEBSOCKET_PASSWORD?.trim() || undefined;
 const obsScene = process.env.OBS_SCENE?.trim() || "main";
 const obsSource = process.env.OBS_SOURCE?.trim() || "screen";
-const ownerAccount = "clavis.testnet";
-const workerAccount = "worker-one.testnet";
 const narrationOffsetSeconds = 2;
 const tailSeconds = 6;
 
@@ -152,27 +150,6 @@ async function restoreInputMuteStates(obs: OBSWebSocket, states: MutedInputState
   }
 }
 
-async function seedPublicAccount(page: Page, accountId: string | null): Promise<void> {
-  await page.evaluate((nextAccountId) => {
-    localStorage.removeItem("signedAccountId");
-    localStorage.removeItem("functionCallKey");
-    localStorage.removeItem("near-wallet-selector:selectedWalletId");
-    localStorage.removeItem("near-wallet-selector:recentlySignedInWallets");
-
-    if (nextAccountId) {
-      localStorage.setItem("signedAccountId", nextAccountId);
-      localStorage.setItem(
-        "near-wallet-selector:selectedWalletId",
-        JSON.stringify("my-near-wallet"),
-      );
-      localStorage.setItem(
-        "near-wallet-selector:recentlySignedInWallets",
-        JSON.stringify(["my-near-wallet"]),
-      );
-    }
-  }, accountId);
-}
-
 async function openRoute(page: Page, route: string, expectedText: string): Promise<void> {
   await page.goto(`${applicationUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.getByText(expectedText, { exact: false }).first().waitFor({ state: "visible", timeout: 30_000 });
@@ -251,33 +228,25 @@ async function runWalkthrough(
 
   const configure = paragraphById(timing, "configure");
   await waitForNarrationTime(configure.startSeconds);
-  await seedPublicAccount(page, ownerAccount);
-  await openRoute(page, "/setup", "Set the boundaries once.");
-  const continueButton = page.getByRole("button", { name: /Continue/u });
+  await openRoute(page, "/dashboard", "Inspect the payroll system before connecting.");
   const configureDuration = configure.endSeconds - configure.startSeconds;
 
   await waitForNarrationTime(configure.startSeconds + configureDuration * 0.3);
-  await continueButton.click();
-  await page.getByText("Set treasury limits", { exact: false }).waitFor({ state: "visible" });
+  await page.getByText("Approved recipients", { exact: true }).scrollIntoViewIfNeeded();
 
   await waitForNarrationTime(configure.startSeconds + configureDuration * 0.58);
-  await continueButton.click();
-  await page.getByText("Add approved recipients", { exact: false }).waitFor({ state: "visible" });
+  await page.getByText("Contract controls", { exact: true }).scrollIntoViewIfNeeded();
 
   await waitForNarrationTime(configure.startSeconds + configureDuration * 0.8);
-  await continueButton.click();
-  await page.getByText("Authorize the payroll agent", { exact: false }).waitFor({ state: "visible" });
+  await page.getByText("Settlement boundary", { exact: true }).scrollIntoViewIfNeeded();
 
   const constrain = paragraphById(timing, "constrain");
   await waitForNarrationTime(constrain.startSeconds);
-  await openRoute(page, "/dashboard", "Good morning, owner.");
+  await openRoute(page, "/guide/developer", "Build on the Clavis architecture");
 
   const enforce = paragraphById(timing, "enforce");
-  await waitForNarrationTime(enforce.startSeconds + 1.2);
-  await page.getByText("Your payroll roster", { exact: false }).scrollIntoViewIfNeeded();
-  await page.mouse.move(1180, 620);
-  await waitForNarrationTime(enforce.startSeconds + (enforce.endSeconds - enforce.startSeconds) * 0.6);
-  await page.getByText("Rules engine", { exact: false }).scrollIntoViewIfNeeded();
+  await waitForNarrationTime(enforce.startSeconds);
+  await openRoute(page, "/security", "Tests first. Claims second.");
 
   const failClosed = paragraphById(timing, "fail-closed");
   await waitForNarrationTime(failClosed.startSeconds);
@@ -287,17 +256,18 @@ async function runWalkthrough(
   if (await rejectedFilter.isVisible()) await rejectedFilter.click();
 
   const provePrivately = paragraphById(timing, "prove-privately");
+  await waitForNarrationTime(provePrivately.startSeconds);
+  await openRoute(page, "/audit", "Proof without payroll exposure.");
   await waitForNarrationTime(
-    provePrivately.startSeconds + (provePrivately.endSeconds - provePrivately.startSeconds) * 0.52,
+    provePrivately.startSeconds + (provePrivately.endSeconds - provePrivately.startSeconds) * 0.58,
   );
-  await seedPublicAccount(page, workerAccount);
-  await openRoute(page, "/worker", "Hello, Worker One.");
+  await openRoute(page, "/worker", "Your payroll, your view");
 
   const close = paragraphById(timing, "close");
   await waitForNarrationTime(close.startSeconds);
-  await seedPublicAccount(page, null);
-  await openRoute(page, "/", "Payroll that keeps its promises.");
+  await openRoute(page, "/security", "Tests first. Claims second.");
   await waitForNarrationTime(close.startSeconds + (close.endSeconds - close.startSeconds) * 0.45);
+  await openRoute(page, "/", "Payroll that keeps its promises.");
   await page.locator("#architecture").scrollIntoViewIfNeeded();
   await page.mouse.move(1240, 690);
 
@@ -332,11 +302,9 @@ async function browserSmokeTest(obs: OBSWebSocket): Promise<void> {
     recordingActive = true;
     await waitForRecordState(obs, true);
     await sleep(2_000);
-    await seedPublicAccount(page, ownerAccount);
-    await openRoute(page, "/dashboard", "Good morning, owner.");
+    await openRoute(page, "/dashboard", "Inspect the payroll system before connecting.");
     await sleep(3_000);
-    await seedPublicAccount(page, workerAccount);
-    await openRoute(page, "/worker", "Hello, Worker One.");
+    await openRoute(page, "/worker", "Your payroll, your view");
     await sleep(3_000);
     const result = await obs.call("StopRecord");
     recordingActive = false;

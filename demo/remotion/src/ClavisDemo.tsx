@@ -29,39 +29,39 @@ const colors = {
 
 const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: string }> = {
   promise: {
-    eyebrow: "Contract-controlled native payroll",
-    title: "Automation without surrendering control",
-    highlight: "Minimized audit · public proof",
+    eyebrow: "Production web app",
+    title: "Live evidence with an explicit version boundary",
+    highlight: "Public proof · no borrowed guarantees",
   },
   configure: {
-    eyebrow: "Policy configured once",
-    title: "Caps, schedules, routes, and recipients",
-    highlight: "Owner-signed boundaries",
+    eyebrow: "Deployed state first",
+    title: "The live root is labelled authorization-only",
+    highlight: "clavis.testnet · v0.1.0",
   },
   constrain: {
-    eyebrow: "Restricted AI agent",
-    title: "One key. One contract. One method.",
+    eyebrow: "Source v0.2 key boundary",
+    title: "One restricted key. One contract. One method.",
     highlight: "request_payment only",
   },
   enforce: {
-    eyebrow: "Rules enforced onchain",
-    title: "Every request checked independently",
-    highlight: "Schedule · cap · treasury · commitment",
+    eyebrow: "Source v0.2 settlement",
+    title: "Callback success commits; failure rolls back",
+    highlight: "Native only · unsupported routes fail closed",
   },
   "fail-closed": {
-    eyebrow: "Fail closed by design",
-    title: "Native funds move only after policy passes",
-    highlight: "Callback commits or rolls back",
+    eyebrow: "Durable reconciliation",
+    title: "Wallet cancellation never replaces the active plan",
+    highlight: "Signed stage · final-chain promotion",
   },
   "prove-privately": {
-    eyebrow: "Minimized public evidence",
-    title: "Employer-wide outcomes, not compensation data",
-    highlight: "Minimized, not confidential",
+    eyebrow: "Honest audit boundary",
+    title: "Employer-wide outcomes, not worker-specific history",
+    highlight: "Minimized · not confidential",
   },
   close: {
-    eyebrow: "Built on NEAR",
-    title: "Enough authority to work. None to break rules.",
-    highlight: "Agent → contract → native transfer",
+    eyebrow: "Reproducible evidence",
+    title: "132 tests verify source v0.2; signers gate deployment",
+    highlight: "Source-verified · live upgrade pending",
   },
 };
 
@@ -332,7 +332,7 @@ function OpeningTitle({ fps }: { fps: number }) {
               letterSpacing: "-0.045em",
             }}
           >
-            Privacy-minimized audit. Public proof.
+            Source verified. Deployment truth disclosed.
           </div>
         </div>
       </div>
@@ -433,7 +433,7 @@ function EndCard({ fps }: { fps: number }) {
             fontSize: 30,
           }}
         >
-          Privacy-minimized, rule-bound payroll automation on NEAR testnet.
+          Source v0.2 is verified. The live root and factory remain legacy.
         </div>
         <div
           style={{
@@ -446,7 +446,7 @@ function EndCard({ fps }: { fps: number }) {
             textTransform: "uppercase",
           }}
         >
-          Enough authority to work · none to break the rules
+          Production web app live · signer-connected contract upgrade pending
         </div>
       </div>
     </AbsoluteFill>
@@ -508,7 +508,7 @@ export function ClavisDemo({ timing, recording }: ClavisDemoProps) {
         }}
       >
         <span style={{ width: 8, height: 8, borderRadius: 8, background: colors.acid }} />
-        NEAR testnet
+        NEAR testnet · source walkthrough
       </div>
 
       <SceneLabel paragraph={paragraph} narrationSeconds={narrationSeconds} />
@@ -519,9 +519,11 @@ export function ClavisDemo({ timing, recording }: ClavisDemoProps) {
       <Sequence from={0} durationInFrames={90}>
         <OpeningTitle fps={fps} />
       </Sequence>
-      <Sequence from={narrationOffsetFrames}>
-        <Audio src={staticFile(`audio/${timing.audioFile}`)} volume={1} />
-      </Sequence>
+      {timing.audioFile ? (
+        <Sequence from={narrationOffsetFrames}>
+          <Audio src={staticFile(`audio/${timing.audioFile}`)} volume={1} />
+        </Sequence>
+      ) : null}
       <Sequence from={endCardStart}>
         <EndCard fps={fps} />
       </Sequence>
