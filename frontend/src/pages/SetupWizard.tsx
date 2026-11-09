@@ -350,6 +350,10 @@ function SetupWizardContent() {
           </p>
         </div>
 
+        <div className="mx-auto mt-6 max-w-2xl">
+          <FactoryVersionStatus version={factoryVersion} />
+        </div>
+
         <div className="mx-auto mt-8 max-w-3xl sm:hidden">
           <div className="flex items-center justify-between text-xs">
             <span className="font-mono text-ink/45">
@@ -781,21 +785,7 @@ function SetupWizardContent() {
                   </div>
                 ))}
               </div>
-              {factoryVersion === undefined ? (
-                <p className="mt-4 rounded-xl bg-canvas p-3 text-xs text-ink/55" role="status">
-                  Checking the deployed factory version…
-                </p>
-              ) : controlsNativeSettlement(factoryVersion) ? (
-                <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
-                  Factory v{factoryVersion} creates contracts with contract-controlled native
-                  NEAR settlement.
-                </p>
-              ) : (
-                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900" role="alert">
-                  New deployments are paused because the live factory is still legacy
-                  authorization-only. Upgrade it to v0.2.0 before creating this contract.
-                </p>
-              )}
+              <FactoryVersionStatus className="mt-4" version={factoryVersion} />
               <button
                 type="button"
                 className="button-primary mt-6 w-full"
@@ -873,6 +863,38 @@ function SetupWizardContent() {
           )}
         </div>
     </div>
+  );
+}
+
+function FactoryVersionStatus({
+  version,
+  className = "",
+}: {
+  version: string | null | undefined;
+  className?: string;
+}) {
+  if (version === undefined) {
+    return (
+      <p className={`${className} rounded-xl bg-canvas p-3 text-xs text-ink/55`} role="status">
+        Checking the deployed factory version…
+      </p>
+    );
+  }
+  if (controlsNativeSettlement(version)) {
+    return (
+      <p className={`${className} rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800`} role="status">
+        Factory v{version} creates contracts with contract-controlled native NEAR settlement.
+      </p>
+    );
+  }
+  return (
+    <p
+      className={`${className} rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900`}
+      role="alert"
+    >
+      New payroll deployment is blocked because factory.clavis.testnet does not report v0.2.0.
+      The existing v0.2 root payroll remains available.
+    </p>
   );
 }
 

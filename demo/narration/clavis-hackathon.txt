@@ -10,4 +10,4 @@ Recipient changes use a signed, durable two-phase workflow. The active private p
 
 The public audit shows employer-wide decisions, not worker-specific history. Audit fields omit salary and recipient identity, while normal transaction data remains public and explorer links fall back rather than guess.
 
-One hundred fifty-six contract, signer, agent, API, and browser checks cover the release. Testnet transactions prove two successful worker settlements and rollback behavior. The remaining deployment boundary is the legacy factory, whose exact Full Access signer is not available.
+One hundred fifty-nine contract, signer, agent, API, and browser checks cover the release. Testnet transactions prove two successful worker settlements and rollback behavior. The remaining deployment boundary is the legacy factory, whose exact Full Access signer is not available.

@@ -179,6 +179,20 @@ test("security page keeps limitations beside the test evidence", async ({ page }
   expect(errors).toEqual([]);
 });
 
+test("setup discloses the legacy factory before wallet connection", async ({ page }) => {
+  const errors = collectPageErrors(page);
+  await mockPublicContractReads(page);
+
+  await page.goto("/setup");
+
+  await expect(page.getByRole("heading", { name: "Launch your payroll contract." })).toBeVisible();
+  await expect(
+    page.getByText(/New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.2\.0/i),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  expect(errors).toEqual([]);
+});
+
 test("audit copy does not imply transaction confidentiality", async ({ page }) => {
   const errors = collectPageErrors(page);
   await mockPublicContractReads(page, 1_000);

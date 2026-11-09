@@ -37,8 +37,10 @@ Regenerate the source-linked security report after the final test run and verify
 - [x] Run two uninterrupted deployed browser rehearsals.
 - [x] Capture and inspect deployed desktop, tablet, and mobile screenshots.
 - [x] Record, render, inspect, and publish the historical pre-deployment source-and-test demo.
-- [ ] Publish a new live-v0.2 demo and the final guide/explorer fixes after explicit owner approval.
+- [x] Capture, render, inspect, and package a truthful live-v0.2 demo candidate.
+- [ ] Publish the live-v0.2 demo and final frontend fixes after explicit owner approval.
 - [x] Add final public app, repository, CI, contract, release, and demo URLs to the submission documents.
-- [x] Push and publish only after explicit owner approval.
+- [x] Keep the release on the feature branch until repository and publication approval is explicit.
+- [ ] Push the final feature-branch commits and publish the prepared package.
 
-The factory upgrade requires its distinct Full Access signer, which is not present in the secure Clavis keychain and does not match the imported owner or worker identities. Publication of the remaining frontend/demo changes is separately approval-gated. The available agent key remains restricted to `request_payment` and cannot deploy code.
+The factory upgrade requires the sole Full Access key on `factory.clavis.testnet`, fingerprint `11ced76408bc820a`. It is not present in the secure Clavis keychain and does not match the imported owner or worker identities. From a trusted SSH terminal, the exact existing credential can be verified and imported with `bash scripts/connect-factory-signer.sh`; the prompt is hidden and the workflow does not deploy anything. Publication of the remaining frontend/demo changes is separately approval-gated. The available agent key remains restricted to `request_payment` and cannot deploy code.

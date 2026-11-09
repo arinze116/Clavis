@@ -110,37 +110,57 @@ async function main(): Promise<void> {
       page,
       "/dashboard",
       /Inspect the payroll system before connecting/i,
-      /This live contract is legacy 0\.1\.0/i,
+      /Contract-controlled native NEAR settlement is active on v0\.2\.0/i,
+    );
+    const configureDuration = configure.endSeconds - configure.startSeconds;
+    await waitForPresentationTime(configure.startSeconds + configureDuration * 0.55);
+    await openRoute(
+      page,
+      "/setup",
+      /Launch your payroll contract/i,
+      /New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.2\.0/i,
     );
 
     const constrain = paragraphById(timing, "constrain");
     await waitForPresentationTime(constrain.startSeconds);
-    await page.getByRole("heading", { name: "Settlement boundary" }).scrollIntoViewIfNeeded();
+    await openRoute(
+      page,
+      "/guide/developer",
+      /Build on the Clavis architecture/i,
+      /request_payment/i,
+    );
     await page.mouse.move(1810, 990);
 
     const enforce = paragraphById(timing, "enforce");
     await waitForPresentationTime(enforce.startSeconds);
-    await openRoute(page, "/security", /Tests first\. Claims second/i, /Local suites passed/i);
+    await openRoute(page, "/security", /Tests first\. Claims second/i, /159/);
 
     const failClosed = paragraphById(timing, "fail-closed");
     await waitForPresentationTime(failClosed.startSeconds);
+    await page
+      .getByText(/Wallet cancellation leaves a new private recipient active/i)
+      .scrollIntoViewIfNeeded();
+    await page.mouse.move(1810, 990);
+
+    const provePrivately = paragraphById(timing, "prove-privately");
+    await waitForPresentationTime(provePrivately.startSeconds);
     await openRoute(
       page,
       "/audit",
       /Proof without payroll exposure/i,
       /Final block \d+ · refreshes every 10 seconds/i,
     );
-
-    const provePrivately = paragraphById(timing, "prove-privately");
-    await waitForPresentationTime(provePrivately.startSeconds);
+    await waitForPresentationTime(
+      provePrivately.startSeconds +
+        (provePrivately.endSeconds - provePrivately.startSeconds) * 0.58,
+    );
     const rejectedFilter = page.getByRole("button", { name: "rejected", exact: true });
     if (await rejectedFilter.isVisible()) await rejectedFilter.click();
-    await page.getByText("Minimized audit fields", { exact: true }).scrollIntoViewIfNeeded();
-    await page.mouse.move(1810, 990);
+    await openRoute(page, "/worker", /Your payroll, your view/i, /employer/i);
 
     const close = paragraphById(timing, "close");
     await waitForPresentationTime(close.startSeconds);
-    await openRoute(page, "/security", /Tests first\. Claims second/i, /Local suites passed/i);
+    await openRoute(page, "/security", /Tests first\. Claims second/i, /159/);
     await waitForPresentationTime(timing.durationSeconds + tailSeconds);
 
     if (applicationErrors.length > 0) {
@@ -167,8 +187,8 @@ async function main(): Promise<void> {
         recordingFile,
         narrationOffsetSeconds,
         tailSeconds,
-        sourceScene: "production-source-and-test-walkthrough",
-        sourceName: "playwright-headless-public-production",
+        sourceScene: "live-v02-release-candidate-walkthrough",
+        sourceName: "playwright-headless-release-candidate",
         applicationUrl,
       },
       null,
@@ -176,7 +196,7 @@ async function main(): Promise<void> {
     )}\n`,
     "utf8",
   );
-  console.log(`Captured truthful source walkthrough from ${applicationUrl}`);
+  console.log(`Captured truthful live-v0.2 release candidate from ${applicationUrl}`);
   console.log(`Recording: ${recordingPath}`);
   console.log(`Manifest: ${manifestPath}`);
 }

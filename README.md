@@ -198,11 +198,11 @@ Verified locally on the current working tree:
 | --- | --- |
 | Payroll contract | 31 passed |
 | Factory contract | 3 passed |
-| Secure signer importer | 7 passed |
+| Secure signer importer | 9 passed |
 | Agent Vitest | 66 passed |
 | API/utility Node tests | 44 passed |
-| Playwright browser paths | 5 passed |
-| Complete repository gate | 156 passed |
+| Playwright browser paths | 6 passed |
+| Complete repository gate | 159 passed |
 
 The complete release gate is:
 
@@ -210,7 +210,7 @@ The complete release gate is:
 bash scripts/verify.sh
 ```
 
-The script runs contract and factory formatting/tests/builds, the seven-test signer-importer suite and release build, all TypeScript checks, 66 agent tests, 44 API/utility tests, the production build and demo typecheck, five Playwright paths, generated-evidence freshness, the production dependency audit, deployment-script syntax checks, and `git diff --check`.
+The script runs contract and factory formatting/tests/builds, the nine-test signer-importer suite and release build, all TypeScript checks, 66 agent tests, 44 API/utility tests, the production build and demo typecheck, six Playwright paths, generated-evidence freshness, the production dependency audit, deployment-script syntax checks, and `git diff --check`.
 
 The merged source release passed [CI](https://github.com/arinze116/Clavis/actions/runs/42602465954) and [security-evidence verification](https://github.com/arinze116/Clavis/actions/runs/42602465956). After the live root upgrade, the production dashboard passed responsive checks at 320, 375, 768, 1024, and 1440 pixels with one `main`, one `h1`, no horizontal overflow, a stable mobile menu, and no page or console errors. The local verification gate covers the later Testnet-resume and explorer-reliability fixes.
 
@@ -233,7 +233,16 @@ node scripts/security/generate-security-report.mjs \
 
 The root v0.1 payroll contract was upgraded with the verified v0.2 WASM and migrated in one transaction. `migrate` verified that the call predecessor matched the owner stored in v0.1 state. Owner, agent, limits, existing recipients, audit entries, and anomalies were preserved; subsequent acceptance transactions added the two designated workers and exercised success and failure paths.
 
-The factory must still be upgraded so newly created child contracts embed v0.2. Its sole Full Access signer is a separate identity that is unavailable in the secure keychain, so the upgrade is blocked without guessing or replacing credentials. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement.
+The factory must still be upgraded so newly created child contracts embed v0.2. Its sole Full Access signer is a separate identity with fingerprint `11ced76408bc820a`; it is unavailable in the secure keychain and does not match the verified owner or worker signers. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement.
+
+The factory credential can be connected only from a trusted SSH terminal. Preflight is non-interactive and never requests a key:
+
+```bash
+bash scripts/connect-factory-signer.sh --preflight
+bash scripts/connect-factory-signer.sh
+```
+
+The interactive command accepts one credential through hidden terminal input, requires it to derive the exact on-chain FullAccess key, stores it in the dedicated Secret Service keychain, and performs a non-mutating NEP-413 challenge. It does not deploy the factory; the deployment phase remains a separate reviewed command.
 
 Contract and frontend deployment are never automatic. Future root or factory changes still require the correct segregated signer, an owner-reviewed transaction preview, and explicit publication authority.
 

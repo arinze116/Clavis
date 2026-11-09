@@ -9,13 +9,15 @@ use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
 
-use model::{AccountResult, AccountTarget, Verdict, select_verdict};
+use model::{AccountResult, AccountTarget, SignerScope, Verdict, select_verdict};
 use near_crypto::SecretKey;
 use report::{ReportContext, write_report};
 use zeroize::Zeroizing;
 
 const OWNER_ACCOUNT: &str = "clavis.testnet";
 const WORKER_ONE_ACCOUNT: &str = "arinze-worker1.testnet";
+const FACTORY_ACCOUNT: &str = "factory.clavis.testnet";
+const FACTORY_PUBLIC_KEY: &str = "ed25519:6BhFt1XJrfAdFanjdxQvAbyPu8zVZjvRvZw6S85mQ9pD";
 const LIVE_ENV: &str = "/opt/clavis/agent/.env";
 const AGENT_CREDENTIALS: &str = "/opt/clavis/agent/config/agent-credentials.local.json";
 const NEAR_CONFIG: &str = "/home/ubuntu/.config/near-cli/config.toml";
@@ -57,6 +59,26 @@ fn run() -> Result<(), String> {
             let report_path = system::argument_value(&arguments, "--report")?;
             verify_existing(&near_binary, Path::new(&report_path))
         }
+        "factory-preflight" => {
+            let near_binary = system::argument_value(&arguments, "--near-binary")?;
+            let report_path = system::argument_value(&arguments, "--report")?;
+            let _keyring_daemon = system::start_keyring_daemon(false)?;
+            factory_preflight(&near_binary, Path::new(&report_path))
+        }
+        "factory-interactive" => {
+            require_terminal()?;
+            let near_binary = system::argument_value(&arguments, "--near-binary")?;
+            let report_path = system::argument_value(&arguments, "--report")?;
+            let _keyring_daemon = system::start_keyring_daemon(true)?;
+            factory_interactive(&near_binary, Path::new(&report_path))
+        }
+        "factory-verify-existing" => {
+            require_terminal()?;
+            let near_binary = system::argument_value(&arguments, "--near-binary")?;
+            let report_path = system::argument_value(&arguments, "--report")?;
+            let _keyring_daemon = system::start_keyring_daemon(true)?;
+            factory_verify_existing(&near_binary, Path::new(&report_path))
+        }
         "run" => {
             require_terminal()?;
             let separator = arguments
@@ -71,7 +93,7 @@ fn run() -> Result<(), String> {
             run_with_keychain(command)
         }
         _ => Err(
-            "Usage: clavis-near-signer <preflight|interactive|verify-existing|keychain-smoke|run> [OPTIONS] [-- COMMAND ...]".into(),
+            "Usage: clavis-near-signer <preflight|interactive|verify-existing|factory-preflight|factory-interactive|factory-verify-existing|keychain-smoke|run> [OPTIONS] [-- COMMAND ...]".into(),
         ),
     }
 }
@@ -153,7 +175,7 @@ fn interactive(near_binary: &str, report_path: &Path) -> Result<(), String> {
         result.error = Some("Not attempted because the preceding signer failed".to_string());
         results.push(result);
     }
-    let verdict = select_verdict(&results, false);
+    let verdict = select_verdict(&results, 3, false);
     let summary = "Dedicated GNOME Secret Service login collection, encrypted at rest and manually unlocked; NEAR CLI keychain format";
     let incomplete = (verdict != Verdict::Ready)
         .then_some("One or more requested signer verifications did not complete.");
@@ -165,7 +187,7 @@ fn interactive(near_binary: &str, report_path: &Path) -> Result<(), String> {
         summary,
         incomplete,
     )?;
-    println!("{}", verdict.text());
+    println!("{}", verdict.text(SignerScope::PrimaryAccounts));
     println!("Report: {}", report_path.display());
     if verdict == Verdict::Ready {
         Ok(())
@@ -182,7 +204,7 @@ fn verify_existing(near_binary: &str, report_path: &Path) -> Result<(), String> 
         .iter()
         .map(|target| verify_existing_account(target, near_binary))
         .collect::<Vec<_>>();
-    let verdict = select_verdict(&results, false);
+    let verdict = select_verdict(&results, 3, false);
     let summary = "Dedicated GNOME Secret Service login collection, encrypted at rest and manually unlocked; NEAR CLI keychain format";
     let incomplete = (verdict != Verdict::Ready)
         .then_some("One or more stored signer verifications did not complete.");
@@ -194,12 +216,87 @@ fn verify_existing(near_binary: &str, report_path: &Path) -> Result<(), String> 
         summary,
         incomplete,
     )?;
-    println!("{}", verdict.text());
+    println!("{}", verdict.text(SignerScope::PrimaryAccounts));
     println!("Report: {}", report_path.display());
     if verdict == Verdict::Ready {
         Ok(())
     } else {
         Err("Not all stored signer identities completed verification".to_string())
+    }
+}
+
+fn factory_preflight(near_binary: &str, report_path: &Path) -> Result<(), String> {
+    let target = factory_target();
+    let result = preflight_account(&target);
+    let state = system::inspect_keychain()?;
+    let summary = if state.is_persistent() && state.is_unlocked {
+        "Dedicated GNOME Secret Service login collection is persistent and unlocked"
+    } else if state.is_persistent() {
+        "Dedicated GNOME Secret Service login collection exists but is locked"
+    } else {
+        "Dedicated GNOME Secret Service storage is not yet initialized"
+    };
+    write_factory_status_report(
+        report_path,
+        near_binary,
+        std::slice::from_ref(&result),
+        Verdict::Blocked,
+        summary,
+        Some(
+            "The exact existing factory private key has not been entered in a direct SSH terminal.",
+        ),
+    )?;
+    print_preflight(std::slice::from_ref(&result), summary);
+    Ok(())
+}
+
+fn factory_interactive(near_binary: &str, report_path: &Path) -> Result<(), String> {
+    system::ensure_persistent_keychain()?;
+    keychain::smoke_test()?;
+    let result = import_account(&factory_target(), near_binary);
+    let verdict = select_verdict(std::slice::from_ref(&result), 1, false);
+    let summary = "Dedicated GNOME Secret Service login collection, encrypted at rest and manually unlocked; NEAR CLI keychain format";
+    let incomplete = (verdict != Verdict::Ready)
+        .then_some("The exact existing factory signer did not complete verification.");
+    write_factory_status_report(
+        report_path,
+        near_binary,
+        std::slice::from_ref(&result),
+        verdict,
+        summary,
+        incomplete,
+    )?;
+    println!("{}", verdict.text(SignerScope::Factory));
+    println!("Report: {}", report_path.display());
+    if verdict == Verdict::Ready {
+        Ok(())
+    } else {
+        Err("The factory signer did not complete verification".to_string())
+    }
+}
+
+fn factory_verify_existing(near_binary: &str, report_path: &Path) -> Result<(), String> {
+    system::ensure_persistent_keychain()?;
+    keychain::smoke_test()?;
+    let result = verify_existing_account(&factory_target(), near_binary);
+    let verdict = select_verdict(std::slice::from_ref(&result), 1, false);
+    let summary = "Dedicated GNOME Secret Service login collection, encrypted at rest and manually unlocked; NEAR CLI keychain format";
+    let incomplete = (verdict != Verdict::Ready)
+        .then_some("No stored signer matched the exact on-chain factory FullAccess key.");
+    write_factory_status_report(
+        report_path,
+        near_binary,
+        std::slice::from_ref(&result),
+        verdict,
+        summary,
+        incomplete,
+    )?;
+    println!("{}", verdict.text(SignerScope::Factory));
+    println!("Report: {}", report_path.display());
+    if verdict == Verdict::Ready {
+        Ok(())
+    } else {
+        Err("No verified factory signer is stored in the dedicated keychain".to_string())
     }
 }
 
@@ -209,7 +306,11 @@ fn verify_existing_account(target: &AccountTarget, near_binary: &str) -> Account
         Ok(keys) => keys,
         Err(error) => return failed(result, error),
     };
-    let Some(secret) = keychain::find_existing(&target.account_id, &access_keys) else {
+    let Some(secret) = keychain::find_existing(
+        &target.account_id,
+        &access_keys,
+        target.expected_public_key.as_deref(),
+    ) else {
         return failed(
             result,
             "No matching stored FullAccess signer was found".to_string(),
@@ -217,6 +318,12 @@ fn verify_existing_account(target: &AccountTarget, near_binary: &str) -> Account
     };
     let public_key = secret.public_key().to_string();
     result.fingerprint = Some(near::fingerprint(&public_key));
+    if !matches_expected_key(target, &public_key) {
+        return failed(
+            result,
+            "Stored signer does not match the pinned factory public key".to_string(),
+        );
+    }
     if !has_full_access(&access_keys, &public_key) {
         return failed(
             result,
@@ -255,6 +362,12 @@ fn import_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
     };
     let public_key = secret.public_key().to_string();
     result.fingerprint = Some(near::fingerprint(&public_key));
+    if !matches_expected_key(target, &public_key) {
+        return failed(
+            result,
+            "Derived public key does not match the pinned factory authority".into(),
+        );
+    }
     if !has_full_access(&access_keys, &public_key) {
         return failed(
             result,
@@ -288,7 +401,11 @@ fn existing_or_prompt(
     target: &AccountTarget,
     access_keys: &[near::AccessKeyRecord],
 ) -> Result<SecretKey, String> {
-    if let Some(secret) = keychain::find_existing(&target.account_id, access_keys) {
+    if let Some(secret) = keychain::find_existing(
+        &target.account_id,
+        access_keys,
+        target.expected_public_key.as_deref(),
+    ) {
         return Ok(secret);
     }
     let prompt = format!("Enter the existing private key for {}: ", target.account_id);
@@ -309,6 +426,12 @@ fn preflight_account(target: &AccountTarget) -> AccountResult {
             let full = keys
                 .iter()
                 .filter(|key| key.is_full_access)
+                .filter(|key| {
+                    target
+                        .expected_public_key
+                        .as_deref()
+                        .is_none_or(|expected| key.public_key == expected)
+                })
                 .collect::<Vec<_>>();
             if !full.is_empty() {
                 result.fingerprint = Some(
@@ -318,6 +441,10 @@ fn preflight_account(target: &AccountTarget) -> AccountResult {
                         .join(", "),
                 );
                 result.error = Some("Awaiting hidden private-key input".to_string());
+            } else if target.expected_public_key.is_some() {
+                result.error = Some(
+                    "The pinned factory public key is not an on-chain FullAccess key".to_string(),
+                );
             } else {
                 result.error = Some("No FullAccess key exists for this account".to_string());
             }
@@ -333,18 +460,29 @@ fn account_targets() -> Result<Vec<AccountTarget>, String> {
         AccountTarget {
             account_id: OWNER_ACCOUNT.to_string(),
             identity_evidence: "Task-specified owner account and live Clavis root".to_string(),
+            expected_public_key: None,
         },
         AccountTarget {
             account_id: WORKER_ONE_ACCOUNT.to_string(),
             identity_evidence: "Task-specified Worker 1 account".to_string(),
+            expected_public_key: None,
         },
         AccountTarget {
             account_id: worker_two,
             identity_evidence: format!(
                 "{LIVE_ENV} WORKER_TWO_ID identifies the exact existing account; association is accepted only after an on-chain FullAccess match"
             ),
+            expected_public_key: None,
         },
     ])
+}
+
+fn factory_target() -> AccountTarget {
+    AccountTarget {
+        account_id: FACTORY_ACCOUNT.to_string(),
+        identity_evidence: "Final Testnet RPC reports exactly one FullAccess key on factory.clavis.testnet; source and deployed behavior expose no contract method that can delegate code-upgrade authority".to_string(),
+        expected_public_key: Some(FACTORY_PUBLIC_KEY.to_string()),
+    }
 }
 
 fn discover_worker_two() -> Result<String, String> {
@@ -415,9 +553,49 @@ fn write_status_report(
         &ReportContext {
             results,
             verdict,
+            scope: SignerScope::PrimaryAccounts,
             near_version: version.trim(),
             keychain_summary,
-            worker_two_evidence: &worker_two_evidence,
+            identity_evidence: &worker_two_evidence,
+            backend_summary: &backend,
+            incomplete_reason: incomplete,
+            execution_date: execution_date.trim(),
+            keyring_version,
+            near_connection: &near_connection,
+        },
+    )
+}
+
+fn write_factory_status_report(
+    path: &Path,
+    near_binary: &str,
+    results: &[AccountResult],
+    verdict: Verdict,
+    keychain_summary: &str,
+    incomplete: Option<&str>,
+) -> Result<(), String> {
+    let version = system::command_stdout(near_binary, &["--version"])?;
+    let backend = backend_summary()?;
+    let execution_date = system::command_stdout("date", &["+%Y-%m-%d"])?;
+    let keyring_version_output = system::command_stdout("gnome-keyring-daemon", &["--version"])?;
+    let keyring_version = keyring_version_output
+        .lines()
+        .next()
+        .unwrap_or("GNOME Keyring version unavailable");
+    let near_connection = near_connection_summary()?;
+    let fingerprint = near::fingerprint(FACTORY_PUBLIC_KEY);
+    let authority_evidence = format!(
+        "Final Testnet RPC identifies `{FACTORY_ACCOUNT}` as the code-bearing account and reports one FullAccess key with fingerprint `{fingerprint}`. The deployed legacy contract has no owner or self-upgrade entry point; a code-deploy transaction must therefore be signed by that exact account key."
+    );
+    write_report(
+        path,
+        &ReportContext {
+            results,
+            verdict,
+            scope: SignerScope::Factory,
+            near_version: version.trim(),
+            keychain_summary,
+            identity_evidence: &authority_evidence,
             backend_summary: &backend,
             incomplete_reason: incomplete,
             execution_date: execution_date.trim(),
@@ -481,6 +659,13 @@ fn has_full_access(keys: &[near::AccessKeyRecord], public_key: &str) -> bool {
         .any(|key| key.is_full_access && key.public_key == public_key)
 }
 
+fn matches_expected_key(target: &AccountTarget, public_key: &str) -> bool {
+    target
+        .expected_public_key
+        .as_deref()
+        .is_none_or(|expected| expected == public_key)
+}
+
 fn empty_result(target: &AccountTarget) -> AccountResult {
     AccountResult {
         account_id: target.account_id.clone(),
@@ -492,4 +677,19 @@ fn empty_result(target: &AccountTarget) -> AccountResult {
 fn failed(mut result: AccountResult, error: String) -> AccountResult {
     result.error = Some(error);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn factory_target_accepts_only_the_pinned_authority() {
+        let target = factory_target();
+        assert!(matches_expected_key(&target, FACTORY_PUBLIC_KEY));
+        assert!(!matches_expected_key(
+            &target,
+            "ed25519:11111111111111111111111111111111"
+        ));
+    }
 }

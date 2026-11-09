@@ -18,10 +18,15 @@ struct StoredCredential {
     public_key: String,
 }
 
-pub fn find_existing(account_id: &str, access_keys: &[AccessKeyRecord]) -> Option<SecretKey> {
+pub fn find_existing(
+    account_id: &str,
+    access_keys: &[AccessKeyRecord],
+    expected_public_key: Option<&str>,
+) -> Option<SecretKey> {
     access_keys
         .iter()
         .filter(|key| key.is_full_access)
+        .filter(|key| expected_public_key.is_none_or(|expected| key.public_key == expected))
         .find_map(|key| load(account_id, &key.public_key).ok())
 }
 

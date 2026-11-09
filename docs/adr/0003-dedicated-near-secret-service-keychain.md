@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-09
 
-Implementation status: the owner and both worker signers are verified in this keychain. The owner signer was later used for the authorized root migration; the distinct factory signer is still unavailable.
+Implementation status: the owner and both worker signers are verified in this keychain. The owner signer was later used for the authorized root migration. A factory-only importer is pinned to the sole FullAccess key on `factory.clavis.testnet`, but that distinct credential has not been supplied and the factory remains unchanged.
 
 ## Context
 
@@ -18,6 +18,8 @@ Run NEAR CLI signer operations inside a dedicated D-Bus session and dedicated GN
 The Rust importer owns identity validation, zeroized hidden input, on-chain FullAccess checks, exact NEAR CLI credential encoding, keychain round-trip verification, and NEP-413 signature verification. Bash is limited to process isolation, checksum gates, and preservation checks. Rust was selected for typed NEAR key parsing and local signature verification; Bash remains appropriate for the small OS-process boundary.
 
 The importer reads a dedicated keyring password from `/dev/tty` with echo disabled, starts the isolated daemon in its supported startup-unlock mode, verifies that the persistent login collection is the unlocked default, and zeroizes the in-process password buffer. Later uses require the same hidden unlock prompt. The shared VPS keyring, legacy NEAR credential directory, backend agent credential, contracts, and services remain untouched.
+
+The separate factory launcher processes only `factory.clavis.testnet`, compares the derived key with the exact live FullAccess authority, and refuses every mismatch before persistence. Importing that credential remains independent from the reviewed factory deployment phase.
 
 ## Consequences
 

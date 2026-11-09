@@ -30,6 +30,7 @@ node scripts/security/generate-security-report.mjs \
 npm audit --omit=dev --audit-level=moderate
 bash -n \
   scripts/connect-near-signers.sh \
+  scripts/connect-factory-signer.sh \
   scripts/run-with-clavis-near-keyring.sh \
   scripts/deploy-v02-testnet.sh \
   scripts/configure-v02-payroll-testnet.sh \

@@ -52,7 +52,7 @@ Open these pages from the verified deployed origin:
 1. Landing page at the public-proof boundary.
 2. Public dashboard showing the live v0.2.0 root and contract-controlled treasury.
 3. Setup showing the separate legacy factory boundary.
-4. Security evidence showing the 34 contract, 7 signer, 66 agent, 44 API, and 5 browser checks.
+4. Security evidence showing the 34 contract, 9 signer, 66 agent, 44 API, and 6 browser checks.
 5. Public audit showing minimized fields and rejection evidence.
 6. Audit disclosure explaining employer-wide, non-confidential history.
 7. Security evidence and a branded end card that names the factory-only signer blocker.
@@ -69,7 +69,7 @@ Do not manufacture wallet state through `localStorage`. Use the actual public re
 | Enforce | Show Security evidence. | “Callback success commits approval; failure rolls policy and schedule state back.” |
 | Reconcile | Hold the audit/source evidence. | “Signed private-plan changes become active only after final-chain reconciliation.” |
 | Disclose | Show audit privacy and rejection evidence. | “History is employer-wide, minimized rather than confidential, and explorer links never guess.” |
-| Close | Return to Security evidence and the end card. | “156 checks verify this release; root settlement is live, while the exact factory signer still gates new child deployment.” |
+| Close | Return to Security evidence and the end card. | “159 checks verify this release; root settlement is live, while the exact factory signer still gates new child deployment.” |
 
 ## 6. Validate the finished render
 

@@ -18,10 +18,11 @@ Before recording or presenting a live v0.2 settlement story, all of these gates 
 - [x] full repository gate passes;
 - [x] successful settlements for both workers, one rollback, and event-derived transaction hashes are verified;
 - [x] the legacy factory is disclosed and setup remains blocked;
-- [ ] the final archival-RPC and polling-race fixes are published;
-- [ ] a new live-v0.2 video is captured, inspected, and published with explicit owner approval.
+- [ ] the final archival-RPC, polling-race, and public factory-disclosure fixes are published;
+- [x] a new live-v0.2 video is captured, rendered, and inspected;
+- [ ] the new live-v0.2 video is published with explicit owner approval.
 
-Until the last two items are complete, a live presentation may use the verified Testnet transactions and current dashboard, but it must say that the factory is still legacy and that the published video is the older pre-deployment walkthrough.
+Until the two publication items are complete, a live presentation may use the verified Testnet transactions, current dashboard, and local release candidate. It must say that the factory is still legacy and that the public video URL still points to the older pre-deployment walkthrough.
 
 ## Four-minute v0.2 walkthrough
 
@@ -74,9 +75,26 @@ Use this only after the deployment gates above pass.
 | Dimensions and rate | 1920×1080 at 30 fps |
 | Duration and frames | 95.9 seconds; 2,877 decoded frames |
 | Audio | No audio stream; captions carry the complete walkthrough because no approved narration key was configured |
-| Black-frame scan | Zero segments detected |
+| Black-frame scan | Zero segments detected at its release threshold |
 | SHA-256 | `cb3dd6c6353752d8fd68b243bc5e699d3792269fe9ef61b908358e4c9464bab8` |
 | Visual inspection | Opening, all seven scene beats, and end card inspected from a nine-frame contact sheet |
+
+## Live-v0.2 release candidate inspection
+
+This candidate is complete locally but is not published:
+
+`artifacts/publication/clavis-v02-20261109/video/clavis-live-v02-1080p.mp4`
+
+| Property | Verified result |
+| --- | --- |
+| Container and codec | MP4, H.264 High, yuv420p |
+| Dimensions and rate | 1920×1080 at 30 fps |
+| Duration and frames | 93.666667 seconds; 2,810 frames |
+| Audio | No audio stream by design; timed captions carry the complete walkthrough |
+| Black-frame scan | Zero segments at the 0.2-second release threshold; three 0.1-second transition dips at a stricter threshold |
+| SHA-256 | `eeae517ae861458aa18f938e64e6cba86941b01693b99fd7c48ec19a63f91acb` |
+| Visual inspection | Exact first and last frames, opening, root/factory disclosure, restricted key, callback, reconciliation, audit, security evidence, and end card inspected |
+| Claim boundary | Live root v0.2.0, two settled workers, employer-wide audit history, 159 local checks, and the unavailable factory signer are stated explicitly |
 
 ## Capture checklist
 
@@ -90,6 +108,7 @@ Use this only after the deployment gates above pass.
 - [x] Worker employer-history wording
 - [x] Desktop, tablet, and mobile screenshots
 - [x] Source-and-test demo URL and inspected render metadata
-- [ ] New live-v0.2 demo render and publication
+- [x] New live-v0.2 demo captured, rendered, and inspected
+- [ ] New live-v0.2 demo publication
 
-The remaining unchecked work is publication, not missing settlement evidence. It requires the separately approval-gated frontend/video release. The factory upgrade remains independently blocked by its unavailable exact Full Access signer.
+The remaining unchecked demo work is publication, not engineering or settlement evidence. It requires the separately approval-gated frontend/video release. The factory upgrade remains independently blocked by its unavailable exact Full Access signer.

@@ -2,7 +2,7 @@
 
 ## Current status
 
-The live Testnet root and backend agent now run v0.2.0. Contract-controlled native NEAR settlement is verified on-chain for both designated workers. The factory remains legacy because its separate Full Access signer is unavailable, and the final guide/explorer fixes on this branch have not been published.
+The live Testnet root and backend agent now run v0.2.0. Contract-controlled native NEAR settlement is verified on-chain for both designated workers. The factory remains legacy because its separate Full Access signer is unavailable. The final frontend fixes and a newly inspected live-v0.2 video are complete locally but have not been published.
 
 Verified live state on 2026-11-09:
 
@@ -13,7 +13,8 @@ Verified live state on 2026-11-09:
 - payments 13 and 14 each transferred exactly 0.01 NEAR to the two designated worker accounts;
 - failed transfer, unauthorized caller, invalid recipient, duplicate request, insufficient treasury, and restricted-key mutation paths were verified;
 - the production dashboard reads the upgraded root correctly; responsive screenshots at 320, 375, 768, 1024, and 1440 pixels passed inspection;
-- the published caption-led video is historical pre-deployment evidence, not proof of the later live settlement.
+- the published caption-led video is historical pre-deployment evidence, not proof of the later live settlement;
+- a truthful live-v0.2 release candidate has been rendered and inspected locally, but has no public URL yet.
 
 ## Public release links
 
@@ -66,20 +67,21 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 | Check | Result |
 | --- | --- |
 | Payroll contract | 31 passed |
-| Secure signer importer | 7 passed |
+| Secure signer importer | 9 passed |
 | Agent Vitest | 66 passed |
 | API, audit-link, and RPC-boundary tests | 44 passed |
 | TypeScript typecheck | Passed |
 | Factory tests and release WASM builds | 3 passed; payroll and factory WASM built |
 | Production build | Passed |
-| Playwright proof paths | 5 passed, including six delayed-load mobile-menu trials |
-| Complete repository gate | 156 tests/paths passed |
+| Playwright proof paths | 6 passed, including six delayed-load mobile-menu trials and public factory-blocker disclosure |
+| Complete repository gate | 159 tests/paths passed |
 | Responsive visual QA | Inspected at 320, 375, 768, 1024, and 1440 px with no horizontal overflow, duplicate main landmarks, or page/console errors; the mobile menu stayed open |
 | Production dependency audit | 0 moderate/high/critical; 17 low transitive `elliptic` advisories in the NEAR wallet stack |
 | Production frontend | Published at <https://clavisapp.vercel.app>; both same-origin RPC deployments return live final-block data |
 | Production rehearsals | Two uninterrupted runs across `/`, `/setup`, `/dashboard`, `/audit`, `/worker`, and `/security`; no application errors or horizontal overflow |
 | Production screenshots | Live v0.2 dashboard inspected at five responsive widths; one `main`, one `h1`, zero horizontal overflow, and no visible layout defects |
-| Historical demo render | H.264 High, 1920×1080, 30 fps, 95.9 s, 2,877 decoded frames, zero detected black segments; caption-led with no audio stream; recorded before the live root upgrade |
+| Historical demo render | H.264 High, 1920×1080, 30 fps, 95.9 s, 2,877 decoded frames, zero black segments at its release threshold; caption-led with no audio stream; recorded before the live root upgrade |
+| Live-v0.2 demo candidate | H.264 High, 1920×1080, 30 fps, 93.666667 s, 2,810 frames, zero black segments at the 0.2-second release threshold; caption-led with no audio stream; SHA-256 `eeae517ae861458aa18f938e64e6cba86941b01693b99fd7c48ec19a63f91acb`; publication pending |
 | Live exact-link evidence | Payments 11–16 emitted exact `payment_id` events tied to final transaction hashes. Local tests cover same-block mapping, archival lookup, and delayed-enrichment polling races; publication of the last two fixes is pending. |
 | Live contract hashes | Root `QzVUeXbKBPLMM14dDoLWCY8AKdSqJqeGxhGL3raM6bk`; factory `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` |
 | Deployment scripts | Root migration and agent deployment executed and verified with NEAR CLI RS v0.31.1. Factory deployment stopped before signing because the exact factory signer is unavailable. |
@@ -119,6 +121,8 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 - [x] Confirm the upgraded root code hash and `contract_version` response.
 - [x] Execute and link successful native settlements for both workers and one failed-transfer rollback transaction.
 - [x] Verify live event-derived transaction hashes from v0.2 `payment_decision` events.
+- [x] Render and inspect a truthful live-v0.2 release candidate with the legacy factory boundary disclosed.
 - [ ] Publish the final guide, archival-RPC, and polling-race fixes after explicit owner approval.
+- [ ] Publish the live-v0.2 video candidate after explicit owner approval.
 
-The factory item requires the separate Full Access key currently authorized on `factory.clavis.testnet`; none of the securely imported owner/worker signers matches it. The publication item is approval-gated. The available `clavis-agent.testnet` key remains Function Call restricted to `request_payment` on `clavis.testnet` and cannot deploy or upgrade code.
+The factory item requires the sole Full Access key currently authorized on `factory.clavis.testnet`, fingerprint `11ced76408bc820a`; none of the securely imported owner/worker signers matches it. The exact existing credential must be entered only through the hidden prompt opened by `bash scripts/connect-factory-signer.sh` in a trusted SSH terminal. The publication items are approval-gated. The available `clavis-agent.testnet` key remains Function Call restricted to `request_payment` on `clavis.testnet` and cannot deploy or upgrade code.

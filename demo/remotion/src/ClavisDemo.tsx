@@ -60,7 +60,7 @@ const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: s
   },
   close: {
     eyebrow: "Reproducible evidence",
-    title: "156 checks verify live root settlement",
+    title: "159 checks verify live root settlement",
     highlight: "Factory signer · new-child upgrade pending",
   },
 };
