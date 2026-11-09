@@ -172,13 +172,17 @@ run_once() {
     pm2 stop clavis-agent >/dev/null
   fi
   (
-    cd "$DEPLOY_DIR"
-    RUN_ONCE=true \
+    cd "$DEPLOY_DIR/agent"
+    NEAR_NETWORK=testnet \
+      NEAR_RPC_URL="$RPC_URL" \
+      AGENT_CREDENTIALS_PATH="$CREDENTIAL_PATH" \
+      PAYROLL_CONFIG_PATH="$PAYROLL_PATH" \
+      RUN_ONCE=true \
       NOTIFICATION_API_ENABLED=false \
       RESEND_API_KEY= \
       TELEGRAM_BOT_TOKEN= \
       TELEGRAM_CHAT_ID= \
-      node --import tsx agent/src/index.ts
+      node --import tsx src/index.ts
   ) 2>&1 | tee "$EVIDENCE_DIRECTORY/agent-run-once.log"
   chmod 0600 "$EVIDENCE_DIRECTORY/agent-run-once.log"
   rg -q '"event":"payment.approved"|payment.approved' "$EVIDENCE_DIRECTORY/agent-run-once.log" || {

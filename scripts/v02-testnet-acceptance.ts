@@ -6,6 +6,7 @@ import { keyStores, KeyPair, Near } from "near-api-js";
 import { AgentCredentialProvider } from "../agent/src/agent-credentials.js";
 import { NearClient, NearRpcClient } from "../agent/src/near.js";
 import {
+  classifyPayrollResume,
   parseRecoveredFailedTransferEvidence,
   recoveredUnauthorizedTransactionIdentity,
   verifyRecoveredFailedTransfer,
@@ -57,7 +58,8 @@ if (
   new Date().getUTCHours() < 6 &&
   phase !== "snapshot" &&
   phase !== "recovered-failed-transfer" &&
-  phase !== "recovered-unauthorized"
+  phase !== "recovered-unauthorized" &&
+  phase !== "payroll-resume"
 ) {
   throw new Error("Payment acceptance scenarios run only during the contract's 06:00–24:00 UTC window");
 }
@@ -206,26 +208,28 @@ switch (phase) {
     evidence.snapshot = await payrollSnapshot();
     break;
   }
+  case "payroll-resume": {
+    const before = await loadPayrollBeforeSnapshot();
+    const current = await payrollSnapshot();
+    const amount = 10_000_000_000_000_000_000_000n;
+    const status = classifyPayrollResume(current, before, amount);
+    if (status === "mismatch") {
+      throw new Error(
+        "Current payroll state matches neither the saved unpaid baseline nor one exact settlement",
+      );
+    }
+    evidence.status = status;
+    evidence.before = before;
+    evidence.current = current;
+    break;
+  }
   case "payroll-after": {
-    const beforePath = path.join(evidenceDirectory, "acceptance-payroll-before.json");
-    const beforeEvidence = JSON.parse(await readFile(beforePath, "utf8")) as {
-      snapshot?: Awaited<ReturnType<typeof payrollSnapshot>>;
-    };
-    if (!beforeEvidence.snapshot) throw new Error("Payroll before-snapshot evidence is missing");
-    const before = beforeEvidence.snapshot;
+    const before = await loadPayrollBeforeSnapshot();
     const amount = 10_000_000_000_000_000_000_000n;
     const after = await waitForFinalState({
       describe: "Successful payroll settlement state",
       load: payrollSnapshot,
-      isExpected: (state) =>
-        BigInt(state.workerOneBalance) === BigInt(before.workerOneBalance) + amount &&
-        BigInt(state.workerTwoBalance) === BigInt(before.workerTwoBalance) + amount &&
-        state.logCount === before.logCount + 2 &&
-        BigInt(state.dailySpent) === BigInt(before.dailySpent) + amount * 2n &&
-        state.workerOneLastPaid > before.workerOneLastPaid &&
-        state.workerTwoLastPaid > before.workerTwoLastPaid &&
-        state.approvals.length === 2 &&
-        state.approvals.every((entry) => entry.outcome === "Approved"),
+      isExpected: (state) => classifyPayrollResume(state, before, amount) === "settled",
     });
     assertBigIntIncrease(after.workerOneBalance, before.workerOneBalance, amount, "Worker 1 payment");
     assertBigIntIncrease(after.workerTwoBalance, before.workerTwoBalance, amount, "Worker 2 payment");
@@ -385,7 +389,7 @@ switch (phase) {
   }
   default:
     throw new Error(
-      "Usage: v02-testnet-acceptance.ts <snapshot|payroll-before|payroll-after|failed-transfer|recovered-failed-transfer|recovered-unauthorized|invalid-recipient|duplicate-worker1|insufficient-worker2|agent-permission>",
+      "Usage: v02-testnet-acceptance.ts <snapshot|payroll-before|payroll-resume|payroll-after|failed-transfer|recovered-failed-transfer|recovered-unauthorized|invalid-recipient|duplicate-worker1|insufficient-worker2|agent-permission>",
     );
 }
 
@@ -436,6 +440,15 @@ async function payrollSnapshot() {
       .slice(0, 2)
       .map((entry) => ({ payment_id: entry.payment_id, outcome: entry.outcome })),
   };
+}
+
+async function loadPayrollBeforeSnapshot(): Promise<Awaited<ReturnType<typeof payrollSnapshot>>> {
+  const beforePath = path.join(evidenceDirectory, "acceptance-payroll-before.json");
+  const beforeEvidence = JSON.parse(await readFile(beforePath, "utf8")) as {
+    snapshot?: Awaited<ReturnType<typeof payrollSnapshot>>;
+  };
+  if (!beforeEvidence.snapshot) throw new Error("Payroll before-snapshot evidence is missing");
+  return beforeEvidence.snapshot;
 }
 
 async function scenarioState(recipientHash: string, targetAccountId: string) {
