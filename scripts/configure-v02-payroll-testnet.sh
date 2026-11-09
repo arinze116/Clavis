@@ -6,7 +6,7 @@ umask 077
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.fastnear.com}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
 readonly CONTRACT_ID="clavis.testnet"
 readonly OWNER_ID="clavis.testnet"
 readonly OWNER_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
@@ -19,6 +19,7 @@ readonly INSUFFICIENT_CAP="20000000000000000000000000"
 readonly PROBE_AMOUNT="1000000000000000000000"
 readonly EVIDENCE_DIRECTORY="${CLAVIS_BASELINE_DIRECTORY:-/home/ubuntu/.local/state/clavis-v02-20261109}/execution"
 readonly PHASE="${1:-workers}"
+readonly FINAL_STATE_ATTEMPTS=30
 
 case "$PHASE" in
   workers | add-failure-probe | remove-failure-probe | prepare-insufficient | restore-worker2 | unauthorized-probe) ;;
@@ -175,6 +176,35 @@ if (!Array.isArray(value.payment_split) || value.payment_split.length !== 0) {
 NODE
 }
 
+wait_for_recipient() {
+  local recipient_hash="$1"
+  local expected_name="$2"
+  local expected_cap="$3"
+  local expected_schedule="$4"
+  local attempt
+  for ((attempt = 1; attempt <= FINAL_STATE_ATTEMPTS; attempt += 1)); do
+    if verify_recipient "$recipient_hash" "$expected_name" "$expected_cap" "$expected_schedule" \
+      >/dev/null 2>&1; then
+      return
+    fi
+    if [[ "$attempt" -lt "$FINAL_STATE_ATTEMPTS" ]]; then sleep 1; fi
+  done
+  verify_recipient "$recipient_hash" "$expected_name" "$expected_cap" "$expected_schedule"
+}
+
+wait_for_recipient_absent() {
+  local recipient_hash="$1"
+  local attempt current
+  for ((attempt = 1; attempt <= FINAL_STATE_ATTEMPTS; attempt += 1)); do
+    if current="$(recipient_json "$recipient_hash" 2>/dev/null)" && [[ "$current" == "null" ]]; then
+      return
+    fi
+    if [[ "$attempt" -lt "$FINAL_STATE_ATTEMPTS" ]]; then sleep 1; fi
+  done
+  echo "Recipient remains visible after $FINAL_STATE_ATTEMPTS final-state attempts." >&2
+  return 1
+}
+
 add_recipient_if_missing() {
   local account_id="$1"
   local recipient_hash="$2"
@@ -187,7 +217,7 @@ add_recipient_if_missing() {
     args="$(node -e 'process.stdout.write(JSON.stringify({recipient_hash:process.argv[1],config:{name:process.argv[2],personal_cap:process.argv[3],active:true,preferred_chain:"near",preferred_token:"NEAR",payment_split:[],schedule:process.argv[4]}}))' "$recipient_hash" "$name" "$cap" "$schedule")"
     call_owner add_recipient "$args" "add-${account_id//./-}"
   fi
-  verify_recipient "$recipient_hash" "$name" "$cap" "$schedule"
+  wait_for_recipient "$recipient_hash" "$name" "$cap" "$schedule"
 }
 
 update_cap() {
@@ -229,20 +259,17 @@ case "$PHASE" in
         "$(node -e 'process.stdout.write(JSON.stringify({recipient_hash:process.argv[1]}))' "$FAILURE_HASH")" \
         remove-failed-transfer-probe
     fi
-    [[ "$(recipient_json "$FAILURE_HASH")" == "null" ]] || {
-      echo "Failed-transfer probe recipient still exists after removal." >&2
-      exit 1
-    }
+    wait_for_recipient_absent "$FAILURE_HASH"
     ;;
   prepare-insufficient)
     update_cap "$WORKER_TWO_HASH" "$INSUFFICIENT_CAP" worker2-insufficient
     update_schedule "$WORKER_TWO_HASH" Milestone worker2-insufficient
-    verify_recipient "$WORKER_TWO_HASH" "Arinze Worker 2" "$INSUFFICIENT_CAP" Milestone
+    wait_for_recipient "$WORKER_TWO_HASH" "Arinze Worker 2" "$INSUFFICIENT_CAP" Milestone
     ;;
   restore-worker2)
     update_cap "$WORKER_TWO_HASH" "$STANDARD_CAP" worker2-restore
     update_schedule "$WORKER_TWO_HASH" Weekly worker2-restore
-    verify_recipient "$WORKER_TWO_HASH" "Arinze Worker 2" "$STANDARD_CAP" Weekly
+    wait_for_recipient "$WORKER_TWO_HASH" "Arinze Worker 2" "$STANDARD_CAP" Weekly
     ;;
   unauthorized-probe)
     verify_keychain_public_key "$WORKER_ONE_ID" "$WORKER_ONE_PUBLIC_KEY"

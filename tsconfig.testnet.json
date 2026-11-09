@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/v02-testnet-acceptance.ts"]
+  "include": ["scripts/v02-testnet-acceptance.ts", "scripts/lib/v02-acceptance.ts"]
 }

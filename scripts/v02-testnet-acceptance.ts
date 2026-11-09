@@ -5,13 +5,21 @@ import { keyStores, KeyPair, Near } from "near-api-js";
 
 import { AgentCredentialProvider } from "../agent/src/agent-credentials.js";
 import { NearClient, NearRpcClient } from "../agent/src/near.js";
+import {
+  parseRecoveredFailedTransferEvidence,
+  recoveredUnauthorizedTransactionIdentity,
+  verifyRecoveredFailedTransfer,
+  verifyRecoveredUnauthorizedTransaction,
+  waitForFinalState,
+  type FinalTransactionOutcome,
+} from "./lib/v02-acceptance.js";
 
 const allowedRpcUrls = new Set([
   "https://rpc.testnet.near.org",
   "https://rpc.testnet.fastnear.com",
   "https://archival-rpc.testnet.fastnear.com",
 ]);
-const rpcUrl = (process.env.NEAR_RPC_URL ?? "https://rpc.testnet.fastnear.com").replace(/\/$/u, "");
+const rpcUrl = (process.env.NEAR_RPC_URL ?? "https://rpc.testnet.near.org").replace(/\/$/u, "");
 const contractId = "clavis.testnet";
 const agentAccountId = "clavis-agent.testnet";
 const workerOneId = "arinze-worker1.testnet";
@@ -39,7 +47,12 @@ if (!allowedRpcUrls.has(rpcUrl)) {
 for (const accountId of [contractId, agentAccountId, workerOneId, workerTwoId, failureAccountId]) {
   if (!accountId.endsWith(".testnet")) throw new Error(`Refusing non-Testnet account: ${accountId}`);
 }
-if (new Date().getUTCHours() < 6 && phase !== "snapshot") {
+if (
+  new Date().getUTCHours() < 6 &&
+  phase !== "snapshot" &&
+  phase !== "recovered-failed-transfer" &&
+  phase !== "recovered-unauthorized"
+) {
   throw new Error("Payment acceptance scenarios run only during the contract's 06:00–24:00 UTC window");
 }
 
@@ -88,8 +101,17 @@ switch (phase) {
       chain: "near",
       token: "NEAR",
     });
-    const after = await scenarioState(failureHash, failureAccountId);
     assertRejected(result, "Native NEAR transfer failed");
+    const after = await waitForFinalState({
+      describe: "Failed-transfer rollback state",
+      load: () => scenarioState(failureHash, failureAccountId),
+      isExpected: (state) =>
+        state.logCount === before.logCount + 1 &&
+        state.dailySpent === before.dailySpent &&
+        state.lastPaid === before.lastPaid &&
+        state.pendingRecoveryAt === null &&
+        state.targetBalance === null,
+    });
     assertEqual(after.logCount, before.logCount + 1, "failed transfer audit count");
     assertEqual(after.dailySpent, before.dailySpent, "failed transfer daily spend rollback");
     assertEqual(after.lastPaid, before.lastPaid, "failed transfer schedule rollback");
@@ -97,6 +119,78 @@ switch (phase) {
     evidence.result = result;
     evidence.before = before;
     evidence.after = after;
+    break;
+  }
+  case "recovered-failed-transfer": {
+    const recoveredPath = path.join(evidenceDirectory, "recovered-failed-transfer.json");
+    const recovered = parseRecoveredFailedTransferEvidence(
+      JSON.parse(await readFile(recoveredPath, "utf8")) as unknown,
+    );
+    if (!allowedRpcUrls.has(recovered.rpc_url.replace(/\/$/u, ""))) {
+      throw new Error(`Recovered evidence used an unrecognised RPC endpoint: ${recovered.rpc_url}`);
+    }
+    const transaction = await rpc.jsonRpc<FinalTransactionOutcome>("tx", {
+      tx_hash: recovered.transaction_hash,
+      sender_account_id: recovered.sender,
+      wait_until: "FINAL",
+    });
+    const verified = verifyRecoveredFailedTransfer(recovered, transaction, {
+      agentAccountId,
+      amountYocto: "1000000000000000000000",
+      contractId,
+      failureAccountId,
+      failureHash,
+      reason: "Native NEAR transfer failed",
+    });
+    const current = await waitForFinalState({
+      describe: "Recovered failed-transfer rollback state",
+      load: () => scenarioState(failureHash, failureAccountId),
+      isExpected: (state) =>
+        state.logCount === recovered.current.log_count &&
+        state.dailySpent === recovered.current.daily_spent &&
+        state.lastPaid === null &&
+        state.pendingRecoveryAt === null &&
+        state.targetBalance === null,
+    });
+    const audit = await near.getAuditLog(100);
+    const auditDecision = audit.find((entry) => entry.payment_id === verified.decision.payment_id);
+    if (
+      !auditDecision ||
+      auditDecision.block_height !== verified.decision.block_height ||
+      typeof auditDecision.outcome !== "object" ||
+      auditDecision.outcome.Rejected !== "Native NEAR transfer failed"
+    ) {
+      throw new Error("Recovered failed-transfer decision is not present in the live audit log");
+    }
+    evidence.source = "recovered_final_transaction";
+    evidence.recovered_evidence_path = recoveredPath;
+    evidence.transaction_hash = verified.transactionHash;
+    evidence.result = verified.result;
+    evidence.decision = verified.decision;
+    evidence.current = current;
+    break;
+  }
+  case "recovered-unauthorized": {
+    const recoveredPath = path.join(evidenceDirectory, "recovered-initial-transactions.json");
+    const recovered = JSON.parse(await readFile(recoveredPath, "utf8")) as unknown;
+    const identity = recoveredUnauthorizedTransactionIdentity(recovered);
+    const transaction = await rpc.jsonRpc<FinalTransactionOutcome>("tx", {
+      tx_hash: identity.transactionHash,
+      sender_account_id: identity.sender,
+      wait_until: "FINAL",
+    });
+    const verified = verifyRecoveredUnauthorizedTransaction(recovered, transaction, {
+      amountYocto: "1000000000000000000000",
+      contractId,
+      reason: "Unauthorized caller",
+      recipientHash: workerOneHash,
+      workerAccountId: workerOneId,
+    });
+    evidence.source = "recovered_final_transaction";
+    evidence.recovered_evidence_path = recoveredPath;
+    evidence.transaction_hash = verified.transactionHash;
+    evidence.result = verified.result;
+    evidence.current = await snapshot();
     break;
   }
   case "payroll-before": {
@@ -110,8 +204,20 @@ switch (phase) {
     };
     if (!beforeEvidence.snapshot) throw new Error("Payroll before-snapshot evidence is missing");
     const before = beforeEvidence.snapshot;
-    const after = await payrollSnapshot();
     const amount = 10_000_000_000_000_000_000_000n;
+    const after = await waitForFinalState({
+      describe: "Successful payroll settlement state",
+      load: payrollSnapshot,
+      isExpected: (state) =>
+        BigInt(state.workerOneBalance) === BigInt(before.workerOneBalance) + amount &&
+        BigInt(state.workerTwoBalance) === BigInt(before.workerTwoBalance) + amount &&
+        state.logCount === before.logCount + 2 &&
+        BigInt(state.dailySpent) === BigInt(before.dailySpent) + amount * 2n &&
+        state.workerOneLastPaid > before.workerOneLastPaid &&
+        state.workerTwoLastPaid > before.workerTwoLastPaid &&
+        state.approvals.length === 2 &&
+        state.approvals.every((entry) => entry.outcome === "Approved"),
+    });
     assertBigIntIncrease(after.workerOneBalance, before.workerOneBalance, amount, "Worker 1 payment");
     assertBigIntIncrease(after.workerTwoBalance, before.workerTwoBalance, amount, "Worker 2 payment");
     assertEqual(after.logCount, before.logCount + 2, "successful payroll audit count");
@@ -142,8 +248,15 @@ switch (phase) {
       chain: "near",
       token: "NEAR",
     });
-    const after = await scenarioState(unknownHash, workerOneId);
     assertRejected(result, "Recipient not approved");
+    const after = await waitForFinalState({
+      describe: "Invalid-recipient rejection state",
+      load: () => scenarioState(unknownHash, workerOneId),
+      isExpected: (state) =>
+        state.logCount === before.logCount + 1 &&
+        state.dailySpent === before.dailySpent &&
+        state.targetBalance === before.targetBalance,
+    });
     assertEqual(after.logCount, before.logCount + 1, "invalid recipient audit count");
     assertEqual(after.dailySpent, before.dailySpent, "invalid recipient daily spend");
     assertEqual(after.targetBalance, before.targetBalance, "invalid recipient balance");
@@ -164,8 +277,16 @@ switch (phase) {
       chain: "near",
       token: "NEAR",
     });
-    const after = await scenarioState(workerOneHash, workerOneId);
     assertRejected(result, "Payment not due yet");
+    const after = await waitForFinalState({
+      describe: "Duplicate-payment rejection state",
+      load: () => scenarioState(workerOneHash, workerOneId),
+      isExpected: (state) =>
+        state.logCount === before.logCount + 1 &&
+        state.dailySpent === before.dailySpent &&
+        state.lastPaid === before.lastPaid &&
+        state.targetBalance === before.targetBalance,
+    });
     assertEqual(after.logCount, before.logCount + 1, "duplicate audit count");
     assertEqual(after.dailySpent, before.dailySpent, "duplicate daily spend");
     assertEqual(after.lastPaid, before.lastPaid, "duplicate schedule state");
@@ -184,8 +305,16 @@ switch (phase) {
       chain: "near",
       token: "NEAR",
     });
-    const after = await scenarioState(workerTwoHash, workerTwoId);
     assertRejected(result, "Insufficient contract treasury balance");
+    const after = await waitForFinalState({
+      describe: "Insufficient-funds rejection state",
+      load: () => scenarioState(workerTwoHash, workerTwoId),
+      isExpected: (state) =>
+        state.logCount === before.logCount + 1 &&
+        state.dailySpent === before.dailySpent &&
+        state.lastPaid === before.lastPaid &&
+        state.targetBalance === before.targetBalance,
+    });
     assertEqual(after.logCount, before.logCount + 1, "insufficient-funds audit count");
     assertEqual(after.dailySpent, before.dailySpent, "insufficient-funds daily spend");
     assertEqual(after.lastPaid, before.lastPaid, "insufficient-funds schedule state");
@@ -247,7 +376,7 @@ switch (phase) {
   }
   default:
     throw new Error(
-      "Usage: v02-testnet-acceptance.ts <snapshot|payroll-before|payroll-after|failed-transfer|invalid-recipient|duplicate-worker1|insufficient-worker2|agent-permission>",
+      "Usage: v02-testnet-acceptance.ts <snapshot|payroll-before|payroll-after|failed-transfer|recovered-failed-transfer|recovered-unauthorized|invalid-recipient|duplicate-worker1|insufficient-worker2|agent-permission>",
     );
 }
 
@@ -301,18 +430,23 @@ async function payrollSnapshot() {
 }
 
 async function scenarioState(recipientHash: string, targetAccountId: string) {
-  const [logCount, dailySpent, recipient, contractAccount, targetAccount] = await Promise.all([
-    near.view<number>("get_log_count"),
-    near.view<string>("get_daily_spent"),
-    near.view<{ last_paid: number } | null>("get_recipient", { recipient_hash: recipientHash }),
-    viewAccount(contractId),
-    viewAccount(targetAccountId, true),
-  ]);
+  const [logCount, dailySpent, recipient, pendingRecoveryAt, contractAccount, targetAccount] =
+    await Promise.all([
+      near.view<number>("get_log_count"),
+      near.view<string>("get_daily_spent"),
+      near.view<{ last_paid: number } | null>("get_recipient", {
+        recipient_hash: recipientHash,
+      }),
+      near.view<string | null>("get_pending_native_payment_recovery_at"),
+      viewAccount(contractId),
+      viewAccount(targetAccountId, true),
+    ]);
   if (!contractAccount) throw new Error(`Contract account ${contractId} is missing`);
   return {
     logCount,
     dailySpent,
     lastPaid: recipient?.last_paid ?? null,
+    pendingRecoveryAt,
     contractBalance: contractAccount.amount,
     targetBalance: targetAccount?.amount ?? null,
   };
