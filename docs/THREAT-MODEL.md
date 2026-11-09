@@ -27,7 +27,7 @@ The current public root and factory are legacy v0.1 deployments until explicitly
 - Native funds leave the payroll contract, not a separate settlement wallet.
 - Approval is appended only after successful transfer callback.
 - Transfer failure rolls back reserved daily spend and schedule state.
-- No public method accepts an operator-supplied transfer result; callback uncertainty fails closed instead of risking a duplicate retry.
+- Callback uncertainty remains locked for a ten-minute finality window. Stale recovery is owner-only, requires a syntactically valid NEAR transaction hash, and emits public evidence of the delivered/failed attestation.
 - Mutation of the in-flight recipient and emergency withdrawal are blocked during pending settlement.
 - Cross-chain and split execution fail closed before policy state advances.
 - Private-plan upserts and removals remain staged until final public state matches.
@@ -60,7 +60,7 @@ The generator resolves every mapped test marker, records current source hashes a
 - Unsalted hashes of predictable account IDs are weak anonymity.
 - Agent-host compromise can expose private plans and notification contacts, although the restricted agent credential cannot bypass v0.2 contract-controlled native settlement.
 - A Full Access payroll-account key can bypass contract logic, redeploy code, or transfer account funds. The legacy root deployment key must be isolated from the scheduler; factory-created v0.2 children are created without access keys.
-- An exceptional callback that cannot finalize locks settlement and administration until an owner-reviewed contract upgrade; this favors payment safety over availability.
+- A stale-callback recovery depends on the owner correctly reading the referenced final receipt. A false failed-delivery attestation can enable a duplicate retry; the delay and public recovery event provide guardrails and accountability, not cryptographic receipt verification.
 - Malicious wallets, RPC providers, indexers, and browser extensions require operational controls beyond repository tests.
 - Audit events omit recipient identity, so worker-specific history cannot be reconstructed from them.
 

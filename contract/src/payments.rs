@@ -1,3 +1,4 @@
+use near_sdk::json_types::U64;
 use near_sdk::{
     env, near_bindgen, AccountId, Gas, NearToken, Promise, PromiseOrValue, PromiseResult,
 };
@@ -7,6 +8,7 @@ use crate::{Clavis, ClavisExt, HOUR_NS, MINUTE_NS};
 
 const NATIVE_SETTLEMENT_CALLBACK_GAS: Gas = Gas::from_tgas(30);
 const NATIVE_SETTLEMENT_CALLBACK_STORAGE_BUFFER_BYTES: u64 = 8 * 1024;
+pub(crate) const PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS: u64 = 10 * MINUTE_NS;
 
 impl Clavis {
     fn rejected_payment(payment_id: u64, reason: String) -> PaymentResult {
@@ -55,6 +57,21 @@ impl Clavis {
         let reason = failure_reason.to_string();
         let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
         Self::rejected_payment(payment_id, reason)
+    }
+
+    fn valid_transaction_hash(value: &str) -> bool {
+        (32..=64).contains(&value.len())
+            && value.bytes().all(|byte| {
+                matches!(
+                    byte,
+                    b'1'..=b'9'
+                        | b'A'..=b'H'
+                        | b'J'..=b'N'
+                        | b'P'..=b'Z'
+                        | b'a'..=b'k'
+                        | b'm'..=b'z'
+                )
+            })
     }
 
     pub(crate) fn is_off_hours_at(timestamp: u64) -> bool {
@@ -291,5 +308,56 @@ impl Clavis {
             matches!(env::promise_result(0), PromiseResult::Successful(_)),
             "Native NEAR transfer failed",
         )
+    }
+
+    /// Resolves the rare case where the transfer callback itself never
+    /// completes. The owner must wait for finality, inspect the referenced
+    /// Testnet transaction, and attest whether the transfer was delivered.
+    pub fn resolve_stale_native_payment(
+        &mut self,
+        delivered: bool,
+        evidence_transaction_hash: String,
+    ) -> PaymentResult {
+        self.assert_owner();
+        assert!(
+            Self::valid_transaction_hash(&evidence_transaction_hash),
+            "A valid NEAR transaction hash is required"
+        );
+        let pending = self
+            .pending_native_payment
+            .as_ref()
+            .expect("No native payment is pending");
+        assert!(
+            env::block_timestamp().saturating_sub(pending.reserved_at)
+                >= PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS,
+            "Pending payment is not yet recoverable"
+        );
+
+        let result = self.finalize_native_payment(
+            delivered,
+            "Native NEAR transfer failed; owner resolved a stale callback",
+        );
+        env::log_str(&format!(
+            "EVENT_JSON:{}",
+            near_sdk::serde_json::json!({
+                "standard": "clavis",
+                "version": "1.0.0",
+                "event": "payment_recovery",
+                "data": [{
+                    "payment_id": result.payment_id,
+                    "delivered": delivered,
+                    "evidence_transaction_hash": evidence_transaction_hash,
+                }],
+            })
+        ));
+        result
+    }
+
+    pub fn get_pending_native_payment_recovery_at(&self) -> Option<U64> {
+        self.pending_native_payment.as_ref().map(|pending| {
+            U64(pending
+                .reserved_at
+                .saturating_add(PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS))
+        })
     }
 }

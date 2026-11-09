@@ -63,7 +63,7 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 
 | Check | Result |
 | --- | --- |
-| Payroll contract | 28 passed |
+| Payroll contract | 31 passed |
 | Agent Vitest | 66 passed |
 | API, audit-link, and RPC-boundary tests | 30 passed |
 | TypeScript typecheck | Passed |

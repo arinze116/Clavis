@@ -450,6 +450,7 @@ const ownerMethods: Array<[string, string, string]> = [
   ["update_limits", "daily: Option<U128>, per_payment: Option<U128>", "Updates positive global limits without going below daily spend"],
   ["pause / unpause", "—", "Blocks or resumes all payment authorization"],
   ["emergency_withdraw", "—", "Pauses and returns balance above measured storage plus the operational reserve"],
+  ["resolve_stale_native_payment", "delivered: bool, evidence_transaction_hash: String", "After a ten-minute finality window, resolves a callback that never completed and emits public recovery evidence"],
   ["dismiss_anomaly", "anomaly_id: u64", "Marks an owner-reviewed anomaly"],
   ["run_security_audit", "—", "Runs the five fixed no-funds rejection probes and returns structured results"],
 ];
@@ -465,6 +466,7 @@ const viewMethods: Array<[string, string, string]> = [
   ["get_treasury_balance", "—", "U128"],
   ["get_last_reset_timestamp", "—", "u64 nanosecond timestamp"],
   ["is_paused", "—", "bool"],
+  ["get_pending_native_payment_recovery_at", "—", "Optional nanosecond timestamp for owner recovery"],
   ["get_audit_log / get_audit_log_reverse", "from: u64, limit: u64", "Vec<AuditEntry>"],
   ["get_log_count", "—", "u64"],
   ["get_anomalies", "from: u64, limit: u64, active_only: bool", "Vec<AnomalyEntry>"],

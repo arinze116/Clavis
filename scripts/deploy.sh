@@ -14,6 +14,19 @@ fi
 : "${CONTRACT_ID:?Set CONTRACT_ID in .env}"
 RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
 
+[[ "${CLAVIS_NEAR_KEYRING_ACTIVE:-}" == "1" ]] || {
+  echo "Run this script through scripts/run-with-clavis-near-keyring.sh." >&2
+  exit 2
+}
+[[ "$OWNER_ID" == *.testnet && "$NEAR_ACCOUNT_ID" == *.testnet && "$CONTRACT_ID" == *.testnet ]] || {
+  echo "All deployment identities must be .testnet accounts." >&2
+  exit 2
+}
+case "${RPC_URL%/}" in
+  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
+esac
+
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
 command -v near >/dev/null || { echo "near CLI is required" >&2; exit 1; }
 
@@ -55,7 +68,7 @@ near contract deploy "$CONTRACT_ID" \
   prepaid-gas "100 TeraGas" \
   attached-deposit "0 NEAR" \
   network-config testnet \
-  sign-with-legacy-keychain \
+  sign-with-keychain \
   send
 
 echo "Contract deployed and initialized: $CONTRACT_ID"

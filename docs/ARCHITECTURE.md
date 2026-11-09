@@ -42,7 +42,7 @@ sequenceDiagram
 
 Approval is not recorded before delivery. A process crash after the agent submits the transaction cannot strand an approved payment in an off-chain retry queue because the transfer and callback remain inside the finalized NEAR transaction graph.
 
-Only one native payment may be pending per contract. Mutation of its recipient and emergency withdrawal are blocked while settlement is pending. There is deliberately no method that accepts an operator's guess about whether a transfer succeeded: callback uncertainty fails closed, because clearing and retrying an actually delivered transfer could pay twice. An exceptional unresolved callback therefore requires an owner-reviewed contract upgrade based on transaction evidence.
+Only one native payment may be pending per contract. Mutation of its recipient and emergency withdrawal are blocked while settlement is pending. If the callback itself never completes, the pending payment remains locked for ten minutes. After that finality window, the owner may call `resolve_stale_native_payment` with the reviewed NEAR transaction hash and an explicit delivered/failed attestation. The contract emits a public `payment_recovery` event. Operators must inspect the final receipt first: falsely marking an actual delivery as failed could permit a duplicate retry.
 
 ## Cross-chain boundary
 

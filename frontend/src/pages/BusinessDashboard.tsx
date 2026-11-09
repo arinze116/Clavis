@@ -17,6 +17,7 @@ import { AppShell } from "../components/AppShell";
 import { EmergencyControls } from "../components/EmergencyControls";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { PaymentHistory } from "../components/PaymentHistory";
+import { PendingSettlementRecovery } from "../components/PendingSettlementRecovery";
 import { RecipientTable } from "../components/RecipientTable";
 import { RulesPanel } from "../components/RulesPanel";
 import { ErrorState, LoadingState } from "../components/ScreenState";
@@ -493,6 +494,33 @@ function BusinessDashboardContent() {
               />
             </ErrorBoundary>
             <ErrorBoundary compact>
+              {data.pendingNativePaymentRecoveryAt && (
+                <PendingSettlementRecovery
+                  recoveryAtNanoseconds={data.pendingNativePaymentRecoveryAt}
+                  observedAtNanoseconds={data.evidence.blockTimestampNanoseconds}
+                  busy={busy}
+                  onResolve={async (delivered, evidenceTransactionHash) => {
+                    await runTransaction(
+                      () =>
+                        change(
+                          wallet,
+                          accountId,
+                          data.contractId,
+                          "resolve_stale_native_payment",
+                          {
+                            delivered,
+                            evidence_transaction_hash: evidenceTransactionHash,
+                          },
+                        ),
+                      delivered
+                        ? "Stale delivered payment finalized"
+                        : "Stale failed payment rolled back",
+                    );
+                  }}
+                />
+              )}
+            </ErrorBoundary>
+            <ErrorBoundary compact>
               <EmergencyControls
                 contractId={data.contractId}
                 paused={data.paused}
@@ -566,6 +594,12 @@ function PublicDashboard({
         <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-950" role="status">
           This live contract is legacy {snapshot.contractVersion ?? "pre-v0.2"}: it proves
           authorization policy, not contract-controlled settlement.
+        </div>
+      )}
+      {snapshot.pendingNativePaymentRecoveryAt && (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-950" role="alert">
+          A native payment callback is pending. Owner recovery remains locked until the displayed
+          finality deadline.
         </div>
       )}
       {refreshError && (

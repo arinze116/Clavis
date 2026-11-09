@@ -2,23 +2,23 @@
   "schema_version": 1,
   "project": "Clavis",
   "summary": {
-    "mapped_threats": 28,
+    "mapped_threats": 29,
     "categories": 7,
     "repository_tests": {
-      "rust": 31,
+      "rust": 34,
       "agent": 66,
       "api": 30,
       "browser": 5,
-      "total": 132,
+      "total": 135,
       "count_basis": "Rust, API, and browser source definitions plus successful Vitest JSON report"
     }
   },
   "verification": {
     "status": "passed",
-    "commit": "7a813be036b5ad01710c00a943495799d032d4dc",
-    "tree_state": "clean",
-    "generated_at": "2026-11-09T14:38:21.929Z",
-    "run_url": "https://github.com/arinze116/Clavis/actions/runs/42635442009",
+    "commit": "2274abd6d1a3a6de03449bb038d4af17f715b361",
+    "tree_state": "modified",
+    "generated_at": "2026-11-09T17:15:12.430Z",
+    "run_url": "",
     "workflow_url": "https://github.com/arinze116/Clavis/actions/workflows/security-evidence.yml"
   },
   "cases": [
@@ -29,9 +29,9 @@
       "protection": "Only the configured agent account may call request_payment.",
       "source": "contract/src/tests.rs",
       "test": "rule_2_rejects_unauthorized_caller",
-      "line": 315,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L315"
+      "line": 395,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "AUTH-002",
@@ -40,9 +40,9 @@
       "protection": "The security probe is owner-only and fails before changing audit state.",
       "source": "contract/src/tests.rs",
       "test": "non_owner_cannot_run_security_audit_or_append_entries",
-      "line": 635,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L635"
+      "line": 715,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "AUTH-003",
@@ -53,7 +53,7 @@
       "test": "accepts only the owner returned by the payroll contract",
       "line": 74,
       "source_sha256": "3700d14a535e303119fd5c987e23c50adc06b6bd9226385bcd904957b3aa3bf7",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/notification-api.test.ts#L74"
+      "source_url": ""
     },
     {
       "id": "KEY-001",
@@ -64,7 +64,7 @@
       "test": "rejects Full Access keys without an override",
       "line": 44,
       "source_sha256": "e548760fbc4a9865dce5c721a92ff6dccceaa003454a6e98175b8374bec6346c",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/near.test.ts#L44"
+      "source_url": ""
     },
     {
       "id": "KEY-002",
@@ -75,7 +75,7 @@
       "test": "fails closed when a credential file omits a discovered contract",
       "line": 33,
       "source_sha256": "270e2f0342b2049a33488a860aee95882c5b18754e0ca381ef6615a457779d11",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/agent-credentials.test.ts#L33"
+      "source_url": ""
     },
     {
       "id": "VERSION-001",
@@ -86,7 +86,7 @@
       "test": "rejects legacy authorization-only version",
       "line": 13,
       "source_sha256": "e548760fbc4a9865dce5c721a92ff6dccceaa003454a6e98175b8374bec6346c",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/near.test.ts#L13"
+      "source_url": ""
     },
     {
       "id": "POLICY-001",
@@ -95,9 +95,9 @@
       "protection": "Unknown recipient commitments are rejected on-chain.",
       "source": "contract/src/tests.rs",
       "test": "rule_3_rejects_unknown_recipient",
-      "line": 334,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L334"
+      "line": 414,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "POLICY-002",
@@ -106,9 +106,9 @@
       "protection": "Suspended recipients cannot receive an authorization.",
       "source": "contract/src/tests.rs",
       "test": "rule_4_rejects_suspended_recipient",
-      "line": 346,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L346"
+      "line": 426,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "POLICY-003",
@@ -117,9 +117,9 @@
       "protection": "The contract rejects the request before spend state changes.",
       "source": "contract/src/tests.rs",
       "test": "rule_5_rejects_global_limit_breach",
-      "line": 360,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L360"
+      "line": 440,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "POLICY-004",
@@ -128,9 +128,9 @@
       "protection": "The recipient cap is independently enforced.",
       "source": "contract/src/tests.rs",
       "test": "rule_6_rejects_personal_cap_breach",
-      "line": 372,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L372"
+      "line": 452,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "POLICY-005",
@@ -139,9 +139,9 @@
       "protection": "Cumulative daily spend is checked before approval.",
       "source": "contract/src/tests.rs",
       "test": "rule_8_rejects_daily_limit_breach",
-      "line": 396,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L396"
+      "line": 476,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "POLICY-006",
@@ -150,9 +150,9 @@
       "protection": "The pause switch is evaluated before payment policy.",
       "source": "contract/src/tests.rs",
       "test": "rule_1_rejects_when_paused",
-      "line": 301,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L301"
+      "line": 381,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "ROUTE-001",
@@ -161,9 +161,9 @@
       "protection": "The destination route must exactly match owner-approved recipient policy.",
       "source": "contract/src/tests.rs",
       "test": "rejects_unregistered_destination_route",
-      "line": 444,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L444"
+      "line": 524,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SETTLE-001",
@@ -172,9 +172,9 @@
       "protection": "The contract hashes the supplied NEAR account and rejects any destination that does not match the recipient commitment.",
       "source": "contract/src/tests.rs",
       "test": "rejects_native_destination_that_does_not_match_commitment",
-      "line": 205,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L205"
+      "line": 285,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SETTLE-002",
@@ -183,9 +183,9 @@
       "protection": "The settlement callback rolls back reserved spend and schedule state before recording rejection.",
       "source": "contract/src/tests.rs",
       "test": "failed_native_transfer_rolls_back_reserved_policy_state",
-      "line": 165,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L165"
+      "line": 166,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SETTLE-003",
@@ -194,9 +194,9 @@
       "protection": "Cross-chain authorization fails closed before daily spend or schedule state changes.",
       "source": "contract/src/tests.rs",
       "test": "cross_chain_authorization_fails_closed_before_policy_is_consumed",
-      "line": 225,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L225"
+      "line": 305,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SETTLE-004",
@@ -207,7 +207,7 @@
       "test": "never submits funds from an external settlement signer",
       "line": 113,
       "source_sha256": "60dd1628b7c1f9109350f0fa5887ca1a29024923f8e5ad5a4c7a7120901a6bb7",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/intents.test.ts#L113"
+      "source_url": ""
     },
     {
       "id": "SETTLE-005",
@@ -216,9 +216,20 @@
       "protection": "The contract preserves measured storage stake, callback write headroom, and an operational reserve before transferring funds.",
       "source": "contract/src/tests.rs",
       "test": "rejects_a_transfer_that_would_consume_storage_and_operational_reserves",
-      "line": 262,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L262"
+      "line": 342,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
+    },
+    {
+      "id": "SETTLE-006",
+      "category": "Settlement safety",
+      "threat": "A transfer callback never completes and permanently locks payroll settlement.",
+      "protection": "After a ten-minute finality window, the owner can resolve the stale payment with a public transaction hash; failed-delivery recovery rolls back reserved state.",
+      "source": "contract/src/tests.rs",
+      "test": "stale_failed_callback_can_be_rolled_back_with_transaction_evidence",
+      "line": 210,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SCHEDULE-001",
@@ -227,9 +238,9 @@
       "protection": "The contract rejects early scheduled requests.",
       "source": "contract/src/tests.rs",
       "test": "rejects_early_scheduled_payment",
-      "line": 429,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L429"
+      "line": 509,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "SCHEDULE-002",
@@ -240,7 +251,7 @@
       "test": "triggers a milestone once per stable milestone ID",
       "line": 73,
       "source_sha256": "8c63e6f2b0f47eaf28c2054f66fdaedbc6d91d450ec2d0b6c82de23202a7bbd8",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/trigger.test.ts#L73"
+      "source_url": ""
     },
     {
       "id": "REPLAY-001",
@@ -251,7 +262,7 @@
       "test": "alerts and removes a filled intent without submitting it again",
       "line": 245,
       "source_sha256": "8c63e6f2b0f47eaf28c2054f66fdaedbc6d91d450ec2d0b6c82de23202a7bbd8",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/trigger.test.ts#L245"
+      "source_url": ""
     },
     {
       "id": "REPLAY-002",
@@ -262,7 +273,7 @@
       "test": "deduplicates processed transaction and authorization events",
       "line": 85,
       "source_sha256": "8e3d739c0e6a475a511494e377ffa5a57307e919c17a5da0c2f31613357cf5b4",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/notification-preferences.test.ts#L85"
+      "source_url": ""
     },
     {
       "id": "DATA-001",
@@ -273,7 +284,7 @@
       "test": "rejects malformed routes before writing a plan",
       "line": 112,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/payroll-plan-store.test.ts#L112"
+      "source_url": ""
     },
     {
       "id": "DATA-002",
@@ -284,7 +295,7 @@
       "test": "syncs a validated private plan without exposing it through the response",
       "line": 66,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/payroll-plan-store.test.ts#L66"
+      "source_url": ""
     },
     {
       "id": "DATA-003",
@@ -295,7 +306,7 @@
       "test": "keeps a staged upsert inactive across restart until reconciliation commits it",
       "line": 137,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/payroll-plan-store.test.ts#L137"
+      "source_url": ""
     },
     {
       "id": "DATA-004",
@@ -306,7 +317,7 @@
       "test": "does not remove an active recipient until the staged removal is committed",
       "line": 164,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/agent/src/payroll-plan-store.test.ts#L164"
+      "source_url": ""
     },
     {
       "id": "MATH-001",
@@ -315,9 +326,9 @@
       "protection": "Overflow is detected and rejected by the pure rule evaluator.",
       "source": "contract/src/tests.rs",
       "test": "pure_rule_evaluator_rejects_daily_spend_overflow",
-      "line": 649,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L649"
+      "line": 729,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     },
     {
       "id": "STATE-001",
@@ -326,9 +337,9 @@
       "protection": "Capacity is checked before any of the five audit records are written.",
       "source": "contract/src/tests.rs",
       "test": "security_audit_fails_before_writing_when_log_counter_is_exhausted",
-      "line": 672,
-      "source_sha256": "35db4ff3c996902174ee808da6373718f47fb40affb3c6127376b6ef508c2d5b",
-      "source_url": "https://github.com/arinze116/Clavis/blob/7a813be036b5ad01710c00a943495799d032d4dc/contract/src/tests.rs#L672"
+      "line": 752,
+      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
+      "source_url": ""
     }
   ],
   "limitations": [
@@ -338,7 +349,7 @@
     "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
     "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
     "A Full Access key on a payroll contract account is outside contract enforcement. The legacy root deployment key must be segregated from the agent host; factory-created v0.2 children are created without access keys.",
-    "Callback uncertainty fails closed. There is no operator-supplied transfer-result override; an exceptional callback that never finalizes requires an owner-reviewed upgrade.",
+    "Callback uncertainty remains locked for ten minutes. Owner recovery then requires a public transaction hash and explicit delivery attestation; the contract cannot cryptographically verify that off-chain receipt interpretation.",
     "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence."
   ]
 }

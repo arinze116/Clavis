@@ -8,7 +8,12 @@ cargo fmt --check --manifest-path contract/Cargo.toml
 cargo test --manifest-path contract/Cargo.toml
 "$ROOT_DIR/scripts/build-contracts.sh"
 cargo test --manifest-path contract/Cargo.toml --package clavis-factory
+cargo fmt --check --manifest-path tools/clavis-near-signer/Cargo.toml
+cargo clippy --locked --manifest-path tools/clavis-near-signer/Cargo.toml -- -D warnings
+cargo test --locked --manifest-path tools/clavis-near-signer/Cargo.toml
+cargo build --locked --release --manifest-path tools/clavis-near-signer/Cargo.toml
 npm run typecheck
+npm run testnet:typecheck
 npm run test:api
 npm run test:agent
 npm run build
@@ -23,5 +28,12 @@ node scripts/security/generate-security-report.mjs \
   --vitest-report artifacts/security-evidence/vitest.json \
   --frontend-output frontend/src/data/securityEvidence.generated.ts
 npm audit --omit=dev --audit-level=moderate
+bash -n \
+  scripts/connect-near-signers.sh \
+  scripts/run-with-clavis-near-keyring.sh \
+  scripts/deploy-v02-testnet.sh \
+  scripts/configure-v02-payroll-testnet.sh \
+  scripts/deploy-v02-agent-testnet.sh \
+  scripts/execute-v02-testnet.sh
 git diff --check
 echo "Clavis verification complete."

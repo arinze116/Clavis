@@ -153,6 +153,14 @@ const cases = [
     test: "rejects_a_transfer_that_would_consume_storage_and_operational_reserves",
   },
   {
+    id: "SETTLE-006",
+    category: "Settlement safety",
+    threat: "A transfer callback never completes and permanently locks payroll settlement.",
+    protection: "After a ten-minute finality window, the owner can resolve the stale payment with a public transaction hash; failed-delivery recovery rolls back reserved state.",
+    source: "contract/src/tests.rs",
+    test: "stale_failed_callback_can_be_rolled_back_with_transaction_evidence",
+  },
+  {
     id: "SCHEDULE-001",
     category: "Schedule and replay",
     threat: "The agent requests a scheduled payment before it is due.",
@@ -241,7 +249,7 @@ const limitations = [
   "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
   "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
   "A Full Access key on a payroll contract account is outside contract enforcement. The legacy root deployment key must be segregated from the agent host; factory-created v0.2 children are created without access keys.",
-  "Callback uncertainty fails closed. There is no operator-supplied transfer-result override; an exceptional callback that never finalizes requires an owner-reviewed upgrade.",
+  "Callback uncertainty remains locked for ten minutes. Owner recovery then requires a public transaction hash and explicit delivery attestation; the contract cannot cryptographically verify that off-chain receipt interpretation.",
   "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence.",
 ];
 
