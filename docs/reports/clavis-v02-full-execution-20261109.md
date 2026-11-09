@@ -231,7 +231,7 @@ Additional release checks:
 - production dependency audit: zero moderate, high, or critical findings; 17 low transitive `elliptic` advisories remain in the NEAR wallet stack;
 - custom tracked/untracked secret-pattern scan: 231 source, report, and text-evidence files scanned; zero findings;
 - Markdown relative-link check: 22 Markdown files checked; zero missing relative targets;
-- organisation memory lint: `records=89 errors=0 warnings=0 info=0`;
+- organisation memory lint after superseding and reindexing the Clavis record: `records=90 errors=0 warnings=0 info=0`;
 - installed signer checksum matched all pinned launchers.
 
 ## Repository state and commits
@@ -241,6 +241,8 @@ The completion sprint started at local commit `ca237ba` on branch `fix/testnet-r
 New implementation and release-candidate commit: `d59ab717a8e9f88f1d03454144d92cc844c97d39` (`d59ab71`).
 
 Execution-report finalization commit: `72240e42db6f158a49c6f4380a587d94fbe678e8` (`72240e4`).
+
+Commit-record metadata update: `cbd27100a13ea0e5568b944e4481238a099ee7ef` (`cbd2710`).
 
 The previously untracked signer connection and preflight reports were inspected for private keys, passwords, tokens, PEM material, and secret assignments. No secret material was found, so they were added to version control together with the factory preflight report.
 
