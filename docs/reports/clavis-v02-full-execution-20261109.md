@@ -185,6 +185,13 @@ The gate also covers Rust formatting, signer clippy with warnings denied, both c
 
 Generated security evidence contains 29 mapped threats, current source hashes/line numbers, and the 156-check total.
 
+## Non-blocking warnings
+
+- `npm audit --omit=dev --audit-level=moderate` passed its threshold but reported 17 low-severity `elliptic` advisories in the NEAR wallet dependency tree. The advertised automatic fix requires a breaking `near-api-js` upgrade and was not forced into this release.
+- Vite completed the production build but reported large wallet/provider chunks and vendor `eval` warnings. These are performance and supply-chain review items, not failed build output.
+- The live agent logs deprecation warnings for legacy `near-api-js` `Near` and `Connection` constructors. The service remains healthy, but a future dependency migration should construct `Account` directly.
+- Factory discovery includes two legacy child contracts without private payroll plans. The agent logs `payroll.plan_missing` and fails closed for them; this is safe but noisy until legacy registry handling is refined.
+
 ## Incomplete or not verified
 
 - **Factory upgrade:** blocked by the unavailable exact FullAccess signer for `factory.clavis.testnet`.
@@ -212,7 +219,7 @@ Generated security evidence contains 29 mapped threats, current source hashes/li
 - **Failed:** No completed test produced an unexplained failure.
 - **Incomplete:** Factory upgrade, final frontend/video publication, and a deliberately suppressed live callback.
 - **Not verified:** Mainnet and a new factory-created v0.2 child.
-- **Risk:** Root FullAccess authority remains outside contract enforcement; the keychain is isolated from the agent process, but VPS compromise remains a custody risk. Owner stale-callback attestation also depends on correct receipt review.
+- **Risk:** Root FullAccess authority remains outside contract enforcement; the keychain is isolated from the agent process, but VPS compromise remains a custody risk. Owner stale-callback attestation also depends on correct receipt review. Low-severity wallet dependency advisories and the agent's deprecated NEAR client constructors remain documented maintenance work.
 - **Next step:** Obtain and verify the exact existing factory signer, then separately approve publication of this branch and the refreshed live-v0.2 demo.
 
 ## Scorecard evidence — no self-scores
