@@ -14,6 +14,10 @@ import type {
   SecurityAuditScenario,
 } from "../types";
 import {
+  mapPaymentDecisionTransactions,
+  type FinalTransactionOutcome,
+} from "./audit-transactions";
+import {
   explorerUrl,
   factoryContractId,
   nearBlocksApiUrl,
@@ -61,7 +65,7 @@ const viewCache = new Map<string, CachedViewResult>();
 const pendingViewRequests = new Map<string, Promise<unknown>>();
 const auditLinkCache = new Map<
   string,
-  { expiresAt: number; transactionHashesByBlock: Map<string, string[]> }
+  { expiresAt: number; transactionHashesByPaymentId: Map<number, string> }
 >();
 const provider = new JsonRpcProvider(
   { url: rpcEndpoint },
@@ -306,6 +310,32 @@ export async function getAllContracts(): Promise<ContractRecord[]> {
   return view<ContractRecord[]>(factoryContractId, "get_all_contracts");
 }
 
+export async function getFactoryContractVersion(): Promise<string | null> {
+  try {
+    return await view<string>(factoryContractId, "contract_version");
+  } catch {
+    return null;
+  }
+}
+
+export function controlsNativeSettlement(contractVersion: string | null): boolean {
+  if (!contractVersion) return false;
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(contractVersion.trim());
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 0 || minor >= 2;
+}
+
+export async function assertFactorySupportsContractControlledSettlement(): Promise<void> {
+  const version = await getFactoryContractVersion();
+  if (!controlsNativeSettlement(version)) {
+    throw new Error(
+      "The deployed factory is still on the legacy authorization-only release. Upgrade it to v0.2.0 before creating another payroll contract.",
+    );
+  }
+}
+
 export async function isBusinessNameAvailable(name: string): Promise<boolean> {
   const normalized = name.trim().toLowerCase();
   if (!/^(?!-)[a-z0-9-]{2,32}(?<!-)$/.test(normalized)) return false;
@@ -345,6 +375,7 @@ async function accountExists(accountId: string): Promise<boolean> {
 export async function loadContractSnapshot(contractId: string): Promise<ContractSnapshot> {
   const evidence = await finalContractEvidence();
   const [
+    contractVersion,
     owner,
     agent,
     dailyLimit,
@@ -358,6 +389,7 @@ export async function loadContractSnapshot(contractId: string): Promise<Contract
     anomalies,
     logCount,
   ] = await Promise.all([
+    viewAtBlock<string>(contractId, "contract_version", evidence.blockHash).catch(() => null),
     viewAtBlock<string>(contractId, "get_owner", evidence.blockHash),
     viewAtBlock<string>(contractId, "get_agent", evidence.blockHash),
     viewAtBlock<string>(contractId, "get_daily_limit", evidence.blockHash),
@@ -380,6 +412,8 @@ export async function loadContractSnapshot(contractId: string): Promise<Contract
     blockTimestamp - resetTimestamp >= 24n * 60n * 60n * 1_000_000_000n;
   return {
     contractId,
+    contractVersion,
+    contractControlsSettlement: controlsNativeSettlement(contractVersion),
     evidence,
     owner,
     agent,
@@ -428,8 +462,8 @@ export async function enrichContractSnapshotAudit(
 
 interface NearBlocksReceipt {
   transaction_hash?: string;
+  predecessor_account_id?: string;
   receiver_account_id?: string;
-  block?: { block_height?: string | number };
   actions?: Array<{ action?: string; method?: string | null }>;
 }
 
@@ -446,14 +480,17 @@ export async function enrichAuditTransactions(
   }
 
   try {
-    const hashesByBlock = await loadAuditTransactionHashes(targetContractId);
-    const available = new Map(
-      [...hashesByBlock.entries()].map(([height, hashes]) => [height, [...hashes]]),
+    const hashesByPaymentId = await loadAuditTransactionHashes(
+      targetContractId,
+      new Set(
+        entries
+          .filter((entry) => !entry.transaction_hash)
+          .map((entry) => entry.payment_id),
+      ),
     );
     return entries.map((entry) => {
       if (entry.transaction_hash) return entry;
-      const hashes = available.get(String(entry.block_height));
-      const transactionHash = hashes?.shift();
+      const transactionHash = hashesByPaymentId.get(entry.payment_id);
       return transactionHash ? { ...entry, transaction_hash: transactionHash } : entry;
     });
   } catch {
@@ -464,63 +501,109 @@ export async function enrichAuditTransactions(
 
 async function loadAuditTransactionHashes(
   targetContractId: string,
-): Promise<Map<string, string[]>> {
+  neededPaymentIds: ReadonlySet<number>,
+): Promise<Map<number, string>> {
   const cached = auditLinkCache.get(targetContractId);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.transactionHashesByBlock;
+    return cached.transactionHashesByPaymentId;
   }
 
-  const methods = [
-    { name: "request_payment", auditEntriesPerTransaction: 1 },
-    { name: "run_security_audit", auditEntriesPerTransaction: 5 },
-  ] as const;
+  const methods = ["request_payment", "run_security_audit"] as const;
   const receiptsByMethod = await Promise.all(
-    methods.map(async (method) => {
+    methods.map(async (methodName) => {
       const url = new URL(
         `/v3/accounts/${encodeURIComponent(targetContractId)}/receipts`,
         nearBlocksApiUrl,
       );
-      url.searchParams.set("method", method.name);
+      url.searchParams.set("method", methodName);
       url.searchParams.set("limit", "100");
       const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         throw new Error(`NearBlocks receipt lookup failed with HTTP ${response.status}`);
       }
       const body = (await response.json()) as NearBlocksReceiptResponse;
-      return { method, receipts: body.data ?? [] };
+      return { methodName, receipts: body.data ?? [] };
     }),
   );
 
-  const transactionHashesByBlock = new Map<string, string[]>();
-  for (const { method, receipts } of receiptsByMethod) {
+  const transactionRequests = new Map<
+    string,
+    { transactionHash: string; senderAccountId: string }
+  >();
+  for (const { methodName, receipts } of receiptsByMethod) {
     for (const receipt of receipts) {
-      const height = receipt.block?.block_height;
       const transactionHash = receipt.transaction_hash;
+      const senderAccountId = receipt.predecessor_account_id;
       const isExpectedCall = receipt.actions?.some(
-        (action) => action.action === "FUNCTION_CALL" && action.method === method.name,
+        (action) => action.action === "FUNCTION_CALL" && action.method === methodName,
       );
       if (
-        height === undefined ||
         !transactionHash ||
+        !senderAccountId ||
         receipt.receiver_account_id !== targetContractId ||
         !isExpectedCall
       ) {
         continue;
       }
-      const key = String(height);
-      const hashes = transactionHashesByBlock.get(key) ?? [];
-      for (let index = 0; index < method.auditEntriesPerTransaction; index += 1) {
-        hashes.push(transactionHash);
-      }
-      transactionHashesByBlock.set(key, hashes);
+      transactionRequests.set(transactionHash, { transactionHash, senderAccountId });
+    }
+  }
+
+  const candidates = [...transactionRequests.values()];
+  const transactionHashesByPaymentId = new Map<number, string>();
+  for (let index = 0; index < candidates.length; index += 6) {
+    const results = await Promise.allSettled(
+      candidates.slice(index, index + 6).map(loadFinalTransactionOutcome),
+    );
+    const mapped = mapPaymentDecisionTransactions(
+      results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
+      targetContractId,
+    );
+    for (const [paymentId, transactionHash] of mapped) {
+      transactionHashesByPaymentId.set(paymentId, transactionHash);
+    }
+    if ([...neededPaymentIds].every((paymentId) => transactionHashesByPaymentId.has(paymentId))) {
+      break;
     }
   }
 
   auditLinkCache.set(targetContractId, {
     expiresAt: Date.now() + AUDIT_LINK_CACHE_TTL_MS,
-    transactionHashesByBlock,
+    transactionHashesByPaymentId,
   });
-  return transactionHashesByBlock;
+  return transactionHashesByPaymentId;
+}
+
+async function loadFinalTransactionOutcome(options: {
+  transactionHash: string;
+  senderAccountId: string;
+}): Promise<FinalTransactionOutcome> {
+  const response = await fetch(rpcEndpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "clavis-audit-transaction",
+      method: "tx",
+      params: {
+        tx_hash: options.transactionHash,
+        sender_account_id: options.senderAccountId,
+        wait_until: "FINAL",
+      },
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error(`NEAR transaction lookup failed with HTTP ${response.status}`);
+  }
+  const body = (await response.json()) as {
+    result?: FinalTransactionOutcome;
+    error?: { message?: string };
+  };
+  if (!body.result) {
+    throw new Error(body.error?.message ?? "NEAR transaction lookup returned no result");
+  }
+  return body.result;
 }
 
 export async function change(

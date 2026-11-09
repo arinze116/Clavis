@@ -36,7 +36,7 @@ export function GuideLayout({ guide, basePath }: GuideLayoutProps) {
     <AppShell>
       <div className="mx-auto max-w-[1360px] px-4 py-8 sm:px-5 lg:px-10 lg:py-12">
         <nav className="flex flex-wrap items-center gap-2 text-xs text-ink/45" aria-label="Breadcrumb">
-          <Link className="transition-colors hover:text-ink" to="/guide">Guide</Link>
+          <Link className="inline-flex min-h-11 items-center transition-colors hover:text-ink" to="/guide">Guide</Link>
           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           <span aria-current="page">{guide.role}</span>
         </nav>
@@ -62,7 +62,7 @@ export function GuideLayout({ guide, basePath }: GuideLayoutProps) {
                     key={section.id}
                     to={`${basePath}?step=${encodeURIComponent(section.id)}`}
                     aria-current={index === activeIndex ? "step" : undefined}
-                    className={`grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 rounded-xl px-3 py-2.5 text-sm leading-5 transition-colors ${
+                    className={`grid min-h-11 grid-cols-[24px_minmax(0,1fr)] items-start gap-2 rounded-xl px-3 py-2.5 text-sm leading-5 transition-colors ${
                       index === activeIndex
                         ? "bg-ink text-white"
                         : "text-ink/60 hover:bg-canvas hover:text-ink"

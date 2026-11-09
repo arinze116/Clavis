@@ -1,131 +1,70 @@
-# Clavis judge demo
+# Clavis demo and rehearsal plan
 
-## Demo thesis
+## Do not present v0.2 as live yet
 
-Clavis lets a business delegate payroll execution without delegating treasury policy. The AI helps an owner express and understand policy, while a Rust contract makes every approval or rejection deterministic and publicly verifiable without putting recipient identities or amounts in the audit log.
+The current root contract reports v0.1.0 and the factory is legacy. Before recording or presenting the v0.2 settlement story, all of these gates must pass:
 
-Target length: **4 minutes**. Every user action in the walkthrough happens in the browser.
+- root contract upgraded through owner-authorized `migrate`;
+- factory upgraded and reporting v0.2.0 or newer;
+- frontend and agent deployed from the verified revision;
+- dashboard shows contract-controlled settlement rather than the legacy warning;
+- full repository gate passes;
+- desktop, tablet, and mobile screenshots are inspected;
+- two uninterrupted browser rehearsals pass;
+- final video is rendered and inspected with no secrets or private payroll data.
 
-## Do not record or present until these gates pass
+Until then, a demo of the public site must say that the live contracts are legacy authorization-only and that v0.2 behavior is verified in source and tests, not deployed.
 
-- `https://clavisapp.vercel.app/api/ai` returns a successful NEAR AI response from the production origin.
-- `NEAR_AI_API_KEY` is configured server-side in Vercel. Never expose it as a bundled browser value.
-- The current frontend and `/api/ai` deployment are live at `https://clavisapp.vercel.app`.
-- The VPS agent is running the merged commit and its notification/private-plan API is healthy.
-- The root and factory contract code hashes match the release WASM.
-- A browser security audit on `clavis.testnet` returns five structured blocked results and adds five public audit entries.
-- The final verification gate and both browser rehearsals pass.
+## Four-minute v0.2 walkthrough
 
-If any gate is red, use the relevant fallback below and state the limitation plainly.
+Use this only after the deployment gates above pass.
 
-## Demo preparation
+| Time | Browser action | Accurate narration |
+| --- | --- | --- |
+| 0:00–0:30 | Open the landing page and dashboard. | “The agent can request payroll, but source v0.2 keeps native funds in the payroll contract. This dashboard reads the deployed contract version before making that claim.” |
+| 0:30–1:10 | Show setup review and factory-version status. | “Setup refuses to create another legacy child. A v0.2 factory is required before the wallet can deploy.” |
+| 1:10–1:50 | Add or edit a native recipient. | “The private change is staged first. It becomes active only after the signed contract state exactly matches, so wallet cancellation leaves the old plan intact.” |
+| 1:50–2:30 | Show treasury and a native payment transaction. | “The contract checks policy, verifies the account commitment, transfers its own NEAR, and records approval only after the callback succeeds.” |
+| 2:30–3:05 | Open public audit and an explorer link. | “The UI maps the emitted payment ID to this exact transaction. It no longer guesses by block order.” |
+| 3:05–3:35 | Open the worker portal. | “This is employer decision history. Audit entries omit recipient identity, so Clavis does not pretend this list is specific to the connected worker.” |
+| 3:35–4:00 | Open Security evidence and resize to mobile. | “Cross-chain execution is disabled, repository tests are source-linked, and the mobile menu remains open while dashboard data refreshes.” |
 
-Use two browser profiles so there is no wallet-switching delay:
+## Required limitation statements
 
-1. **Setup profile** — a funded, unregistered NEAR testnet owner wallet, already on `/setup`, advanced to Step 3 **Limits**.
-2. **Owner profile** — `clavis.testnet`, already connected on `/dashboard` with contract data loaded.
-3. Keep `/audit` open in a second tab in the owner profile.
-4. Keep the NearBlocks pages for `clavis.testnet` and `factory.clavis.testnet` bookmarked.
-5. Close wallet popups, clear old toasts, and use a 1280×720 or larger viewport at 100% zoom.
-
-Paste this exact policy in the setup profile:
-
-> Pay Sarah 1.5 NEAR weekly on Fridays. Cap each payment at 2 NEAR, cap total payroll at 10 NEAR per day, and never pay between midnight and 6am UTC.
-
-Expected extraction:
-
-- Daily limit: `10 NEAR`
-- Per-payment limit: `2 NEAR`
-- Schedule: `Weekly`
-- Sarah cap: `2 NEAR`
-- The values remain editable. Do not claim that a Friday anchor is enforced unless the returned warning and contract capability explicitly support it.
-
-Current root demo data, recheck immediately before presenting:
-
-| Proof point | Seeded value |
-| --- | --- |
-| Contract | `clavis.testnet` |
-| Owner | `clavis.testnet` |
-| Agent | `clavis-agent.testnet` |
-| Treasury | Approximately `9.95 NEAR` at preparation time |
-| Limits | `100 NEAR` daily, `20 NEAR` per payment |
-| Roster | Worker One → NEAR/NEAR; Worker Two → Ethereum/USDC; Worker Three → BNB/BUSD |
-| Existing decisions | Includes the five verified security-audit rejections from payment IDs 5–9 |
-| Existing anomaly | OFF_HOURS at approximately `01:25 UTC` |
-
-Values on testnet can change. Narrate the numbers visible on screen, not stale numbers from this document.
-
-## Four-minute golden path
-
-| Time | Exact browser action | Expected proof on screen | Narration |
-| --- | --- | --- | --- |
-| 0:00–0:18 | Show `/` and point to **Configure Clavis**, **Inspect public audit**, and **Read the guide**. | Product promise and three working entry points. | “Payroll agents are useful only if they cannot rewrite the rules. Clavis separates the AI assistant, the autonomous scheduler, and the on-chain authority.” |
-| 0:18–0:55 | Switch to the setup profile on Step 3. Paste the prepared policy and click **Generate rules with AI**. | NEAR AI extraction summary plus editable daily, per-payment, schedule, and recipient-cap fields. | “The owner describes the policy in plain English. NEAR AI turns it into a draft, but nothing is silently deployed: the owner reviews and can edit every value before signing.” |
-| 0:55–1:18 | Switch to the owner dashboard. Briefly point to treasury usage and the three-chain roster. | Contract balance, policy limits, and NEAR/Ethereum/BNB recipient routes loaded from testnet. | “This is the live owner console. Public contract state holds caps, schedules, routes, and pause state. Private scheduled amounts and destination addresses are signed from the browser into the agent’s private plan store.” |
-| 1:18–1:50 | In **Anomaly alerts**, click **Analyze with AI** on the OFF_HOURS alert. Expand the result if needed. | A plain-English explanation citing the anomaly type/time and a concrete recommended action. | “The contract records the fact; NEAR AI makes it actionable. It explains what likely happened without claiming a compromise that the evidence cannot prove.” |
-| 1:50–2:42 | Open **Security evidence**, then scroll to **Emergency controls** and click **Run contract security probes**. Approve the wallet transaction. | The CI-backed threat matrix is visible; five fixed probes run through the contract evaluator and finish at `5/5 attacks blocked`. | “The tests and attack definitions are deterministic and source-controlled. NEAR AI may summarize the verified result, but it does not invent the scenarios or decide whether they passed.” |
-| 2:42–3:10 | Click **Generate verified report**. After it loads, scroll through the modal and click **Copy report**. | Verified headings, decision totals, rejection reasons, anomalies, evidence block range, and an evidence-backed recommendation. | “The server reloads NEAR final state and deterministically writes every factual sentence. AI can prioritize only a recommendation supported by that evidence, so it cannot manufacture payroll results.” |
-| 3:10–3:38 | Open the `/audit` tab and filter to **Rejected**. Point to the five newest security-probe entries and a NearBlocks link. | New entries render quickly without recipient hashes or amounts in the audit shape; transaction proof is available. | “Here is the observable proof: the same transaction created five privacy-minimized rejections. Audit fields omit payroll identities and amounts, while normal NEAR transaction data remains public.” |
-| 3:38–4:00 | Open `/guide` or resize briefly to 375px, then return to the closing line. | Role-specific business, worker, and developer guides; responsive navigation. | “Clavis is not a terminal demo. Owners configure policy and agents, workers verify their history, and developers can inspect every method and rule. The result is autonomous payroll with a contract-enforced blast radius.” |
-
-## What the judges should remember
-
-1. **Strongest pain:** a payroll bot normally combines automation and treasury authority, so one bad trigger or stolen key can become a treasury incident.
-2. **Distinctive wedge:** AI assists with policy and explanation; a NEAR contract independently enforces policy and produces privacy-minimized public evidence.
-3. **Observable proof:** the five-scenario audit must return structured on-chain results and create five new audit entries. A successful transaction alone is not counted as a pass.
-
-## Track and judging alignment
-
-| Judge lens | Observable demo evidence |
-| --- | --- |
-| Agents | A 60-second scheduler consumes a browser-authorized private plan and can only receive approval by calling the contract rules engine. |
-| Security | Pause/unpause, owner-only controls, caps, schedules, approved routes, off-hours blocking, and the on-chain five-scenario audit. |
-| Privacy | Recipient identities and scheduled amounts stay out of the public audit shape; the UI explains the remaining standard-NEAR transaction-argument limitation honestly. |
-| Real-world utility | Owner setup, recipient management, private delivery configuration, notifications, CFO reporting, worker history, and emergency controls are browser workflows. |
-| NEAR integration | Rust contracts, isolated factory deployments, wallet-signed writes, NearBlocks evidence, Function Call Key support, and a NEAR Intents settlement adapter. |
-| Product quality | Responsive UI, loading skeletons, transaction lifecycle toasts, accessible modals, guide pages, polling, SEO metadata, and a branded 404. |
+- Testnet only.
+- Cross-chain and split execution are disabled; there is no dry-run settlement mode.
+- Audit minimization is not transaction confidentiality.
+- Worker decision history is employer-wide.
+- Explorer enrichment is best-effort and falls back without inventing a transaction link.
+- Repository tests are not an independent third-party audit.
 
 ## Failure fallbacks
 
 | Failure | Honest fallback |
 | --- | --- |
-| NEAR AI request fails | Verified payroll reports and security summaries fall back to the deterministic evidence engine. Policy, anomaly, and route assistance show the visible error state; do not present contract-defined facts as model output. |
-| Wallet popup stalls | Retry once. If it still fails, open the bookmarked NearBlocks audit transaction from the rehearsal and show its five audit entries. State that the transaction was pre-run on testnet. |
-| RPC or NearBlocks is slow | Keep the already-loaded dashboard visible and use the bookmarked explorer transaction. Do not claim fresh state until the page confirms it. |
-| Security audit transaction confirms but UI cannot verify 5/5 | Treat the audit as failed. Show the explorer receipt and existing entries, then explain that Clavis intentionally refuses to equate transaction success with a passed audit. |
-| VPS private-plan bridge is unavailable | Do not add or edit a recipient live. Show the signed-plan UI and the previously verified server health evidence; say the off-chain plan write is unavailable, while contract controls remain live. |
-| NEAR Intents relay is unavailable | State that the current hackathon deployment uses the Intents adapter in dry-run mode. Demonstrate route policy and intent construction, not completed cross-chain settlement. |
-| Entire live site is unavailable | Play the final uninterrupted recording, then use NearBlocks and the repository for independent proof. Label the recording with its capture date and commit SHA. |
+| Root or factory still reports legacy | Stop the v0.2 live demo and show source/tests only. |
+| Wallet popup is cancelled | Show that the staged private operation did not replace the active plan. |
+| Reconciliation is delayed | Show the pending message; explain that the background loop retries while the prior plan remains active. |
+| RPC or NearBlocks is unavailable | Use already verified final-block state and the fallback block/contract link; do not claim a fresh exact transaction mapping. |
+| Cross-chain route is selected | Show the visible disabled/fail-closed state; do not describe intent construction or dry-run completion. |
+| Security probe cannot be verified | Treat the probe as failed even if the transaction itself succeeded. |
 
 ## Rehearsal log
 
-Run the golden path twice after the final production deployment.
-
-| Rehearsal | Result | Failure or delay | Fix |
+| Rehearsal | Revision and deployment | Result | Evidence |
 | --- | --- | --- | --- |
-| 1 | Pending |  |  |
-| 2 | Pending |  |  |
+| 1 | Pending | Pending | — |
+| 2 | Pending | Pending | — |
 
-Capture after the second clean run:
+## Capture checklist
 
-- Final commit SHA
-- Production deployment URL and timestamp
-- AI policy response screenshot
-- AI anomaly response screenshot
-- Security-audit transaction hash
-- Screenshot showing `5/5 attacks blocked`
-- Public audit screenshot with the five new entries
-- 375px dashboard and guide screenshots
-- Final demo video URL
-
-Release source merge: `a7acd65` (PR #9).
-
-Latest verified security-audit transaction: `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc`.
-
-Root upgrade transaction: `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`.
-
-Factory upgrade transaction: `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`.
-
-## Closing line
-
-> “Clavis gives an AI agent enough authority to run payroll—and no authority to change who gets paid, how much it may authorize, or whether the treasury can move at all.”
+- [ ] Final revision and deployment timestamp
+- [ ] Root and factory `contract_version` responses
+- [ ] Root and factory deployed code hashes
+- [ ] Native settlement transaction with callback approval event
+- [ ] Failed-transfer rollback evidence
+- [ ] Recipient cancellation/reconciliation demonstration
+- [ ] Exact audit-link demonstration with same-block or five-entry case
+- [ ] Worker employer-history wording
+- [ ] Desktop, tablet, and mobile screenshots
+- [ ] Final demo video URL and inspected render metadata

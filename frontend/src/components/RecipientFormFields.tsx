@@ -191,8 +191,8 @@ export function RecipientFormFields({
               onChange={(event) => updateChain(event.target.value as Chain)}
             >
               <option value="near">NEAR</option>
-              <option value="ethereum">Ethereum</option>
-              <option value="bnb">BNB Chain</option>
+              <option value="ethereum" disabled>Ethereum — execution disabled</option>
+              <option value="bnb" disabled>BNB Chain — execution disabled</option>
             </select>
           </label>
           <label className="text-xs font-semibold text-ink/55" htmlFor={`${prefix}-token`}>
@@ -204,8 +204,8 @@ export function RecipientFormFields({
               onChange={(event) => updateToken(event.target.value as Token)}
             >
               <option value="NEAR">NEAR</option>
-              <option value="USDC">USDC</option>
-              <option value="BUSD">BUSD</option>
+              <option value="USDC" disabled>USDC — execution disabled</option>
+              <option value="BUSD" disabled>BUSD — execution disabled</option>
             </select>
           </label>
           <label className="text-xs font-semibold text-ink/55" htmlFor={`${prefix}-schedule`}>
@@ -241,7 +241,8 @@ export function RecipientFormFields({
 
         {value.preferredChain === "near" ? (
           <p className="mt-3 text-xs leading-5 text-ink/45">
-            Native NEAR settles to the worker testnet wallet entered above.
+            Native NEAR is the only executable route in this release and settles from a v0.2
+            contract to the worker testnet wallet entered above.
           </p>
         ) : (
           <label
@@ -314,10 +315,14 @@ export function RecipientFormFields({
               type="button"
               className="button-secondary mt-3 w-full sm:w-auto"
               onClick={acceptRecommendation}
-              disabled={recommendationAccepted}
+              disabled={recommendationAccepted || recommendation.chain !== "near"}
             >
               <Check className="h-4 w-4" aria-hidden="true" />
-              {recommendationAccepted ? "Recommendation selected" : "Use this route"}
+              {recommendation.chain !== "near"
+                ? "Route unavailable in this release"
+                : recommendationAccepted
+                  ? "Recommendation selected"
+                  : "Use this route"}
             </button>
           </div>
         )}

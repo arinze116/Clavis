@@ -1,10 +1,11 @@
 import type { Wallet } from "@near-wallet-selector/core";
 
-import type { RecipientDraft } from "../types";
+import type { Chain, PaymentSchedule, RecipientDraft, SplitConfig, Token } from "../types";
 import { hashWalletAddress } from "./contract";
 import { nearToYocto } from "./format";
 import {
   agentResponseError,
+  getAgentTransactionSessionToken,
   postAgentApi,
   signAgentAuthorization,
   storeAgentTransactionSession,
@@ -25,6 +26,21 @@ interface PrivatePayrollRecipient {
     address: string;
     percentage: number;
   }>;
+}
+
+export interface ExpectedRecipientPolicy {
+  name: string;
+  personalCapYocto: string;
+  active: boolean;
+  preferredChain: Chain;
+  preferredToken: Token;
+  paymentSplit: SplitConfig[];
+  schedule: PaymentSchedule;
+}
+
+export interface StagedPayrollOperation {
+  operationId: string;
+  reconciliationStatus: "committed" | "pending";
 }
 
 export function validateAgentRecipientDraft(
@@ -60,11 +76,13 @@ export function validateAgentRecipientDraft(
     }
   }
 
-  if (draft.preferredChain === "near") return null;
-  if (!evmAddressPattern.test(draft.destinationAddress.trim())) {
-    return `Enter a valid 0x destination address for ${
-      draft.preferredChain === "ethereum" ? "Ethereum" : "BNB Chain"
-    }.`;
+  if (draft.preferredChain !== "near" || draft.preferredToken !== "NEAR") {
+    if (!evmAddressPattern.test(draft.destinationAddress.trim())) {
+      return `Enter a valid 0x destination address for ${
+        draft.preferredChain === "ethereum" ? "Ethereum" : "BNB Chain"
+      }.`;
+    }
+    return "Cross-chain execution is disabled in this release; select native NEAR so settlement remains contract-controlled.";
   }
   return null;
 }
@@ -77,7 +95,12 @@ export async function syncPayrollPlan(options: {
 }): Promise<void> {
   const payload = {
     contractId: options.contractId,
-    recipients: await Promise.all(options.recipients.map(recipientPlanFromDraft)),
+    entries: await Promise.all(
+      options.recipients.map(async (recipient) => ({
+        recipient: await recipientPlanFromDraft(recipient),
+        expectedPolicy: expectedRecipientPolicyFromDraft(recipient),
+      })),
+    ),
   };
   await sendSignedPlanAction({
     wallet: options.wallet,
@@ -92,8 +115,9 @@ export async function upsertPayrollRecipient(options: {
   accountId: string;
   contractId: string;
   recipient: RecipientDraft;
+  expectedPolicy: ExpectedRecipientPolicy;
   expectedRecipientHash?: string;
-}): Promise<void> {
+}): Promise<StagedPayrollOperation> {
   const recipient = await recipientPlanFromDraft(options.recipient);
   if (
     options.expectedRecipientHash &&
@@ -101,11 +125,15 @@ export async function upsertPayrollRecipient(options: {
   ) {
     throw new Error("The re-entered worker wallet does not match this private recipient hash.");
   }
-  await sendSignedPlanAction({
+  return sendSignedPlanAction<StagedPayrollOperation>({
     wallet: options.wallet,
     accountId: options.accountId,
     action: "upsert_payroll_recipient",
-    payload: { contractId: options.contractId, recipient },
+    payload: {
+      contractId: options.contractId,
+      recipient,
+      expectedPolicy: options.expectedPolicy,
+    },
   });
 }
 
@@ -114,8 +142,8 @@ export async function removePayrollRecipient(options: {
   accountId: string;
   contractId: string;
   recipientHash: string;
-}): Promise<void> {
-  await sendSignedPlanAction({
+}): Promise<StagedPayrollOperation> {
+  return sendSignedPlanAction<StagedPayrollOperation>({
     wallet: options.wallet,
     accountId: options.accountId,
     action: "remove_payroll_recipient",
@@ -124,6 +152,40 @@ export async function removePayrollRecipient(options: {
       recipientHash: options.recipientHash,
     },
   });
+}
+
+export async function reconcilePayrollOperation(options: {
+  accountId: string;
+  operationId: string;
+}): Promise<StagedPayrollOperation> {
+  const sessionToken = getAgentTransactionSessionToken(options.accountId);
+  if (!sessionToken) {
+    throw new Error(
+      "The private payroll session expired; the agent will continue reconciling this change in the background.",
+    );
+  }
+  const response = await postAgentApi({
+    action: "reconcile_payroll_operation",
+    sessionToken,
+    payload: { operationId: options.operationId },
+  });
+  if (!response.ok) throw await agentResponseError(response);
+  return parseStagedOperation(await response.json());
+}
+
+export function expectedRecipientPolicyFromDraft(
+  draft: RecipientDraft,
+  options: { active?: boolean; paymentSplit?: SplitConfig[] } = {},
+): ExpectedRecipientPolicy {
+  return {
+    name: draft.name.trim(),
+    personalCapYocto: nearToYocto(draft.personalCapNear),
+    active: options.active ?? true,
+    preferredChain: draft.preferredChain,
+    preferredToken: draft.preferredToken,
+    paymentSplit: options.paymentSplit ?? [],
+    schedule: draft.schedule,
+  };
 }
 
 async function recipientPlanFromDraft(
@@ -152,7 +214,7 @@ async function recipientPlanFromDraft(
   };
 }
 
-async function sendSignedPlanAction(options: {
+async function sendSignedPlanAction<T = void>(options: {
   wallet: Wallet;
   accountId: string;
   action:
@@ -160,7 +222,7 @@ async function sendSignedPlanAction(options: {
     | "upsert_payroll_recipient"
     | "remove_payroll_recipient";
   payload: unknown;
-}): Promise<void> {
+}): Promise<T> {
   const authorization = await signAgentAuthorization(options);
   const response = await postAgentApi({
     action: options.action,
@@ -171,7 +233,7 @@ async function sendSignedPlanAction(options: {
   const result = (await response.json()) as {
     sessionToken?: unknown;
     sessionExpiresAt?: unknown;
-  };
+  } & Record<string, unknown>;
   if (
     typeof result.sessionToken !== "string" ||
     typeof result.sessionExpiresAt !== "string"
@@ -183,4 +245,24 @@ async function sendSignedPlanAction(options: {
     sessionToken: result.sessionToken,
     sessionExpiresAt: result.sessionExpiresAt,
   });
+  if (options.action === "upsert_payroll_recipient" || options.action === "remove_payroll_recipient") {
+    return parseStagedOperation(result) as T;
+  }
+  return undefined as T;
+}
+
+function parseStagedOperation(value: unknown): StagedPayrollOperation {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("The payroll agent returned an invalid reconciliation response.");
+  }
+  const operationId = (value as { operationId?: unknown }).operationId;
+  const reconciliationStatus = (value as { reconciliationStatus?: unknown })
+    .reconciliationStatus;
+  if (
+    typeof operationId !== "string" ||
+    (reconciliationStatus !== "committed" && reconciliationStatus !== "pending")
+  ) {
+    throw new Error("The payroll agent returned an invalid reconciliation response.");
+  }
+  return { operationId, reconciliationStatus };
 }

@@ -11,10 +11,40 @@ command -v near >/dev/null || { echo "near CLI is required" >&2; exit 1; }
 
 "$ROOT_DIR/scripts/build-contracts.sh"
 
+ROOT_STATE="$(
+  node -e '
+    const account = process.argv[1];
+    const rpc = process.argv[2];
+    async function view(method) {
+      const body = {jsonrpc:"2.0",id:`root-${method}`,method:"query",params:{request_type:"call_function",finality:"final",account_id:account,method_name:method,args_base64:"e30="}};
+      const response = await fetch(rpc,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
+      const value = await response.json();
+      if (!value.result?.result) throw new Error(value.error?.message ?? `${method} failed`);
+      return JSON.parse(Buffer.from(value.result.result).toString("utf8"));
+    }
+    Promise.all([view("get_owner"), view("contract_version")])
+      .then(([owner, version]) => process.stdout.write(JSON.stringify({owner, version})))
+      .catch((error) => { console.error(error.message); process.exit(1); });
+  ' "$ROOT_ACCOUNT" "$RPC_URL"
+)"
+ROOT_OWNER="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).owner)' "$ROOT_STATE")"
+ROOT_VERSION="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).version)' "$ROOT_STATE")"
+[[ "$ROOT_OWNER" == "$ROOT_ACCOUNT" ]] || {
+  echo "Refusing root migration: stored owner is $ROOT_OWNER, not deployment signer $ROOT_ACCOUNT" >&2
+  exit 1
+}
+[[ "$ROOT_VERSION" == "0.1.0" ]] || {
+  echo "Refusing automatic migration from unexpected root version $ROOT_VERSION; review the account state manually" >&2
+  exit 1
+}
+
 echo "Upgrading the root provisioner on $ROOT_ACCOUNT..."
 near contract deploy "$ROOT_ACCOUNT" \
   use-file "$ROOT_DIR/contract/res/clavis_contract.wasm" \
-  without-init-call \
+  with-init-call migrate json-args '{}' \
+  prepaid-gas "100 TeraGas" \
+  attached-deposit "0 NEAR" \
   network-config testnet \
   sign-with-legacy-keychain \
   send
@@ -25,8 +55,12 @@ FACTORY_EXISTS="$(
     const body = {jsonrpc:"2.0",id:"factory-check",method:"query",params:{request_type:"view_account",finality:"final",account_id:account}};
     fetch(process.argv[2],{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})
       .then((response)=>response.json())
-      .then((value)=>process.stdout.write(value.result ? "yes" : "no"))
-      .catch(()=>process.stdout.write("no"));
+      .then((value)=>{
+        if (value.result) process.stdout.write("yes");
+        else if (value.error?.cause?.name === "UNKNOWN_ACCOUNT") process.stdout.write("no");
+        else throw new Error(value.error?.message ?? "Factory account lookup failed");
+      })
+      .catch((error)=>{ console.error(error.message); process.exit(1); });
   ' "$FACTORY_ACCOUNT" "$RPC_URL"
 )"
 

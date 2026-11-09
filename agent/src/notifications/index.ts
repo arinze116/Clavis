@@ -140,7 +140,7 @@ export class NotificationManager {
       emailText:
         `${options.workerName}, your NEAR testnet wallet was added to the payroll roster for ` +
         `${options.contractId}. Open https://clavisapp.vercel.app/worker with the same wallet ` +
-        "to review your schedule and privacy-minimized payment history.",
+        "to review your schedule and the employer-wide privacy-minimized decision history.",
       telegramText:
         `✅ Added to payroll · ${options.workerName} · ${options.contractId}`,
     });
@@ -200,8 +200,8 @@ export class NotificationManager {
         `Delivery for ${options.workerName} was submitted on ${options.business.contract_id}. ` +
         `Route: ${options.chain}/${options.token}.` +
         (options.settlementKind === "native_near"
-          ? " Settlement: direct native NEAR."
-          : " Settlement: NEAR Intents solver submission."),
+          ? " Settlement: native NEAR from the payroll contract."
+          : " Settlement: legacy external record; new cross-chain submission is disabled."),
       telegramText:
         `🚚 Delivery submitted · ${options.workerName} · ${options.chain}/${options.token}`,
     });

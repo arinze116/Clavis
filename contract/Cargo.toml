@@ -1,9 +1,9 @@
 [package]
 name = "clavis-contract"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Arinze"]
-description = "Rule-bound private payroll authorization contract for NEAR"
+description = "Contract-controlled, rule-bound payroll settlement on NEAR"
 license = "MIT"
 
 [lib]

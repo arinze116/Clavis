@@ -94,6 +94,7 @@ export async function triggerDuePayments(options: {
 
       const result = await options.near.requestPayment({
         recipientHash: plan.recipientHash,
+        recipientAccountId: plan.nearAddress,
         amountYocto: plan.amountYocto,
         chain: primaryRoute.chain,
         token: primaryRoute.token,
@@ -122,13 +123,10 @@ export async function triggerDuePayments(options: {
         }
         continue;
       }
+      if (!result.settled) {
+        throw new Error("The contract approved a payment without confirming settlement");
+      }
 
-      const envelopes = buildIntentEnvelopes(
-        options.contractId,
-        result.payment_id,
-        plan,
-        now,
-      );
       const milestone =
         recipient.schedule === "Milestone" && plan.milestoneId
           ? { recipientHash: plan.recipientHash, milestoneId: plan.milestoneId }
@@ -139,18 +137,16 @@ export async function triggerDuePayments(options: {
           recipientHash: plan.recipientHash,
           amountYocto: plan.amountYocto,
           approvedAt: now.getTime(),
-          status: "PENDING_DELIVERY",
+          status: "DELIVERED",
         },
-        envelopes,
+        [],
         milestone,
       );
-      for (const envelope of envelopes) {
-        await options.intentStore.ensurePending(envelope);
-      }
       logger.info("payment.approved", {
         contractId: options.contractId,
         paymentId: result.payment_id,
-        routes: envelopes.length,
+        settlementKind: "contract_native_near",
+        transactionHash: result.transaction_hash,
       });
       if (
         !options.claimDecisionNotification ||
@@ -166,6 +162,16 @@ export async function triggerDuePayments(options: {
           workerAccountId: plan.nearAddress,
         });
       }
+      await options.notifications.deliveryFilled({
+        business: options.business,
+        paymentId: result.payment_id,
+        workerName: plan.name,
+        workerAccountId: plan.nearAddress,
+        chain: primaryRoute.chain,
+        token: primaryRoute.token,
+        transactionHash: result.transaction_hash,
+        ...(options.ownerAccountId ? { ownerAccountId: options.ownerAccountId } : {}),
+      });
     } catch (error) {
       logger.error("payment.request_failed", {
         contractId: options.contractId,

@@ -7,6 +7,8 @@ interface TreasuryStatusProps {
   dailyLimit: string;
   dailySpent: string;
   dailyWindowExpired: boolean;
+  contractControlsSettlement: boolean;
+  contractVersion: string | null;
 }
 
 export function TreasuryStatus({
@@ -14,6 +16,8 @@ export function TreasuryStatus({
   dailyLimit,
   dailySpent,
   dailyWindowExpired,
+  contractControlsSettlement,
+  contractVersion,
 }: TreasuryStatusProps) {
   const limit = BigInt(dailyLimit || "0");
   const spent = BigInt(dailySpent || "0");
@@ -29,7 +33,9 @@ export function TreasuryStatus({
             {formatNear(balance)}
           </p>
           <p className="mt-2 text-sm leading-6 text-ink/50">
-            Contract account balance on NEAR testnet; settlement funding is separate and not verified here.
+            {contractControlsSettlement
+              ? "Contract treasury balance funds native NEAR payouts after every policy check succeeds."
+              : `Legacy ${contractVersion ?? "pre-v0.2"} contract balance; this deployment authorizes requests but does not control settlement funds.`}
           </p>
         </div>
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-acid">

@@ -49,12 +49,12 @@ const cases = [
     test: "fails closed when a credential file omits a discovered contract",
   },
   {
-    id: "KEY-003",
+    id: "VERSION-001",
     category: "Access control",
-    threat: "A full-access settlement signer reuses the payroll agent account and weakens the restricted-key claim.",
-    protection: "Startup rejects any settlement account that overlaps a payroll authorization account.",
-    source: "agent/src/agent-credentials.test.ts",
-    test: "rejects a settlement signer that reuses a payroll agent account",
+    threat: "The v0.2 scheduler submits to a legacy authorization-only payroll contract and advances policy without contract-controlled settlement.",
+    protection: "Scheduler admission rejects every contract version older than v0.2.0 before a payment request can be sent.",
+    source: "agent/src/near.test.ts",
+    test: "rejects legacy authorization-only version",
   },
   {
     id: "POLICY-001",
@@ -115,18 +115,42 @@ const cases = [
   {
     id: "SETTLE-001",
     category: "Settlement safety",
-    threat: "A native payment is sent to the worker identity wallet instead of the configured payout destination.",
-    protection: "Native settlement uses the validated destination address from the payroll route.",
-    source: "agent/src/intents.test.ts",
-    test: "uses the configured native payout destination instead of the worker identity wallet",
+    threat: "A compromised agent redirects native NEAR to an account other than the approved recipient commitment.",
+    protection: "The contract hashes the supplied NEAR account and rejects any destination that does not match the recipient commitment.",
+    source: "contract/src/tests.rs",
+    test: "rejects_native_destination_that_does_not_match_commitment",
   },
   {
     id: "SETTLE-002",
     category: "Settlement safety",
-    threat: "The contract consumes policy capacity before a known-unavailable delivery route is checked.",
-    protection: "Settlement preflight runs before request_payment and rejects missing signer or unsupported routes.",
-    source: "agent/src/trigger.test.ts",
-    test: "does not consume authorization when settlement preflight fails",
+    threat: "A failed native transfer permanently consumes daily capacity or advances the recipient schedule.",
+    protection: "The settlement callback rolls back reserved spend and schedule state before recording rejection.",
+    source: "contract/src/tests.rs",
+    test: "failed_native_transfer_rolls_back_reserved_policy_state",
+  },
+  {
+    id: "SETTLE-003",
+    category: "Settlement safety",
+    threat: "A cross-chain request advances policy state even though custody is not contract-controlled.",
+    protection: "Cross-chain authorization fails closed before daily spend or schedule state changes.",
+    source: "contract/src/tests.rs",
+    test: "cross_chain_authorization_fails_closed_before_policy_is_consumed",
+  },
+  {
+    id: "SETTLE-004",
+    category: "Settlement safety",
+    threat: "A separate off-chain signer bypasses contract authorization and moves settlement funds directly.",
+    protection: "The active delivery adapter refuses external settlement submission; native funds move only from the payroll contract.",
+    source: "agent/src/intents.test.ts",
+    test: "never submits funds from an external settlement signer",
+  },
+  {
+    id: "SETTLE-005",
+    category: "Settlement safety",
+    threat: "A payout drains balance needed to persist the settlement callback and leaves an already delivered payment unresolved.",
+    protection: "The contract preserves measured storage stake, callback write headroom, and an operational reserve before transferring funds.",
+    source: "contract/src/tests.rs",
+    test: "rejects_a_transfer_that_would_consume_storage_and_operational_reserves",
   },
   {
     id: "SCHEDULE-001",
@@ -147,8 +171,8 @@ const cases = [
   {
     id: "REPLAY-001",
     category: "Schedule and replay",
-    threat: "A filled cross-chain intent is submitted a second time after restart or polling.",
-    protection: "Filled intents are alerted and removed without resubmission.",
+    threat: "A legacy filled cross-chain intent persisted from v0.1 is submitted a second time after restart or polling.",
+    protection: "Legacy filled intent records are alerted and removed without resubmission; new cross-chain submission is disabled.",
     source: "agent/src/trigger.test.ts",
     test: "alerts and removes a filled intent without submitting it again",
   },
@@ -177,6 +201,22 @@ const cases = [
     test: "syncs a validated private plan without exposing it through the response",
   },
   {
+    id: "DATA-003",
+    category: "Private data handling",
+    threat: "Wallet cancellation leaves a new private recipient active without the matching on-chain policy.",
+    protection: "Private upserts remain staged across restart until exact public policy reconciliation commits them.",
+    source: "agent/src/payroll-plan-store.test.ts",
+    test: "keeps a staged upsert inactive across restart until reconciliation commits it",
+  },
+  {
+    id: "DATA-004",
+    category: "Private data handling",
+    threat: "A private recipient is deleted before the owner confirms on-chain removal.",
+    protection: "Staged removal leaves the active plan unchanged until the contract no longer contains the recipient.",
+    source: "agent/src/payroll-plan-store.test.ts",
+    test: "does not remove an active recipient until the staged removal is committed",
+  },
+  {
     id: "MATH-001",
     category: "Arithmetic and state safety",
     threat: "Daily-spend arithmetic wraps at the u128 boundary and permits excess payment.",
@@ -196,9 +236,12 @@ const cases = [
 
 const limitations = [
   "This report is generated from deterministic repository tests; it is not an independent third-party audit.",
-  "The deployed product is testnet-only and must not custody mainnet funds.",
+  "The product is testnet-only and must not custody mainnet funds.",
   "Standard NEAR function-call arguments and chain metadata remain public even when public audit entries omit salary and recipient fields.",
-  "Cross-chain settlement correctness depends on external solver and destination-chain behavior that unit tests cannot fully prove.",
+  "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
+  "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
+  "A Full Access key on a payroll contract account is outside contract enforcement. The legacy root deployment key must be segregated from the agent host; factory-created v0.2 children are created without access keys.",
+  "Callback uncertainty fails closed. There is no operator-supplied transfer-result override; an exceptional callback that never finalizes requires an owner-reviewed upgrade.",
   "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence.",
 ];
 
@@ -211,6 +254,7 @@ function parseArguments(values) {
     commit: "",
     generatedAt: new Date().toISOString(),
     vitestReport: null,
+    check: false,
   };
 
   for (let index = 0; index < values.length; index += 1) {
@@ -237,6 +281,8 @@ function parseArguments(values) {
     } else if (argument === "--vitest-report" && next) {
       options.vitestReport = resolve(repositoryRoot, next);
       index += 1;
+    } else if (argument === "--check") {
+      options.check = true;
     }
   }
 
@@ -287,14 +333,23 @@ function countTests(vitestReport) {
   const agentFiles = walk(resolve(repositoryRoot, "agent", "src"), ".ts").filter((path) =>
     path.endsWith(".test.ts"),
   );
+  const apiFiles = walk(resolve(repositoryRoot, "tests", "api"), ".ts").filter((path) =>
+    path.endsWith(".test.ts"),
+  );
+  const browserFiles = walk(resolve(repositoryRoot, "tests", "e2e"), ".ts").filter((path) =>
+    path.endsWith(".spec.ts"),
+  );
+  const countTypeScriptTests = (paths) => paths.reduce((total, path) => {
+    const matches = readFileSync(path, "utf8").match(/\b(?:it|test)(?:\.each)?\s*\(/gu);
+    return total + (matches?.length ?? 0);
+  }, 0);
   const rust = rustFiles.reduce((total, path) => {
     const matches = readFileSync(path, "utf8").match(/#\[test\]/gu);
     return total + (matches?.length ?? 0);
   }, 0);
-  const agentDefinitions = agentFiles.reduce((total, path) => {
-    const matches = readFileSync(path, "utf8").match(/\b(?:it|test)(?:\.each)?\s*\(/gu);
-    return total + (matches?.length ?? 0);
-  }, 0);
+  const agentDefinitions = countTypeScriptTests(agentFiles);
+  const api = countTypeScriptTests(apiFiles);
+  const browser = countTypeScriptTests(browserFiles);
   let agent = agentDefinitions;
   let count_basis = "source definitions";
   if (vitestReport) {
@@ -303,13 +358,18 @@ function countTests(vitestReport) {
       throw new Error("The Vitest report is missing a successful numTotalTests result");
     }
     agent = parsed.numTotalTests;
-    count_basis = "Rust source definitions and successful Vitest JSON report";
+    count_basis = "Rust, API, and browser source definitions plus successful Vitest JSON report";
   }
-  return { rust, agent, total: rust + agent, count_basis };
+  return { rust, agent, api, browser, total: rust + agent + api + browser, count_basis };
 }
 
 function markdown(report) {
-  const status = report.verification.status === "passed" ? "Passed" : "Source mapped";
+  const status =
+    report.verification.status === "passed"
+      ? "Passed"
+      : report.verification.status === "failed"
+        ? "Failed"
+        : "Source mapped";
   const snapshotLabel =
     report.verification.tree_state === "clean"
       ? `commit \`${report.verification.commit}\``
@@ -317,14 +377,19 @@ function markdown(report) {
   const rows = report.cases
     .map(
       (item) =>
-        `| ${item.id} | ${item.category} | ${item.threat} | ${item.protection} | [${item.test}](${item.source_url}) |`,
+        `| ${item.id} | ${item.category} | ${item.threat} | ${item.protection} | ${
+          item.source_url
+            ? `[${item.test}](${item.source_url})`
+            : `\`${item.source}:${item.line}\` — ${item.test}`
+        } |`,
     )
     .join("\n");
   return `# Clavis security evidence\n\n` +
     `Generated from ${snapshotLabel} at ${report.verification.generated_at}.\n\n` +
     `**Verification:** ${status} | **Mapped threats:** ${report.summary.mapped_threats} | ` +
     `**Repository tests:** ${report.summary.repository_tests.total} ` +
-    `(${report.summary.repository_tests.rust} Rust, ${report.summary.repository_tests.agent} agent)\n\n` +
+    `(${report.summary.repository_tests.rust} Rust, ${report.summary.repository_tests.agent} agent, ` +
+    `${report.summary.repository_tests.api} API, ${report.summary.repository_tests.browser} browser)\n\n` +
     `${report.verification.run_url ? `[Open the CI run](${report.verification.run_url})\n\n` : ""}` +
     `| ID | Category | Threat | Deterministic protection | Reproducing test |\n` +
     `|---|---|---|---|---|\n${rows}\n\n` +
@@ -334,6 +399,36 @@ function markdown(report) {
 function typescript(report) {
   return `// Generated by scripts/security/generate-security-report.mjs. Do not edit manually.\n` +
     `export const securityEvidence = ${JSON.stringify(report, null, 2)} as const;\n`;
+}
+
+function evidenceSnapshot(report) {
+  return {
+    schema_version: report.schema_version,
+    project: report.project,
+    summary: report.summary,
+    cases: report.cases.map((item) => ({
+      id: item.id,
+      category: item.category,
+      threat: item.threat,
+      protection: item.protection,
+      source: item.source,
+      test: item.test,
+      line: item.line,
+      source_sha256: item.source_sha256,
+    })),
+    limitations: report.limitations,
+  };
+}
+
+function readFrontendEvidence(filePath) {
+  const source = readFileSync(filePath, "utf8");
+  const prefix = "export const securityEvidence = ";
+  const start = source.indexOf(prefix);
+  const end = source.lastIndexOf(" as const;");
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error(`Unable to parse generated frontend evidence at ${filePath}`);
+  }
+  return JSON.parse(source.slice(start + prefix.length, end));
 }
 
 const options = parseArguments(process.argv.slice(2));
@@ -350,7 +445,10 @@ const evidenceCases = cases.map((item) => {
     ...item,
     line,
     source_sha256: hash(source),
-    source_url: `${repositoryUrl}/blob/${commit}/${item.source}#L${line}`,
+    source_url:
+      treeState === "clean"
+        ? `${repositoryUrl}/blob/${commit}/${item.source}#L${line}`
+        : "",
   };
 });
 const report = {
@@ -372,6 +470,29 @@ const report = {
   cases: evidenceCases,
   limitations,
 };
+
+if (options.check) {
+  const expected = JSON.stringify(evidenceSnapshot(report));
+  const committedReportPath = join(options.outputDirectory, "security-report.json");
+  const committedReport = JSON.parse(readFileSync(committedReportPath, "utf8"));
+  if (JSON.stringify(evidenceSnapshot(committedReport)) !== expected) {
+    throw new Error(
+      "Committed security evidence is stale; regenerate docs/generated and the frontend evidence module",
+    );
+  }
+  if (options.frontendOutput) {
+    const frontendReport = readFrontendEvidence(options.frontendOutput);
+    if (JSON.stringify(evidenceSnapshot(frontendReport)) !== expected) {
+      throw new Error(
+        "Frontend security evidence is stale; regenerate it from the current source tree",
+      );
+    }
+  }
+  console.log(
+    `Verified committed security evidence with ${report.summary.mapped_threats} mapped threats and ${report.summary.repository_tests.total} repository tests.`,
+  );
+  process.exit(0);
+}
 
 mkdirSync(options.outputDirectory, { recursive: true });
 writeFileSync(join(options.outputDirectory, "security-report.json"), `${JSON.stringify(report, null, 2)}\n`);

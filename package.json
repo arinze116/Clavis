@@ -1,6 +1,6 @@
 {
   "name": "clavis",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Privacy-minimized, rule-bound payroll automation on NEAR testnet",

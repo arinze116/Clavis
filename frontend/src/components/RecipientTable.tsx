@@ -290,8 +290,8 @@ export function RecipientTable({
                   }}
                 >
                   <option value="near">NEAR</option>
-                  <option value="ethereum">Ethereum</option>
-                  <option value="bnb">BNB Chain</option>
+                  <option value="ethereum" disabled>Ethereum — execution disabled</option>
+                  <option value="bnb" disabled>BNB Chain — execution disabled</option>
                 </select>
               </label>
               <label className="text-xs font-semibold text-ink/55">
@@ -307,11 +307,15 @@ export function RecipientTable({
                   }
                 >
                   <option value="NEAR">NEAR</option>
-                  <option value="USDC">USDC</option>
-                  <option value="BUSD">BUSD</option>
+                  <option value="USDC" disabled>USDC — execution disabled</option>
+                  <option value="BUSD" disabled>BUSD — execution disabled</option>
                 </select>
               </label>
             </div>
+            <p className="text-xs leading-5 text-ink/45">
+              Only native NEAR can execute in this release. A legacy cross-chain preference can
+              be replaced with NEAR but cannot be newly selected.
+            </p>
             <label className="text-xs font-semibold text-ink/55">
               Schedule
               <select
@@ -522,7 +526,7 @@ function RecipientActions({
     <div className={`flex gap-1 ${mobile ? "mt-4 justify-end border-t border-line pt-3" : "justify-end"}`}>
       <button
         type="button"
-        className="grid h-9 w-9 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-canvas hover:text-ink disabled:opacity-30"
+        className="grid h-11 w-11 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-canvas hover:text-ink disabled:opacity-30"
         disabled={busy}
         onClick={() => void onToggle(recipient).catch(() => undefined)}
         aria-label={recipient.active ? `Suspend ${recipient.name}` : `Reinstate ${recipient.name}`}
@@ -535,7 +539,7 @@ function RecipientActions({
       </button>
       <button
         type="button"
-        className="grid h-9 w-9 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-canvas hover:text-ink disabled:opacity-30"
+        className="grid h-11 w-11 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-canvas hover:text-ink disabled:opacity-30"
         disabled={busy}
         onClick={() => onEdit(recipient)}
         aria-label={`Edit ${recipient.name}`}
@@ -544,7 +548,7 @@ function RecipientActions({
       </button>
       <button
         type="button"
-        className="grid h-9 w-9 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+        className="grid h-11 w-11 place-items-center rounded-[9px] text-ink/45 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
         disabled={busy}
         onClick={() => onRemove(recipient)}
         aria-label={`Remove ${recipient.name}`}

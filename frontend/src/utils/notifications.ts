@@ -383,6 +383,10 @@ function getAgentTransactionSession(accountId: string): AgentTransactionSession 
   }
 }
 
+export function getAgentTransactionSessionToken(accountId: string): string | null {
+  return getAgentTransactionSession(accountId)?.sessionToken ?? null;
+}
+
 export async function notifyTransaction(options: {
   accountId: string;
   receiverId?: string;

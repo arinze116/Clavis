@@ -75,6 +75,8 @@ export interface SecurityAuditResult {
 
 export interface ContractSnapshot {
   contractId: string;
+  contractVersion: string | null;
+  contractControlsSettlement: boolean;
   evidence: ContractEvidence;
   owner: string;
   agent: string;

@@ -110,30 +110,12 @@ export class AgentCredentialProvider {
     }
     return this.#legacyCredential;
   }
-
-  usesAccount(accountId: string): boolean {
-    if (this.#legacyCredential?.accountId === accountId) return true;
-    return [...this.#credentials.values()].some(
-      (credential) => credential.accountId === accountId,
-    );
-  }
 }
 
 export function assertNoFullAccessOverride(value: string | undefined): void {
   if (value?.trim()) {
     throw new Error(
       "ALLOW_FULL_ACCESS_AGENT is no longer supported; configure a request_payment Function Call key for each contract",
-    );
-  }
-}
-
-export function assertSeparateSettlementAccount(
-  credentials: AgentCredentialProvider,
-  settlementAccountId: string | undefined,
-): void {
-  if (settlementAccountId && credentials.usesAccount(settlementAccountId)) {
-    throw new Error(
-      "SETTLEMENT_ACCOUNT_ID must be separate from every payroll agent account; settlement signing must not weaken request_payment-only authorization keys",
     );
   }
 }

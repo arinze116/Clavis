@@ -12,6 +12,15 @@ const SUPPORTED_ROUTES: &[(&str, &str)] =
     &[("near", "NEAR"), ("ethereum", "USDC"), ("bnb", "BUSD")];
 
 impl Clavis {
+    fn assert_recipient_not_settling(&self, recipient_hash: &str) {
+        assert!(
+            self.pending_native_payment
+                .as_ref()
+                .is_none_or(|pending| pending.recipient_hash != recipient_hash),
+            "Recipient has a native payment transfer in progress"
+        );
+    }
+
     fn validate_recipient_hash(recipient_hash: &str) {
         assert_eq!(
             recipient_hash.len(),
@@ -108,6 +117,7 @@ impl Clavis {
 
     pub fn remove_recipient(&mut self, recipient_hash: String) {
         self.assert_owner();
+        self.assert_recipient_not_settling(&recipient_hash);
         assert!(
             self.recipients.remove(&recipient_hash).is_some(),
             "Recipient not found"
@@ -126,6 +136,7 @@ impl Clavis {
 
     pub fn update_recipient_cap(&mut self, recipient_hash: String, personal_cap: U128) {
         self.assert_owner();
+        self.assert_recipient_not_settling(&recipient_hash);
         assert!(personal_cap.0 > 0, "Personal cap must be positive");
         let mut recipient = self
             .recipients
@@ -137,6 +148,7 @@ impl Clavis {
 
     pub fn update_schedule(&mut self, recipient_hash: String, schedule: PaymentSchedule) {
         self.assert_owner();
+        self.assert_recipient_not_settling(&recipient_hash);
         let mut recipient = self
             .recipients
             .get(&recipient_hash)
@@ -153,6 +165,7 @@ impl Clavis {
         payment_split: Vec<SplitConfig>,
     ) {
         self.assert_owner();
+        self.assert_recipient_not_settling(&recipient_hash);
         Self::validate_route(&preferred_chain, &preferred_token);
         Self::validate_splits(&payment_split);
 
@@ -224,6 +237,7 @@ impl Clavis {
 impl Clavis {
     fn set_recipient_active(&mut self, recipient_hash: String, active: bool) {
         self.assert_owner();
+        self.assert_recipient_not_settling(&recipient_hash);
         let mut recipient = self
             .recipients
             .get(&recipient_hash)

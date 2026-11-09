@@ -14,10 +14,14 @@ import {
   type NotificationPreferenceStore,
 } from "./notification-preferences.js";
 import { payrollRecipientSchema } from "./payroll.js";
-import { PayrollPlanStore } from "./payroll-plan-store.js";
+import {
+  PayrollPlanStore,
+  type ExpectedRecipientPolicy,
+  type PendingPayrollOperation,
+} from "./payroll-plan-store.js";
 import { NearRpcClient } from "./near.js";
 import type { NotificationManager } from "./notifications/index.js";
-import type { PayrollRecipient } from "./types.js";
+import type { PayrollRecipient, RecipientView } from "./types.js";
 
 const MAX_BODY_BYTES = 48 * 1_024;
 const MAX_EVENTS_PER_WINDOW = 30;
@@ -26,6 +30,7 @@ const MAX_PAYROLL_CHANGES_PER_WINDOW = 30;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
 const EMAIL_CHALLENGE_TTL_MS = 10 * 60 * 1_000;
 const TELEGRAM_PAIRING_TTL_MS = 10 * 60 * 1_000;
+const PAYROLL_RECONCILIATION_INTERVAL_MS = 30_000;
 
 const signedActionSchema = z.enum([
   "begin_email_link",
@@ -105,11 +110,36 @@ const payrollContractIdSchema = z
     "Payroll contract must be managed by clavis.testnet",
   );
 
+const expectedRecipientPolicySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  personalCapYocto: z.string().regex(/^\d+$/),
+  active: z.boolean(),
+  preferredChain: z.enum(["near", "ethereum", "bnb"]),
+  preferredToken: z.enum(["NEAR", "USDC", "BUSD"]),
+  paymentSplit: z
+    .array(
+      z.object({
+        chain: z.enum(["near", "ethereum", "bnb"]),
+        token: z.enum(["NEAR", "USDC", "BUSD"]),
+        percentage: z.number().int().min(1).max(100),
+      }),
+    )
+    .max(3),
+  schedule: z.enum(["Weekly", "Biweekly", "Milestone"]),
+});
+
 const syncPayrollPlanSchema = z.object({
   action: z.literal("sync_payroll_plan"),
   payload: z.object({
     contractId: payrollContractIdSchema,
-    recipients: z.array(payrollRecipientSchema).max(20),
+    entries: z
+      .array(
+        z.object({
+          recipient: payrollRecipientSchema,
+          expectedPolicy: expectedRecipientPolicySchema,
+        }),
+      )
+      .max(20),
   }),
   authorization: authorizationSchema,
 });
@@ -119,6 +149,7 @@ const upsertPayrollRecipientSchema = z.object({
   payload: z.object({
     contractId: payrollContractIdSchema,
     recipient: payrollRecipientSchema,
+    expectedPolicy: expectedRecipientPolicySchema,
   }),
   authorization: authorizationSchema,
 });
@@ -130,6 +161,14 @@ const removePayrollRecipientSchema = z.object({
     recipientHash: z.string().regex(/^[a-f0-9]{64}$/),
   }),
   authorization: authorizationSchema,
+});
+
+const reconcilePayrollOperationSchema = z.object({
+  action: z.literal("reconcile_payroll_operation"),
+  sessionToken: z.string().min(32).max(128),
+  payload: z.object({
+    operationId: z.string().uuid(),
+  }),
 });
 
 const transactionEventSchema = z.object({
@@ -203,6 +242,8 @@ export class NotificationApiServer {
   readonly #inFlightEvents = new Set<string>();
   #lastRatePruneAt = 0;
   #server: Server | null = null;
+  #reconciliationTimer: ReturnType<typeof setInterval> | null = null;
+  #reconciliationInFlight: Promise<void> | null = null;
 
   constructor(options: {
     host: string;
@@ -245,10 +286,22 @@ export class NotificationApiServer {
       });
     });
     this.#server = server;
+    this.#reconciliationTimer = setInterval(() => {
+      void this.reconcilePendingPayrollOperations().catch((error) => {
+        logger.error("payroll_plan.reconciliation_failed", { error: errorMessage(error) });
+      });
+    }, PAYROLL_RECONCILIATION_INTERVAL_MS);
+    void this.reconcilePendingPayrollOperations().catch((error) => {
+      logger.error("payroll_plan.reconciliation_failed", { error: errorMessage(error) });
+    });
     logger.info("notification_api.started", { host: this.#host, port: this.#port });
   }
 
   async stop(): Promise<void> {
+    if (this.#reconciliationTimer) {
+      clearInterval(this.#reconciliationTimer);
+      this.#reconciliationTimer = null;
+    }
     const server = this.#server;
     this.#server = null;
     if (!server) return;
@@ -296,6 +349,10 @@ export class NotificationApiServer {
       } else if (action === "remove_payroll_recipient") {
         result = await this.removePayrollRecipient(
           removePayrollRecipientSchema.parse(value),
+        );
+      } else if (action === "reconcile_payroll_operation") {
+        result = await this.reconcilePayrollOperation(
+          reconcilePayrollOperationSchema.parse(value),
         );
       } else if (action === "transaction_event") {
         result = await this.transactionEvent(transactionEventSchema.parse(value));
@@ -418,9 +475,34 @@ export class NotificationApiServer {
     return this.withAuthorization(request, async (accountId) => {
       await this.assertPayrollOwner(request.payload.contractId, accountId);
       const preference = this.#store.get(accountId);
+      const onChainRecipients = await this.#rpc.view<RecipientView[]>(
+        request.payload.contractId,
+        "get_recipients",
+        { from: 0, limit: 100 },
+      );
+      if (onChainRecipients.length !== request.payload.entries.length) {
+        throw new HttpError(
+          409,
+          "The private plan must match the complete on-chain recipient roster",
+        );
+      }
+      const onChainByHash = new Map(
+        onChainRecipients.map((recipient) => [recipient.recipient_hash, recipient]),
+      );
+      const recipients: PayrollRecipient[] = [];
+      for (const entry of request.payload.entries) {
+        const recipient = onChainByHash.get(entry.recipient.recipientHash);
+        if (!recipient || !recipientMatchesExpectedPolicy(recipient, entry.expectedPolicy)) {
+          throw new HttpError(
+            409,
+            `On-chain recipient ${entry.recipient.recipientHash} does not match the private plan`,
+          );
+        }
+        recipients.push(entry.recipient as PayrollRecipient);
+      }
       const result = await this.#payrollPlans.sync({
         contractId: request.payload.contractId,
-        recipients: request.payload.recipients as PayrollRecipient[],
+        recipients,
         ...(preference?.email ? { ownerEmail: preference.email } : {}),
         ...(preference?.telegramChatId
           ? { telegramChatId: preference.telegramChatId }
@@ -442,18 +524,21 @@ export class NotificationApiServer {
     return this.withAuthorization(request, async (accountId) => {
       await this.assertPayrollOwner(request.payload.contractId, accountId);
       const preference = this.#store.get(accountId);
-      const result = await this.#payrollPlans.upsert({
+      const operation = await this.#payrollPlans.prepareUpsert({
         contractId: request.payload.contractId,
         recipient: request.payload.recipient as PayrollRecipient,
+        expectedPolicy: request.payload.expectedPolicy,
         ...(preference?.email ? { ownerEmail: preference.email } : {}),
         ...(preference?.telegramChatId
           ? { telegramChatId: preference.telegramChatId }
           : {}),
       });
+      const reconciliationStatus = await this.attemptPendingReconciliation(operation);
       const session = await this.#store.issueSession(accountId, this.#sessionTtlMs);
       return {
-        synced: true,
-        recipientCount: result.recipientCount,
+        staged: true,
+        operationId: operation.operationId,
+        reconciliationStatus,
         sessionToken: session.token,
         sessionExpiresAt: session.expiresAt,
       };
@@ -466,7 +551,7 @@ export class NotificationApiServer {
     return this.withAuthorization(request, async (accountId) => {
       await this.assertPayrollOwner(request.payload.contractId, accountId);
       const preference = this.#store.get(accountId);
-      const result = await this.#payrollPlans.remove({
+      const operation = await this.#payrollPlans.prepareRemove({
         contractId: request.payload.contractId,
         recipientHash: request.payload.recipientHash,
         ...(preference?.email ? { ownerEmail: preference.email } : {}),
@@ -474,15 +559,84 @@ export class NotificationApiServer {
           ? { telegramChatId: preference.telegramChatId }
           : {}),
       });
+      const reconciliationStatus = await this.attemptPendingReconciliation(operation);
       const session = await this.#store.issueSession(accountId, this.#sessionTtlMs);
       return {
-        synced: true,
-        removed: result.removed,
-        recipientCount: result.recipientCount,
+        staged: true,
+        operationId: operation.operationId,
+        reconciliationStatus,
         sessionToken: session.token,
         sessionExpiresAt: session.expiresAt,
       };
     });
+  }
+
+  private async reconcilePayrollOperation(
+    request: z.infer<typeof reconcilePayrollOperationSchema>,
+  ): Promise<unknown> {
+    const accountId = this.#store.authenticateSession(request.sessionToken);
+    if (!accountId) throw new HttpError(401, "Payroll session is invalid or expired");
+    this.enforceRateLimit(`payroll:${accountId}`, MAX_PAYROLL_CHANGES_PER_WINDOW);
+    const operation = (await this.#payrollPlans.listPending()).find(
+      (item) => item.operationId === request.payload.operationId,
+    );
+    if (!operation) {
+      return {
+        operationId: request.payload.operationId,
+        reconciliationStatus: "committed",
+      };
+    }
+    await this.assertPayrollOwner(operation.contractId, accountId);
+    return {
+      operationId: operation.operationId,
+      reconciliationStatus: await this.attemptPendingReconciliation(operation),
+    };
+  }
+
+  private attemptPendingReconciliation(
+    operation: PendingPayrollOperation,
+  ): Promise<"committed" | "pending"> {
+    return this.reconcilePendingOperation(operation).catch((error) => {
+      logger.warn("payroll_plan.reconciliation_deferred", {
+        operationId: operation.operationId,
+        contractId: operation.contractId,
+        error: errorMessage(error),
+      });
+      return "pending" as const;
+    });
+  }
+
+  private async reconcilePendingOperation(
+    operation: PendingPayrollOperation,
+  ): Promise<"committed" | "pending"> {
+    const recipient = await this.#rpc.view<RecipientView | null>(
+      operation.contractId,
+      "get_recipient",
+      { recipient_hash: operation.recipientHash },
+    );
+    const canCommit = pendingOperationMatchesRecipient(operation, recipient);
+    if (!canCommit) return "pending";
+    await this.#payrollPlans.commitPending(operation.operationId);
+    logger.info("payroll_plan.reconciled", {
+      operationId: operation.operationId,
+      contractId: operation.contractId,
+      action: operation.action,
+    });
+    return "committed";
+  }
+
+  private reconcilePendingPayrollOperations(): Promise<void> {
+    if (this.#reconciliationInFlight) return this.#reconciliationInFlight;
+    const reconciliation = (async () => {
+      const operations = await this.#payrollPlans.listPending();
+      for (const operation of operations) {
+        await this.attemptPendingReconciliation(operation);
+      }
+    })();
+    this.#reconciliationInFlight = reconciliation.finally(() => {
+      this.#reconciliationInFlight = null;
+    });
+    return this.#reconciliationInFlight;
   }
 
   private async assertPayrollOwner(contractId: string, accountId: string): Promise<void> {
@@ -633,6 +787,40 @@ export async function isPayrollOwner(
   accountId: string,
 ): Promise<boolean> {
   return (await rpc.view<string>(contractId, "get_owner")) === accountId;
+}
+
+export function recipientMatchesExpectedPolicy(
+  recipient: RecipientView,
+  expected: ExpectedRecipientPolicy,
+): boolean {
+  const normalizeSplits = (
+    splits: Array<{ chain: string; token: string; percentage: number }>,
+  ) =>
+    [...splits].sort((left, right) =>
+      `${left.chain}:${left.token}:${left.percentage}`.localeCompare(
+        `${right.chain}:${right.token}:${right.percentage}`,
+      ),
+    );
+  return (
+    recipient.name === expected.name &&
+    recipient.personal_cap === expected.personalCapYocto &&
+    recipient.active === expected.active &&
+    recipient.preferred_chain === expected.preferredChain &&
+    recipient.preferred_token === expected.preferredToken &&
+    recipient.schedule === expected.schedule &&
+    JSON.stringify(normalizeSplits(recipient.payment_split)) ===
+      JSON.stringify(normalizeSplits(expected.paymentSplit))
+  );
+}
+
+export function pendingOperationMatchesRecipient(
+  operation: PendingPayrollOperation,
+  recipient: RecipientView | null,
+): boolean {
+  return operation.action === "remove"
+    ? recipient === null
+    : recipient !== null &&
+        recipientMatchesExpectedPolicy(recipient, operation.expectedPolicy);
 }
 
 export function summarizeTransaction(result: TransactionResult): TransactionSummary {

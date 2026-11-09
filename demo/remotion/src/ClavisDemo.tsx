@@ -29,9 +29,9 @@ const colors = {
 
 const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: string }> = {
   promise: {
-    eyebrow: "Private cross-chain payroll",
-    title: "Speed without surrendering control",
-    highlight: "Private amounts · public proof",
+    eyebrow: "Contract-controlled native payroll",
+    title: "Automation without surrendering control",
+    highlight: "Minimized audit · public proof",
   },
   configure: {
     eyebrow: "Policy configured once",
@@ -45,23 +45,23 @@ const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: s
   },
   enforce: {
     eyebrow: "Rules enforced onchain",
-    title: "Every authorization checked independently",
-    highlight: "Schedule · cap · treasury · route",
+    title: "Every request checked independently",
+    highlight: "Schedule · cap · treasury · commitment",
   },
   "fail-closed": {
     eyebrow: "Fail closed by design",
-    title: "Compromise does not bypass policy",
-    highlight: "Violations are rejected",
+    title: "Native funds move only after policy passes",
+    highlight: "Callback commits or rolls back",
   },
   "prove-privately": {
-    eyebrow: "Proof without exposure",
-    title: "Audit outcomes, not compensation data",
-    highlight: "Zero salary data",
+    eyebrow: "Minimized public evidence",
+    title: "Employer-wide outcomes, not compensation data",
+    highlight: "Minimized, not confidential",
   },
   close: {
     eyebrow: "Built on NEAR",
     title: "Enough authority to work. None to break rules.",
-    highlight: "Agent → contract → Intents",
+    highlight: "Agent → contract → native transfer",
   },
 };
 

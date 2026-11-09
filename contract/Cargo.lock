@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "clavis-contract"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "borsh",
  "near-sdk",
@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "clavis-factory"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "borsh",
  "near-sdk",

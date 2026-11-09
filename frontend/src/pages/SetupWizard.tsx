@@ -29,7 +29,10 @@ import { useOwnerContract } from "../hooks/useContractState";
 import type { RecipientDraft } from "../types";
 import {
   addRecipients,
+  assertFactorySupportsContractControlledSettlement,
+  controlsNativeSettlement,
   createPayroll,
+  getFactoryContractVersion,
   isBusinessNameAvailable,
   storeContractId,
   waitForPayrollDeployment,
@@ -56,6 +59,14 @@ const nearAccountPattern = /^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 const maxU128 = (1n << 128n) - 1n;
 
 export default function SetupWizard() {
+  return (
+    <AppShell>
+      <SetupWizardContent />
+    </AppShell>
+  );
+}
+
+function SetupWizardContent() {
   const navigate = useNavigate();
   const { showToast, updateToast } = useToast();
   const { accountId, wallet, loading: walletLoading } = useWallet();
@@ -80,6 +91,7 @@ export default function SetupWizard() {
   const [deploying, setDeploying] = useState(false);
   const [deployedContractId, setDeployedContractId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [factoryVersion, setFactoryVersion] = useState<string | null | undefined>(undefined);
 
   const normalizedName = businessName.trim().toLowerCase();
   const dailyLimitYocto = parsePositiveYocto(dailyLimit);
@@ -87,12 +99,22 @@ export default function SetupWizard() {
   const limitsValid =
     dailyLimitYocto !== null &&
     perPaymentLimitYocto !== null &&
-    perPaymentLimitYocto < dailyLimitYocto;
+    perPaymentLimitYocto <= dailyLimitYocto;
   const estimatedPayments = useMemo(() => {
     const daily = parsePositiveYocto(dailyLimit);
     const payment = parsePositiveYocto(perPaymentLimit);
     return daily && payment ? (daily / payment).toLocaleString() : "0";
   }, [dailyLimit, perPaymentLimit]);
+
+  useEffect(() => {
+    let active = true;
+    void getFactoryContractVersion().then((version) => {
+      if (active) setFactoryVersion(version);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     setNameAvailable(null);
@@ -150,11 +172,7 @@ export default function SetupWizard() {
   }, [draft.name, policyConfirmed, policyResult]);
 
   if (walletLoading || ownerContract.loading) {
-    return (
-      <AppShell>
-        <LoadingState label="Preparing business setup" />
-      </AppShell>
-    );
+    return <LoadingState label="Preparing business setup" />;
   }
 
   async function generateRules() {
@@ -261,6 +279,7 @@ export default function SetupWizard() {
     const contractId = `${normalizedName}.clavis.testnet`;
     let activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
     try {
+      await assertFactorySupportsContractControlledSettlement();
       const deployment = await createPayroll({
         wallet,
         accountId,
@@ -276,20 +295,6 @@ export default function SetupWizard() {
         message: "Transaction confirmed ✅ — Payroll contract deployed",
         explorerHref: deployment.explorerHref,
       });
-      activeToastId = showToast({
-        status: "pending",
-        message: "Authorizing private payroll plan",
-      });
-      await syncPayrollPlan({
-        wallet,
-        accountId,
-        contractId,
-        recipients,
-      });
-      updateToast(activeToastId, {
-        status: "success",
-        message: "Payroll agent configured ✅",
-      });
       if (recipients.length > 0) {
         activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
         const recipientTransactions = await addRecipients(
@@ -304,6 +309,20 @@ export default function SetupWizard() {
           explorerHref: recipientTransactions.at(-1)?.explorerHref,
         });
       }
+      activeToastId = showToast({
+        status: "pending",
+        message: "Verifying and saving the private payroll plan",
+      });
+      await syncPayrollPlan({
+        wallet,
+        accountId,
+        contractId,
+        recipients,
+      });
+      updateToast(activeToastId, {
+        status: "success",
+        message: "Payroll agent configured from matching on-chain policy ✅",
+      });
       setDeployedContractId(record.contract_id);
       setStep(6);
     } catch (reason) {
@@ -319,8 +338,7 @@ export default function SetupWizard() {
   }
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1080px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+    <div className="mx-auto max-w-[1080px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
         <div className="text-center">
           <p className="eyebrow">Owner onboarding</p>
           <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
@@ -487,7 +505,7 @@ export default function SetupWizard() {
                       setPolicyResult(null);
                       setPolicyConfirmed(false);
                     }}
-                    placeholder="Describe your payroll rules in plain English. e.g. Pay Sarah $500 weekly on Fridays, max $600 per day total, never pay between midnight and 6am"
+                    placeholder="Describe your payroll rules in plain English. e.g. Pay Sarah 5 NEAR weekly, cap each payment at 6 NEAR, max 20 NEAR per day, never pay between midnight and 6am"
                     maxLength={2_500}
                     disabled={policyBusy}
                   />
@@ -643,7 +661,7 @@ export default function SetupWizard() {
               </div>
               {!limitsValid && (
                 <p className="mt-3 text-xs text-red-700">
-                  Limits must be positive and the per-payment limit must be less than the daily limit.
+                  Limits must be positive and the per-payment limit cannot exceed the daily limit.
                 </p>
               )}
             </div>
@@ -697,7 +715,7 @@ export default function SetupWizard() {
                     </div>
                     <button
                       type="button"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-red-600"
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-red-600 transition-colors hover:bg-red-50"
                       onClick={() =>
                         setRecipients((value) =>
                           value.filter((_, itemIndex) => itemIndex !== index),
@@ -763,10 +781,27 @@ export default function SetupWizard() {
                   </div>
                 ))}
               </div>
+              {factoryVersion === undefined ? (
+                <p className="mt-4 rounded-xl bg-canvas p-3 text-xs text-ink/55" role="status">
+                  Checking the deployed factory version…
+                </p>
+              ) : controlsNativeSettlement(factoryVersion) ? (
+                <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
+                  Factory v{factoryVersion} creates contracts with contract-controlled native
+                  NEAR settlement.
+                </p>
+              ) : (
+                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900" role="alert">
+                  New deployments are paused because the live factory is still legacy
+                  authorization-only. Upgrade it to v0.2.0 before creating this contract.
+                </p>
+              )}
               <button
                 type="button"
                 className="button-primary mt-6 w-full"
-                disabled={deploying || !wallet}
+                disabled={
+                  deploying || !wallet || !controlsNativeSettlement(factoryVersion ?? null)
+                }
                 onClick={() => void deploy()}
               >
                 {deploying ? "Deploying and configuring…" : "Deploy payroll contract"}
@@ -785,8 +820,9 @@ export default function SetupWizard() {
               </span>
               <h2 className="mt-5 font-display text-4xl font-semibold">Your contract is live.</h2>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink/50">
-                Clavis created and initialized your isolated payroll contract. Fund its
-                treasury, confirm your offchain payroll plan, and keep the agent online.
+                Clavis created the contract and reconciled its private plan with the final
+                on-chain roster. Fund the treasury, provision the configured agent with a
+                contract-scoped request_payment key, and keep that agent online.
                 You will be redirected to the business dashboard in a few seconds.
               </p>
               <div className="mt-6 rounded-2xl bg-canvas p-4 font-mono text-sm">
@@ -836,8 +872,7 @@ export default function SetupWizard() {
             </div>
           )}
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }
 

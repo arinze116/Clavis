@@ -13,42 +13,45 @@ const near = (value) => (BigInt(value) * 10n ** 24n).toString();
 const workerOne = process.env.WORKER_ONE_ID ?? "worker-one.testnet";
 const workerTwo = process.env.WORKER_TWO_ID ?? "worker-two.testnet";
 const workerThree = process.env.WORKER_THREE_ID ?? "worker-three.testnet";
+const contractId = process.env.CONTRACT_ID ?? "clavis.testnet";
+const ownerEmail = process.env.OWNER_EMAIL ?? "notifications-disabled@example.com";
 
 const payroll = {
-  version: 1,
-  recipients: [
+  businesses: [
     {
-      recipientHash: hash(workerOne),
-      amountYocto: near(4),
-      milestoneReady: false,
-      destinations: [
-        { chain: "near", token: "NEAR", address: workerOne, percentage: 100 },
-      ],
-    },
-    {
-      recipientHash: hash(workerTwo),
-      amountYocto: near(5),
-      milestoneReady: false,
-      destinations: [
+      contract_id: contractId,
+      owner_email: ownerEmail,
+      recipients: [
         {
-          chain: "ethereum",
-          token: "USDC",
-          address: "0x2222222222222222222222222222222222222222",
-          percentage: 100,
+          recipientHash: hash(workerOne),
+          name: "Ada",
+          nearAddress: workerOne,
+          amountYocto: near(4),
+          milestoneReady: false,
+          destinations: [
+            { chain: "near", token: "NEAR", address: workerOne, percentage: 100 },
+          ],
         },
-      ],
-    },
-    {
-      recipientHash: hash(workerThree),
-      amountYocto: near(3),
-      milestoneReady: true,
-      milestoneId: "demo-launch-delivery",
-      destinations: [
         {
-          chain: "bnb",
-          token: "BUSD",
-          address: "0x3333333333333333333333333333333333333333",
-          percentage: 100,
+          recipientHash: hash(workerTwo),
+          name: "Sarah",
+          nearAddress: workerTwo,
+          amountYocto: near(5),
+          milestoneReady: false,
+          destinations: [
+            { chain: "near", token: "NEAR", address: workerTwo, percentage: 100 },
+          ],
+        },
+        {
+          recipientHash: hash(workerThree),
+          name: "Chidi",
+          nearAddress: workerThree,
+          amountYocto: near(3),
+          milestoneReady: true,
+          milestoneId: "demo-launch-delivery",
+          destinations: [
+            { chain: "near", token: "NEAR", address: workerThree, percentage: 100 },
+          ],
         },
       ],
     },

@@ -1,10 +1,14 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { PayrollPlanStore } from "./payroll-plan-store.js";
+import {
+  PayrollPlanStore,
+  type ExpectedRecipientPolicy,
+  type PendingPayrollOperation,
+} from "./payroll-plan-store.js";
 import type { PayrollRecipient } from "./types.js";
 
 const directories: string[] = [];
@@ -39,6 +43,21 @@ function recipient(
         percentage: 100,
       },
     ],
+    ...overrides,
+  };
+}
+
+function expectedPolicy(
+  overrides: Partial<ExpectedRecipientPolicy> = {},
+): ExpectedRecipientPolicy {
+  return {
+    name: "Worker a",
+    personalCapYocto: "3000000000000000000000000",
+    active: true,
+    preferredChain: "near",
+    preferredToken: "NEAR",
+    paymentSplit: [],
+    schedule: "Weekly",
     ...overrides,
   };
 }
@@ -113,5 +132,76 @@ describe("PayrollPlanStore", () => {
     await expect(
       plans.sync({ contractId: "unrelated.testnet", recipients: [] }),
     ).rejects.toThrow("Invalid payroll contract ID");
+  });
+
+  it("keeps a staged upsert inactive across restart until reconciliation commits it", async () => {
+    const { directory, plans } = await store();
+    await plans.sync({
+      contractId: "acme.clavis.testnet",
+      recipients: [recipient("a")],
+    });
+    const operation = await plans.prepareUpsert({
+      contractId: "acme.clavis.testnet",
+      recipient: recipient("a", { amountYocto: "2000000000000000000000000" }),
+      expectedPolicy: expectedPolicy(),
+    });
+
+    expect((await plans.get("acme.clavis.testnet"))?.recipients[0]?.amountYocto).toBe(
+      "1000000000000000000000000",
+    );
+    const restarted = new PayrollPlanStore(directory);
+    expect((await restarted.listPending()).map((item) => item.operationId)).toEqual([
+      operation.operationId,
+    ]);
+
+    await restarted.commitPending(operation.operationId);
+    expect((await restarted.get("acme.clavis.testnet"))?.recipients[0]?.amountYocto).toBe(
+      "2000000000000000000000000",
+    );
+    expect(await restarted.listPending()).toEqual([]);
+  });
+
+  it("does not remove an active recipient until the staged removal is committed", async () => {
+    const { plans } = await store();
+    await plans.sync({
+      contractId: "acme.clavis.testnet",
+      recipients: [recipient("a"), recipient("b")],
+    });
+    const operation = await plans.prepareRemove({
+      contractId: "acme.clavis.testnet",
+      recipientHash: "a".repeat(64),
+    });
+
+    expect((await plans.get("acme.clavis.testnet"))?.recipients).toHaveLength(2);
+    await plans.commitPending(operation.operationId);
+    expect(
+      (await plans.get("acme.clavis.testnet"))?.recipients.map((item) => item.recipientHash),
+    ).toEqual(["b".repeat(64)]);
+  });
+
+  it("expires abandoned staged operations without changing the active plan", async () => {
+    const { directory, plans } = await store();
+    await plans.sync({
+      contractId: "acme.clavis.testnet",
+      recipients: [recipient("a")],
+    });
+    await plans.prepareRemove({
+      contractId: "acme.clavis.testnet",
+      recipientHash: "a".repeat(64),
+    });
+    const pendingPath = path.join(directory, ".pending-payroll-operations.json");
+    const pending = JSON.parse(await readFile(pendingPath, "utf8")) as PendingPayrollOperation[];
+    await writeFile(
+      pendingPath,
+      JSON.stringify(
+        pending.map((operation) => ({
+          ...operation,
+          expiresAt: new Date(Date.now() - 1_000).toISOString(),
+        })),
+      ),
+    );
+
+    expect(await new PayrollPlanStore(directory).listPending()).toEqual([]);
+    expect((await plans.get("acme.clavis.testnet"))?.recipients).toHaveLength(1);
   });
 });

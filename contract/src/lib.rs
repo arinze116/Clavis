@@ -14,6 +14,7 @@ use near_sdk::{
     PromiseOrValue, PromiseResult,
 };
 
+use crate::types::PendingNativePayment;
 use crate::types::RecipientConfig;
 pub use crate::types::{
     AnomalyEntry, AuditEntry, PaymentOutcome, PaymentResult, PaymentSchedule, RecipientConfigInput,
@@ -59,6 +60,26 @@ pub struct Clavis {
     pub(crate) recipient_last_request: LookupMap<String, u64>,
     pub(crate) anomaly_last_logged: LookupMap<String, u64>,
     pub(crate) paused: bool,
+    pub(crate) pending_native_payment: Option<PendingNativePayment>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+struct LegacyClavisV1 {
+    owner: AccountId,
+    agent: AccountId,
+    daily_limit: u128,
+    per_payment_limit: u128,
+    daily_spent: u128,
+    last_reset_timestamp: u64,
+    recipients: UnorderedMap<String, RecipientConfig>,
+    recipient_count: u64,
+    audit_log: Vector<AuditEntry>,
+    log_counter: u64,
+    anomaly_log: Vector<AnomalyEntry>,
+    anomaly_counter: u64,
+    recipient_last_request: LookupMap<String, u64>,
+    anomaly_last_logged: LookupMap<String, u64>,
+    paused: bool,
 }
 
 #[near_bindgen]
@@ -97,6 +118,35 @@ impl Clavis {
             recipient_last_request: LookupMap::new(StorageKey::RecipientLastRequest),
             anomaly_last_logged: LookupMap::new(StorageKey::AnomalyLastLogged),
             paused: false,
+            pending_native_payment: None,
+        }
+    }
+
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        let legacy: LegacyClavisV1 = env::state_read().expect("Legacy contract state is required");
+        assert_eq!(
+            env::predecessor_account_id(),
+            legacy.owner,
+            "Owner authorization required"
+        );
+        Self {
+            owner: legacy.owner,
+            agent: legacy.agent,
+            daily_limit: legacy.daily_limit,
+            per_payment_limit: legacy.per_payment_limit,
+            daily_spent: legacy.daily_spent,
+            last_reset_timestamp: legacy.last_reset_timestamp,
+            recipients: legacy.recipients,
+            recipient_count: legacy.recipient_count,
+            audit_log: legacy.audit_log,
+            log_counter: legacy.log_counter,
+            anomaly_log: legacy.anomaly_log,
+            anomaly_counter: legacy.anomaly_counter,
+            recipient_last_request: legacy.recipient_last_request,
+            anomaly_last_logged: legacy.anomaly_last_logged,
+            paused: legacy.paused,
+            pending_native_payment: None,
         }
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "clavis-factory"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Arinze"]
 description = "Factory for isolated Clavis payroll contracts on NEAR testnet"

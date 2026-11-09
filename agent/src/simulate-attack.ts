@@ -30,10 +30,12 @@ async function simulateAttack(): Promise<void> {
     contractId,
   });
   await near.connect();
+  await near.verifyContractVersion();
   await near.verifyAgentKey();
 
   const result = await near.requestPayment({
     recipientHash: UNAPPROVED_RECIPIENT,
+    recipientAccountId: "unapproved.testnet",
     amountYocto: "1000000000000000000000000",
     chain: "near",
     token: "NEAR",

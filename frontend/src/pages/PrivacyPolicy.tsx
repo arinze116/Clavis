@@ -7,8 +7,8 @@ const sections: LegalSection[] = [
       <p>
         Clavis does not operate analytics profiles or an advertising database. The private
         VPS agent stores the scheduled amount, worker NEAR address, and destination address
-        that an owner authorizes for automated delivery. These values are encrypted in
-        transit, permission-restricted on the server, and never returned by the public
+        that an owner authorizes for automated delivery. Production service transports require
+        HTTPS or host-key-verified SSH. The values are permission-restricted on the server and never returned by the public
         contract API. If you opt into notifications, Clavis also stores the email address you
         verify and/or the Telegram chat ID connected through the bot. The browser stores your
         selected contract, short-lived service sessions, and worker preferences locally so
@@ -36,10 +36,10 @@ const sections: LegalSection[] = [
     title: "Third-party services",
     content: (
       <p>
-        FastNEAR provides testnet RPC access, NearBlocks resolves explorer transaction
-        links, Vercel hosts the interface, Resend delivers owner email notifications, and
-        Telegram delivers bot notifications. Their own privacy terms apply when those
-        services are configured.
+        Official NEAR and FastNEAR endpoints can provide testnet RPC access, NearBlocks resolves
+        explorer candidates, Vercel can host the interface, Resend delivers owner email
+        notifications, and Telegram delivers bot notifications. Their own privacy terms apply
+        when those services are configured.
       </p>
     ),
   },

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   AgentCredentialProvider,
   assertNoFullAccessOverride,
-  assertSeparateSettlementAccount,
 } from "./agent-credentials.js";
 
 describe("AgentCredentialProvider", () => {
@@ -29,8 +28,6 @@ describe("AgentCredentialProvider", () => {
       accountId: "clavis-agent.testnet",
       privateKey: "ed25519:globex-key",
     });
-    expect(provider.usesAccount("clavis-agent.testnet")).toBe(true);
-    expect(provider.usesAccount("settlement.testnet")).toBe(false);
   });
 
   it("fails closed when a credential file omits a discovered contract", () => {
@@ -95,24 +92,5 @@ describe("full-access override", () => {
 
   it("accepts an absent override", () => {
     expect(() => assertNoFullAccessOverride(undefined)).not.toThrow();
-  });
-});
-
-describe("settlement-account isolation", () => {
-  it("rejects a settlement signer that reuses a payroll agent account", () => {
-    const provider = AgentCredentialProvider.fromEntries([
-      {
-        contractId: "acme.clavis.testnet",
-        accountId: "clavis-agent.testnet",
-        privateKey: "ed25519:acme-key",
-      },
-    ]);
-
-    expect(() =>
-      assertSeparateSettlementAccount(provider, "clavis-agent.testnet"),
-    ).toThrow("must be separate from every payroll agent account");
-    expect(() =>
-      assertSeparateSettlementAccount(provider, "clavis-settlement.testnet"),
-    ).not.toThrow();
   });
 });

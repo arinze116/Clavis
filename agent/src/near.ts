@@ -7,7 +7,7 @@ import type {
   RecipientView,
 } from "./types.js";
 
-export const DEFAULT_TESTNET_RPC_URL = "https://rpc.testnet.fastnear.com";
+export const DEFAULT_TESTNET_RPC_URL = "https://rpc.testnet.near.org";
 
 interface RpcResponse<T> {
   result?: T;
@@ -65,6 +65,20 @@ export function assertRestrictedAgentAccessKey(
     permission.method_names[0] !== "request_payment"
   ) {
     throw new Error(`Agent key must only call request_payment on ${contractId}`);
+  }
+}
+
+export function assertContractControlledSettlementVersion(version: string): void {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
+  if (!match) {
+    throw new Error(`Payroll contract returned an invalid version: ${version}`);
+  }
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  if (major === 0 && minor < 2) {
+    throw new Error(
+      `Payroll contract ${version} is authorization-only; v0.2.0 or newer is required for contract-controlled settlement`,
+    );
   }
 }
 
@@ -189,6 +203,12 @@ export class NearClient {
     return "restricted";
   }
 
+  async verifyContractVersion(): Promise<string> {
+    const version = await this.view<string>("contract_version");
+    assertContractControlledSettlementVersion(version);
+    return version;
+  }
+
   async getRecipients(): Promise<RecipientView[]> {
     return this.view<RecipientView[]>("get_recipients", { from: 0, limit: 100 });
   }
@@ -211,6 +231,7 @@ export class NearClient {
 
   async requestPayment(args: {
     recipientHash: string;
+    recipientAccountId: string;
     amountYocto: string;
     chain: string;
     token: string;
@@ -227,8 +248,9 @@ export class NearClient {
         amount: args.amountYocto,
         chain: args.chain,
         token: args.token,
+        recipient_account_id: args.recipientAccountId,
       },
-      gas: 100_000_000_000_000n,
+      gas: 150_000_000_000_000n,
       attachedDeposit: 0n,
     })) as TransactionOutcome;
 
@@ -241,54 +263,11 @@ export class NearClient {
     }
 
     const decoded = Buffer.from(status.SuccessValue, "base64").toString("utf8");
-    return JSON.parse(decoded) as PaymentResult;
+    const result = JSON.parse(decoded) as Omit<PaymentResult, "transaction_hash">;
+    return { ...result, transaction_hash: outcome.transaction.hash };
   }
 
   view<T>(methodName: string, args: Record<string, unknown> = {}): Promise<T> {
     return this.#rpc.view<T>(this.#options.contractId, methodName, args);
-  }
-}
-
-export class NearTransferClient {
-  readonly #options: Omit<NearClientOptions, "contractId">;
-  readonly #keyPair: KeyPair;
-  #account: Account | null = null;
-
-  constructor(options: Omit<NearClientOptions, "contractId">) {
-    this.#options = {
-      ...options,
-      rpcUrl: options.rpcUrl.trim() || DEFAULT_TESTNET_RPC_URL,
-    };
-    this.#keyPair = KeyPair.fromString(
-      options.privateKey as `ed25519:${string}` | `secp256k1:${string}`,
-    );
-  }
-
-  async connect(): Promise<void> {
-    const keyStore = new keyStores.InMemoryKeyStore();
-    await keyStore.setKey(this.#options.networkId, this.#options.accountId, this.#keyPair);
-    const near = new Near({
-      networkId: this.#options.networkId,
-      nodeUrl: this.#options.rpcUrl,
-      walletUrl: "",
-      helperUrl: "",
-      keyStore,
-    });
-    this.#account = await near.account(this.#options.accountId);
-  }
-
-  async transferNear(receiverId: string, amountYocto: string): Promise<string> {
-    if (!this.#account) throw new Error("Settlement client is not connected");
-    if (!/^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(receiverId)) {
-      throw new Error("A valid NEAR testnet recipient is required for native settlement");
-    }
-    const outcome = (await this.#account.sendMoney(
-      receiverId,
-      BigInt(amountYocto),
-    )) as TransactionOutcome;
-    if (outcome.status.Failure) {
-      throw new Error("Direct native NEAR settlement failed");
-    }
-    return outcome.transaction.hash;
   }
 }

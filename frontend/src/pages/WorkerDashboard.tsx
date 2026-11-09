@@ -50,6 +50,14 @@ function tokenForChain(chain: Chain): Token {
 }
 
 export default function WorkerDashboard() {
+  return (
+    <AppShell>
+      <WorkerDashboardContent />
+    </AppShell>
+  );
+}
+
+function WorkerDashboardContent() {
   const { accountId, loading: walletLoading } = useWallet();
   const { showToast } = useToast();
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
@@ -196,44 +204,30 @@ export default function WorkerDashboard() {
   }, [nearPercentage, preferences.preferredChain, preferences.preferredToken]);
 
   if (walletLoading) {
-    return (
-      <AppShell>
-        <LoadingState label="Opening the worker portal" />
-      </AppShell>
-    );
+    return <LoadingState label="Opening the worker portal" />;
   }
   if (!accountId) {
     return (
-      <AppShell>
-        <div className="mx-auto max-w-xl px-5 py-24 text-center">
-          <div className="panel p-10">
-            <WalletCards className="mx-auto h-9 w-9 text-moss" />
-            <h1 className="mt-5 font-display text-4xl">Your payroll, your view</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/50">
-              Connect the NEAR account you share with your employer to check registration
-              across Clavis businesses.
-            </p>
-            <div className="mt-7 flex justify-center">
-              <WalletButton />
-            </div>
+      <div className="mx-auto max-w-xl px-5 py-24 text-center">
+        <div className="panel p-10">
+          <WalletCards className="mx-auto h-9 w-9 text-moss" />
+          <h1 className="mt-5 font-display text-4xl">Your payroll, your view</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/50">
+            Connect the NEAR account you share with your employer to check registration
+            across Clavis businesses.
+          </p>
+          <div className="mt-7 flex justify-center">
+            <WalletButton />
           </div>
         </div>
-      </AppShell>
+      </div>
     );
   }
   if (loading) {
-    return (
-      <AppShell>
-        <LoadingState label="Checking payroll registration" />
-      </AppShell>
-    );
+    return <LoadingState label="Checking payroll registration" />;
   }
   if (error) {
-    return (
-      <AppShell>
-        <ErrorState message={error} retry={() => void discoverProfile()} />
-      </AppShell>
-    );
+    return <ErrorState message={error} retry={() => void discoverProfile()} />;
   }
 
   async function copyWallet() {
@@ -279,8 +273,7 @@ export default function WorkerDashboard() {
 
   if (!profile) {
     return (
-      <AppShell>
-        <div className="mx-auto max-w-[1100px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+      <div className="mx-auto max-w-[1100px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
             <section className="panel p-6 sm:p-8">
               <p className="eyebrow">Worker self-service</p>
@@ -388,8 +381,7 @@ export default function WorkerDashboard() {
 
             <WalletShareCard accountId={accountId} onCopy={() => void copyWallet()} />
           </div>
-        </div>
-      </AppShell>
+      </div>
     );
   }
 
@@ -405,8 +397,7 @@ export default function WorkerDashboard() {
       ];
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+    <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
         <div>
           <p className="eyebrow">Worker portal</p>
           <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
@@ -467,10 +458,10 @@ export default function WorkerDashboard() {
               <div className="mb-4 flex items-center gap-3">
                 <Eye className="h-5 w-5 text-moss" />
                 <div>
-                  <p className="eyebrow">Payment history</p>
+                  <p className="eyebrow">Employer decision history</p>
                   <p className="mt-1 text-xs text-ink/45">
-                    Public policy decisions for your employer contract; salary data stays
-                    private.
+                    Employer-wide public policy decisions. Audit entries intentionally omit
+                    recipient identity, so this list is not filtered to your payments.
                   </p>
                 </div>
               </div>
@@ -535,25 +526,24 @@ export default function WorkerDashboard() {
                 <Save className="h-4 w-4" /> Save preferences
               </button>
               <p className="mt-3 text-xs leading-5 text-ink/40">
-                Your employer must sign the matching contract update before it affects
-                payroll.
+                These preferences stay local until your employer approves them. Cross-chain
+                execution is disabled in this release; only native NEAR can settle.
               </p>
             </section>
             <PaymentSplit splits={currentSplits} />
             <div className="rounded-[28px] bg-acid p-7">
               <Route className="h-6 w-6" />
               <h3 className="mt-8 font-display text-3xl font-semibold">
-                One policy. Multiple chains.
+                Native settlement now. Cross-chain later.
               </h3>
               <p className="mt-3 text-sm leading-6 text-ink/60">
-                Your employer authorizes one private payment; Clavis handles each registered
-                route.
+                Clavis records route preferences, but this release fails cross-chain requests
+                closed until custody can remain contract-controlled end to end.
               </p>
             </div>
           </aside>
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }
 

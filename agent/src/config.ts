@@ -31,13 +31,10 @@ const schema = z.object({
   LEGACY_AGENT_CONTRACT_ID: z.string().min(2).optional(),
   AGENT_CREDENTIALS_PATH: z.string().trim().min(1).optional(),
   NEAR_NETWORK: z.string().default("testnet"),
-  NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.fastnear.com"),
+  NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.near.org"),
   FACTORY_CONTRACT_ID: z.string().default("factory.clavis.testnet"),
-  INTENTS_CONTRACT_ID: z.string().default("intents.near"),
   SOLVER_RELAY_URL: z.string().url().default("https://solver-relay-v2.chaindefuser.com/rpc"),
   INTENTS_API_KEY: optionalSecret,
-  SETTLEMENT_ACCOUNT_ID: z.string().min(2).optional(),
-  SETTLEMENT_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/).optional(),
   PAYROLL_CONFIG_PATH: z.string().default("./config/payroll.local.json"),
   PAYROLL_DIRECTORY: z.string().default("./config/payrolls"),
   AGENT_DATA_DIRECTORY: z.string().default("./data/contracts"),
@@ -85,6 +82,11 @@ if (!parsed.success) {
 }
 
 assertNoFullAccessOverride(process.env.ALLOW_FULL_ACCESS_AGENT);
+if (process.env.SETTLEMENT_ACCOUNT_ID?.trim() || process.env.SETTLEMENT_PRIVATE_KEY?.trim()) {
+  throw new Error(
+    "Remove SETTLEMENT_ACCOUNT_ID and SETTLEMENT_PRIVATE_KEY; native funds now move from the payroll contract",
+  );
+}
 
 const legacyCredentialFields = [
   parsed.data.NEAR_ACCOUNT_ID,
@@ -103,12 +105,6 @@ if (
 ) {
   throw new Error(
     "AGENT_CREDENTIALS_PATH or the single-contract legacy credential fields are required",
-  );
-}
-
-if (Boolean(parsed.data.SETTLEMENT_ACCOUNT_ID) !== Boolean(parsed.data.SETTLEMENT_PRIVATE_KEY)) {
-  throw new Error(
-    "SETTLEMENT_ACCOUNT_ID and SETTLEMENT_PRIVATE_KEY must either both be set or both be omitted",
   );
 }
 
@@ -141,11 +137,8 @@ export const config = {
   nearNetwork: parsed.data.NEAR_NETWORK,
   nearRpcUrl: parsed.data.NEAR_RPC_URL,
   factoryContractId: parsed.data.FACTORY_CONTRACT_ID,
-  intentsContractId: parsed.data.INTENTS_CONTRACT_ID,
   solverRelayUrl: parsed.data.SOLVER_RELAY_URL,
   intentsApiKey: parsed.data.INTENTS_API_KEY,
-  settlementAccountId: parsed.data.SETTLEMENT_ACCOUNT_ID,
-  settlementPrivateKey: parsed.data.SETTLEMENT_PRIVATE_KEY,
   payrollConfigPath: resolveAgentPath(parsed.data.PAYROLL_CONFIG_PATH),
   payrollDirectory: resolveAgentPath(parsed.data.PAYROLL_DIRECTORY),
   dataDirectory: resolveAgentPath(parsed.data.AGENT_DATA_DIRECTORY),

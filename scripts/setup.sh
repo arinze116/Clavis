@@ -49,8 +49,8 @@ add_recipient() {
 
 echo "Adding three deterministic testnet recipients..."
 add_recipient "$WORKER_ONE_ID" "Ada" "10000000000000000000000000" near NEAR Weekly
-add_recipient "$WORKER_TWO_ID" "Sarah" "12000000000000000000000000" ethereum USDC Biweekly
-add_recipient "$WORKER_THREE_ID" "Chidi" "8000000000000000000000000" bnb BUSD Milestone
+add_recipient "$WORKER_TWO_ID" "Sarah" "12000000000000000000000000" near NEAR Biweekly
+add_recipient "$WORKER_THREE_ID" "Chidi" "8000000000000000000000000" near NEAR Milestone
 
 node "$ROOT_DIR/scripts/generate-demo-payroll.mjs"
 echo "Demo policy and private payroll plan are ready."

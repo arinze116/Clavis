@@ -8,6 +8,14 @@ import { useAuditState, useOwnerContract } from "../hooks/useContractState";
 import { explorerUrl, rootContractId } from "../utils/near";
 
 export default function AuditLog() {
+  return (
+    <AppShell>
+      <AuditLogContent />
+    </AppShell>
+  );
+}
+
+function AuditLogContent() {
   const { accountId } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
@@ -15,32 +23,27 @@ export default function AuditLog() {
 
   if (loading && !data) {
     return (
-      <AppShell>
-        <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
-          <AuditHero />
-          <div className="mt-10">
-            <LoadingState label="Reading two public contract views" />
-          </div>
+      <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+        <AuditHero />
+        <div className="mt-10">
+          <LoadingState label="Reading two public contract views" />
         </div>
-      </AppShell>
+      </div>
     );
   }
   if (!data) {
     return (
-      <AppShell>
-        <ErrorState
-          message={error ?? "No audit state returned"}
-          retry={() => void refresh()}
-        />
-      </AppShell>
+      <ErrorState
+        message={error ?? "No audit state returned"}
+        retry={() => void refresh()}
+      />
     );
   }
   const approved = data.auditLog.filter((entry) => entry.outcome === "Approved").length;
   const rejected = data.auditLog.length - approved;
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+    <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
         <AuditHero />
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
           {[
@@ -66,7 +69,11 @@ export default function AuditLog() {
         {error && (
           <div className="mt-3 flex flex-col gap-3 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="status">
             <span>The latest refresh failed. The verified entries below remain available.</span>
-            <button type="button" className="font-semibold underline" onClick={() => void refresh()}>
+            <button
+              type="button"
+              className="min-h-11 px-2 font-semibold underline"
+              onClick={() => void refresh()}
+            >
               Retry now
             </button>
           </div>
@@ -98,8 +105,7 @@ export default function AuditLog() {
             Open explorer <ExternalLink className="h-4 w-4" />
           </a>
         </div>
-      </div>
-    </AppShell>
+    </div>
   );
 }
 

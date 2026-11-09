@@ -350,7 +350,7 @@ function buildPrompt(body: AiRequestBody): {
   if (body.task === "route") {
     return {
       json: true,
-      system: `${dataRule} You select one verified Clavis testnet route. Recommend only a route marked code-supported in settlement_capabilities. Code support does not prove agent uptime or completed delivery. An EVM preference is unavailable unless a live solver quote has been verified, and an unsupported route must never be selected. RPC latency is not settlement time, gas-unit prices are not total fees, and atomic units must never be compared across chains. Clavis renders the explanation and measurements deterministically. Return only JSON with this exact shape: {"route_code":"near"|"ethereum"|"bnb"}. Never add prose, measurements, regional claims, runtime-health claims, or cross-chain proof.`,
+      system: `${dataRule} You select one route supported by Clavis source v0.2. Recommend only a route marked code-supported in settlement_capabilities. Source support does not prove the deployed contract version, agent uptime, or completed delivery. An EVM preference is unavailable unless a live solver quote has been verified, and an unsupported route must never be selected. RPC latency is not settlement time, gas-unit prices are not total fees, and atomic units must never be compared across chains. Clavis renders the explanation and measurements deterministically. Return only JSON with this exact shape: {"route_code":"near"|"ethereum"|"bnb"}. Never add prose, measurements, regional claims, runtime-health claims, or cross-chain proof.`,
       user: JSON.stringify(body.input),
     };
   }
@@ -686,6 +686,8 @@ function buildVerifiedPayrollReport(input: Record<string, unknown>, recommendati
   const blockMax = nonNegativeInteger(evidence.block_height_max);
   const generatedAt = requiredText(input, "generated_at", 100);
   const contractId = requiredText(input, "contract_id", 100);
+  const contractVersion = requiredText(input, "contract_version", 40);
+  const contractControlsSettlement = input.contract_controls_settlement === true;
 
   const trendPrefix = auditWindowComplete
     ? "The complete contract audit window shows"
@@ -712,7 +714,9 @@ function buildVerifiedPayrollReport(input: Record<string, unknown>, recommendati
   const authorizationText = authorizationWindow === "expired_reset_pending"
     ? `The stored authorization counter belongs to an expired 24-hour window, so effective usage for the next request is 0 of ${formatAtomicNear(dailyLimit)} NEAR.`
     : `Current rolling authorization usage is ${formatAtomicNear(authorizedSpend)} of ${formatAtomicNear(dailyLimit)} NEAR.`;
-  const fundingText = `The payroll contract account balance is ${formatAtomicNear(contractBalance)} NEAR. It is contract/storage funding, not verified payroll-settlement runway; native and cross-chain delivery use separately configured settlement funding that this report does not inspect.`;
+  const fundingText = contractControlsSettlement
+    ? `The payroll contract account balance is ${formatAtomicNear(contractBalance)} NEAR. Native NEAR payroll settles directly from this account, subject to protected storage, callback, and operational reserves plus every configured policy check. Cross-chain delivery is disabled, and this report does not estimate spendable payroll runway.`
+    : `The deployed contract reports ${contractVersion} and is authorization-only. Its ${formatAtomicNear(contractBalance)} NEAR account balance does not prove payroll settlement funding; upgrade to v0.2.0 or newer before claiming contract-controlled settlement. Cross-chain delivery is disabled.`;
 
   return [
     "Weekly authorization trend",
@@ -1040,7 +1044,7 @@ function normalizeRoute(
   return {
     chain,
     token: pairs[chain as keyof typeof pairs],
-    reason: `Testnet guidance: ${chain}/${pairs[chain as keyof typeof pairs]} is supported by the current Clavis settlement code path. This does not prove agent uptime or completed delivery.`,
+    reason: `Testnet guidance: ${chain}/${pairs[chain as keyof typeof pairs]} is the only route supported by Clavis source v0.2. This does not prove the deployed contract version, agent uptime, or completed delivery.`,
     region_rationale:
       !region || region === "Not provided"
         ? "No worker region was supplied. The recommendation uses verified settlement support and live public RPC observations only."
@@ -1128,6 +1132,7 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
   const anomalyCount = nonNegativeInteger(anomalyCountView.value);
   const anomalyFrom = Math.max(0, anomalyCount - 100);
   const [
+    versionView,
     auditView,
     anomalyView,
     recipientView,
@@ -1137,6 +1142,7 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
     lastResetView,
     logCountView,
   ] = await Promise.all([
+    viewNearContract(contractId, "contract_version", {}, snapshot).catch(() => null),
     viewNearContract(contractId, "get_audit_log_reverse", { from: 0, limit: 100 }, snapshot),
     viewNearContract(
       contractId,
@@ -1151,6 +1157,10 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
     viewNearContract(contractId, "get_last_reset_timestamp", {}, snapshot),
     viewNearContract(contractId, "get_log_count", {}, snapshot),
   ]);
+  const contractVersion = versionView
+    ? optionalText(versionView.value, 40) || "pre-v0.2"
+    : "pre-v0.2";
+  const contractControlsSettlement = controlsContractSettlementVersion(contractVersion);
   const auditEntries = Array.isArray(auditView.value) ? auditView.value.filter(isRecord) : [];
   const anomalies = Array.isArray(anomalyView.value) ? anomalyView.value.filter(isRecord) : [];
   const recipients = Array.isArray(recipientView.value) ? recipientView.value.filter(isRecord) : [];
@@ -1232,6 +1242,8 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
     ...body,
     input: {
       contract_id: contractId,
+      contract_version: contractVersion,
+      contract_controls_settlement: contractControlsSettlement,
       generated_at: observedAt,
       payment_comparison: {
         this_week: thisWeekAuthorizations,
@@ -1270,6 +1282,8 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
         block_height_max: snapshot.blockHeight,
       },
       evidence_summary: {
+        contract_version: contractVersion,
+        contract_controls_settlement: contractControlsSettlement,
         approved_this_week: thisWeekAuthorizations,
         policy_rejections: policyViolations.length,
         anomalies: verifiedAnomalies.length,
@@ -1280,6 +1294,14 @@ async function enrichPayrollReportRequest(body: AiRequestBody): Promise<AiReques
       recommendation_options: recommendationOptions,
     },
   };
+}
+
+function controlsContractSettlementVersion(version: string): boolean {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 0 || minor >= 2;
 }
 
 async function enrichSecuritySummaryRequest(body: AiRequestBody): Promise<AiRequestBody> {
@@ -1449,8 +1471,8 @@ function nearRpcEndpoints(): URL[] {
   const values = [
     process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
     process.env.NEAR_RPC_URL?.trim(),
-    "https://rpc.testnet.fastnear.com",
     "https://rpc.testnet.near.org",
+    "https://rpc.testnet.fastnear.com",
   ];
   return [...new Set(values.filter((value): value is string => Boolean(value)))].flatMap((value) => {
     try {
@@ -1501,7 +1523,7 @@ async function enrichRouteRequest(body: AiRequestBody): Promise<AiRequestBody> {
       ...input,
       current_testnet_conditions: await observeRouteConditions(),
       settlement_capabilities: {
-        near: "code_supported_native_testnet_runtime_health_not_verified",
+        near: "code_supported_in_source_v0_2_deployment_and_runtime_not_verified",
         ethereum: "requires_live_solver_quote_not_preverified_by_route_adviser",
         bnb: "unsupported_distinct_testnet_asset",
       },

@@ -1,15 +1,15 @@
 use near_sdk::json_types::U128;
 use near_sdk::test_utils::VMContextBuilder;
-use near_sdk::{testing_env, AccountId};
+use near_sdk::{testing_env, AccountId, NearToken, PromiseOrValue, PromiseResult};
 
 use crate::{
     Clavis, PaymentOutcome, PaymentSchedule, RecipientConfigInput, SecurityAuditScenario,
     SplitConfig, DAY_NS,
 };
 
-const RECIPIENT_HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const UNKNOWN_HASH: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const BUSINESS_HOUR_NS: u64 = 12 * crate::HOUR_NS;
+const WORKER_ACCOUNT: &str = "worker.testnet";
 
 fn account(value: &str) -> AccountId {
     value.parse().unwrap()
@@ -22,8 +22,16 @@ fn context(predecessor: &str, timestamp: u64) -> VMContextBuilder {
         .signer_account_id(account(predecessor))
         .predecessor_account_id(account(predecessor))
         .block_timestamp(timestamp)
-        .block_height(100);
+        .block_height(100)
+        .account_balance(NearToken::from_near(10));
     builder
+}
+
+fn recipient_hash(account_id: &str) -> String {
+    near_sdk::env::sha256(account_id.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn recipient(cap: u128, schedule: PaymentSchedule) -> RecipientConfigInput {
@@ -31,8 +39,8 @@ fn recipient(cap: u128, schedule: PaymentSchedule) -> RecipientConfigInput {
         name: "Ada".to_string(),
         personal_cap: U128(cap),
         active: true,
-        preferred_chain: "ethereum".to_string(),
-        preferred_token: "USDC".to_string(),
+        preferred_chain: "near".to_string(),
+        preferred_token: "NEAR".to_string(),
         payment_split: vec![],
         schedule,
     }
@@ -46,17 +54,94 @@ fn configured_contract(schedule: PaymentSchedule) -> Clavis {
         U128(1_000),
         U128(500),
     );
-    contract.add_recipient(RECIPIENT_HASH.to_string(), recipient(400, schedule));
+    contract.add_recipient(recipient_hash(WORKER_ACCOUNT), recipient(400, schedule));
     contract
 }
 
-fn request(contract: &mut Clavis, hash: &str, amount: u128) -> crate::PaymentResult {
+#[test]
+fn migrates_legacy_state_without_changing_policy_data() {
+    testing_env!(context("owner.testnet", DAY_NS).build());
+    let mut current = Clavis::new(
+        account("owner.testnet"),
+        account("agent.testnet"),
+        U128(1_000),
+        U128(500),
+    );
+    current.add_recipient(
+        recipient_hash(WORKER_ACCOUNT),
+        recipient(400, PaymentSchedule::Weekly),
+    );
+    let legacy = crate::LegacyClavisV1 {
+        owner: current.owner,
+        agent: current.agent,
+        daily_limit: current.daily_limit,
+        per_payment_limit: current.per_payment_limit,
+        daily_spent: current.daily_spent,
+        last_reset_timestamp: current.last_reset_timestamp,
+        recipients: current.recipients,
+        recipient_count: current.recipient_count,
+        audit_log: current.audit_log,
+        log_counter: current.log_counter,
+        anomaly_log: current.anomaly_log,
+        anomaly_counter: current.anomaly_counter,
+        recipient_last_request: current.recipient_last_request,
+        anomaly_last_logged: current.anomaly_last_logged,
+        paused: current.paused,
+    };
+    near_sdk::env::state_write(&legacy);
+
+    let migrated = Clavis::migrate();
+
+    assert_eq!(migrated.get_owner(), account("owner.testnet"));
+    assert_eq!(migrated.get_agent(), account("agent.testnet"));
+    assert_eq!(migrated.get_daily_limit(), U128(1_000));
+    assert_eq!(migrated.get_per_payment_limit(), U128(500));
+    assert!(migrated
+        .get_recipient(recipient_hash(WORKER_ACCOUNT))
+        .is_some());
+    assert!(migrated.pending_native_payment.is_none());
+    assert_eq!(migrated.contract_version(), "0.2.0");
+}
+
+fn request(
+    contract: &mut Clavis,
+    hash: &str,
+    amount: u128,
+) -> PromiseOrValue<crate::PaymentResult> {
     contract.request_payment(
         hash.to_string(),
         U128(amount),
-        "ethereum".to_string(),
-        "USDC".to_string(),
+        "near".to_string(),
+        "NEAR".to_string(),
+        Some(account(WORKER_ACCOUNT)),
     )
+}
+
+fn value(result: PromiseOrValue<crate::PaymentResult>) -> crate::PaymentResult {
+    match result {
+        PromiseOrValue::Value(value) => value,
+        PromiseOrValue::Promise(_) => panic!("Expected an immediate payment result"),
+    }
+}
+
+fn expect_transfer(result: PromiseOrValue<crate::PaymentResult>) {
+    assert!(matches!(result, PromiseOrValue::Promise(_)));
+}
+
+fn settle(contract: &mut Clavis, timestamp: u64, delivered: bool) -> crate::PaymentResult {
+    let promise_result = if delivered {
+        PromiseResult::Successful(vec![])
+    } else {
+        PromiseResult::Failed
+    };
+    testing_env!(
+        context("clavis.testnet", timestamp).build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![promise_result],
+    );
+    contract.on_native_payment_settled()
 }
 
 #[test]
@@ -64,9 +149,12 @@ fn approves_a_valid_payment_and_writes_private_audit_shape() {
     let mut contract = configured_contract(PaymentSchedule::Weekly);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
 
-    let result = request(&mut contract, RECIPIENT_HASH, 300);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300));
+    assert_eq!(contract.get_log_count(), 0);
+    let result = settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 1, true);
 
     assert!(result.approved);
+    assert!(result.settled);
     assert_eq!(result.payment_id, 1);
     assert_eq!(contract.get_daily_spent(), U128(300));
     let entry = contract.get_audit_log(0, 10).pop().unwrap();
@@ -74,11 +162,127 @@ fn approves_a_valid_payment_and_writes_private_audit_shape() {
 }
 
 #[test]
+fn failed_native_transfer_rolls_back_reserved_policy_state() {
+    let mut contract = configured_contract(PaymentSchedule::Weekly);
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300));
+
+    let result = settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 1, false);
+
+    assert!(!result.approved);
+    assert!(!result.settled);
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Native NEAR transfer failed")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(0));
+    assert!(contract.pending_native_payment.is_none());
+    assert_eq!(
+        contract
+            .get_recipient(recipient_hash(WORKER_ACCOUNT))
+            .unwrap()
+            .last_paid,
+        0
+    );
+}
+
+#[test]
+fn rejects_another_request_while_native_transfer_is_pending() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100));
+
+    let result = value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100));
+
+    assert_eq!(result.payment_id, 0);
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("A native payment transfer is already pending")
+    );
+}
+
+#[test]
+fn rejects_native_destination_that_does_not_match_commitment() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+
+    let result = value(contract.request_payment(
+        recipient_hash(WORKER_ACCOUNT),
+        U128(100),
+        "near".to_string(),
+        "NEAR".to_string(),
+        Some(account("attacker.testnet")),
+    ));
+
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Native NEAR recipient does not match the approved commitment")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(0));
+}
+
+#[test]
+fn cross_chain_authorization_fails_closed_before_policy_is_consumed() {
+    testing_env!(context("owner.testnet", DAY_NS).build());
+    let mut contract = Clavis::new(
+        account("owner.testnet"),
+        account("agent.testnet"),
+        U128(1_000),
+        U128(500),
+    );
+    let mut config = recipient(400, PaymentSchedule::Milestone);
+    config.preferred_chain = "ethereum".to_string();
+    config.preferred_token = "USDC".to_string();
+    contract.add_recipient(recipient_hash(WORKER_ACCOUNT), config);
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+
+    let result = value(contract.request_payment(
+        recipient_hash(WORKER_ACCOUNT),
+        U128(100),
+        "ethereum".to_string(),
+        "USDC".to_string(),
+        Some(account(WORKER_ACCOUNT)),
+    ));
+
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Cross-chain settlement is not contract-controlled in this release")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(0));
+    assert_eq!(
+        contract
+            .get_recipient(recipient_hash(WORKER_ACCOUNT))
+            .unwrap()
+            .last_paid,
+        0
+    );
+}
+
+#[test]
+fn rejects_a_transfer_that_would_consume_storage_and_operational_reserves() {
+    let mut contract = configured_contract(PaymentSchedule::Weekly);
+    let mut constrained = context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS);
+    constrained
+        .account_balance(NearToken::from_near(6))
+        .storage_usage(500_000);
+    testing_env!(constrained.build());
+
+    let result = value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 1));
+
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Insufficient contract treasury balance")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(0));
+    assert!(contract.pending_native_payment.is_none());
+}
+
+#[test]
 fn rejects_off_hours_payment_and_records_anomaly() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + crate::HOUR_NS).build());
 
-    let result = request(&mut contract, RECIPIENT_HASH, 100);
+    let result = value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100));
 
     assert!(!result.approved);
     assert_eq!(result.reason.as_deref(), Some("Off-hours payment blocked"));
@@ -100,7 +304,9 @@ fn rule_1_rejects_when_paused() {
     contract.pause();
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS + 1).build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 100).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100,))
+            .reason
+            .unwrap(),
         "Contract paused"
     );
 }
@@ -109,7 +315,7 @@ fn rule_1_rejects_when_paused() {
 fn rule_2_rejects_unauthorized_caller() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("attacker.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    let result = request(&mut contract, RECIPIENT_HASH, 100);
+    let result = value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100));
     assert_eq!(result.reason.unwrap(), "Unauthorized caller");
     assert_eq!(result.payment_id, 0);
     assert_eq!(contract.get_log_count(), 0);
@@ -119,7 +325,7 @@ fn rule_2_rejects_unauthorized_caller() {
 fn rejects_malformed_recipient_hash_without_unbounded_request_state() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    let result = request(&mut contract, "not-a-hash", 100);
+    let result = value(request(&mut contract, "not-a-hash", 100));
     assert_eq!(result.reason.unwrap(), "Invalid recipient hash");
     assert_eq!(contract.get_log_count(), 1);
 }
@@ -129,7 +335,9 @@ fn rule_3_rejects_unknown_recipient() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
     assert_eq!(
-        request(&mut contract, UNKNOWN_HASH, 100).reason.unwrap(),
+        value(request(&mut contract, UNKNOWN_HASH, 100))
+            .reason
+            .unwrap(),
         "Recipient not approved"
     );
 }
@@ -138,10 +346,12 @@ fn rule_3_rejects_unknown_recipient() {
 fn rule_4_rejects_suspended_recipient() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("owner.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    contract.suspend_recipient(RECIPIENT_HASH.to_string());
+    contract.suspend_recipient(recipient_hash(WORKER_ACCOUNT));
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS + 1).build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 100).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100,))
+            .reason
+            .unwrap(),
         "Recipient suspended"
     );
 }
@@ -151,7 +361,9 @@ fn rule_5_rejects_global_limit_breach() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 501).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 501,))
+            .reason
+            .unwrap(),
         "Exceeds per-payment limit"
     );
 }
@@ -161,7 +373,9 @@ fn rule_6_rejects_personal_cap_breach() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 401).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 401,))
+            .reason
+            .unwrap(),
         "Exceeds recipient cap"
     );
 }
@@ -170,9 +384,11 @@ fn rule_6_rejects_personal_cap_breach() {
 fn rule_7_resets_spend_after_twenty_four_hours() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    assert!(request(&mut contract, RECIPIENT_HASH, 400).approved);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 400));
+    assert!(settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 1, true).approved);
     testing_env!(context("agent.testnet", DAY_NS * 2 + BUSINESS_HOUR_NS).build());
-    assert!(request(&mut contract, RECIPIENT_HASH, 400).approved);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 400));
+    assert!(settle(&mut contract, DAY_NS * 2 + BUSINESS_HOUR_NS + 1, true).approved);
     assert_eq!(contract.get_daily_spent(), U128(400));
 }
 
@@ -180,20 +396,31 @@ fn rule_7_resets_spend_after_twenty_four_hours() {
 fn rule_8_rejects_daily_limit_breach() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    assert!(request(&mut contract, RECIPIENT_HASH, 400).approved);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 400));
+    assert!(settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 1, true).approved);
     testing_env!(context(
         "agent.testnet",
         DAY_NS + BUSINESS_HOUR_NS + 2 * crate::MINUTE_NS,
     )
     .build());
-    assert!(request(&mut contract, RECIPIENT_HASH, 400).approved);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 400));
+    assert!(
+        settle(
+            &mut contract,
+            DAY_NS + BUSINESS_HOUR_NS + 2 * crate::MINUTE_NS + 1,
+            true,
+        )
+        .approved
+    );
     testing_env!(context(
         "agent.testnet",
         DAY_NS + BUSINESS_HOUR_NS + 4 * crate::MINUTE_NS,
     )
     .build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 300).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300,))
+            .reason
+            .unwrap(),
         "Daily limit exceeded"
     );
 }
@@ -202,10 +429,13 @@ fn rule_8_rejects_daily_limit_breach() {
 fn rejects_early_scheduled_payment() {
     let mut contract = configured_contract(PaymentSchedule::Weekly);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    assert!(request(&mut contract, RECIPIENT_HASH, 200).approved);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 200));
+    assert!(settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 1, true).approved);
     testing_env!(context("agent.testnet", DAY_NS * 2 + BUSINESS_HOUR_NS).build());
     assert_eq!(
-        request(&mut contract, RECIPIENT_HASH, 200).reason.unwrap(),
+        value(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 200,))
+            .reason
+            .unwrap(),
         "Payment is not due"
     );
 }
@@ -214,12 +444,13 @@ fn rejects_early_scheduled_payment() {
 fn rejects_unregistered_destination_route() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
-    let result = contract.request_payment(
-        RECIPIENT_HASH.to_string(),
+    let result = value(contract.request_payment(
+        recipient_hash(WORKER_ACCOUNT),
         U128(100),
         "bnb".to_string(),
         "BUSD".to_string(),
-    );
+        Some(account(WORKER_ACCOUNT)),
+    ));
     assert_eq!(result.reason.unwrap(), "Destination route not approved");
 }
 
@@ -245,7 +476,7 @@ fn validates_payment_splits() {
             percentage: 30,
         },
     ];
-    contract.add_recipient(RECIPIENT_HASH.to_string(), config);
+    contract.add_recipient(recipient_hash(WORKER_ACCOUNT), config);
     assert_eq!(contract.get_recipient_count(), 1);
 }
 
@@ -262,7 +493,7 @@ fn reports_near_worker_registration_from_plaintext_name() {
     config.name = "Ada · ada-worker.testnet".to_string();
     config.preferred_chain = "near".to_string();
     config.preferred_token = "NEAR".to_string();
-    contract.add_recipient(RECIPIENT_HASH.to_string(), config);
+    contract.add_recipient(UNKNOWN_HASH.to_string(), config);
 
     assert!(contract.is_registered(account("ada-worker.testnet")));
     assert!(!contract.is_registered(account("unknown.testnet")));
@@ -294,7 +525,7 @@ fn owner_security_audit_logs_five_blocked_scenarios_without_mutating_policy() {
     let mut contract = configured_contract(PaymentSchedule::Weekly);
     let recipient_before = contract
         .recipients
-        .get(&RECIPIENT_HASH.to_string())
+        .get(&recipient_hash(WORKER_ACCOUNT))
         .unwrap();
     let daily_spent_before = contract.get_daily_spent();
     let last_reset_before = contract.get_last_reset_timestamp();
@@ -359,7 +590,7 @@ fn owner_security_audit_logs_five_blocked_scenarios_without_mutating_policy() {
     assert_eq!(
         contract
             .recipients
-            .get(&RECIPIENT_HASH.to_string())
+            .get(&recipient_hash(WORKER_ACCOUNT))
             .unwrap(),
         recipient_before
     );
@@ -373,7 +604,8 @@ fn security_probe_entries_do_not_trigger_high_frequency_payment_anomalies() {
     contract.run_security_audit();
 
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS + 1).build());
-    let result = request(&mut contract, RECIPIENT_HASH, 100);
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 100));
+    let result = settle(&mut contract, DAY_NS + BUSINESS_HOUR_NS + 2, true);
 
     assert!(result.approved);
     assert!(contract

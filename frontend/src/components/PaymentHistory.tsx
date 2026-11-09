@@ -78,7 +78,7 @@ export function PaymentHistory({
               key={value}
               type="button"
               onClick={() => selectFilter(value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${filter === value ? "bg-white shadow-sm" : "text-ink/45"}`}
+              className={`min-h-11 min-w-11 rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${filter === value ? "bg-white shadow-sm" : "text-ink/45"}`}
             >
               {value}
             </button>
@@ -101,7 +101,7 @@ export function PaymentHistory({
                   href={explorerLink(entry, contractId)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-ink/35 transition hover:text-moss"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink/35 transition hover:bg-canvas hover:text-moss"
                   aria-label={`Open payment ${entry.payment_id} on NEAR Explorer`}
                   title="Open on NEAR Explorer"
                 >
@@ -119,9 +119,10 @@ export function PaymentHistory({
         })}
         {visible.length === 0 && entries.length === 0 && auditEmptyState ? (
           <div className="px-6 py-14 text-center sm:px-8">
-            <p className="text-base font-semibold">No payments yet — your agent will log every decision here</p>
+            <p className="text-base font-semibold">No contract decisions yet</p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink/50">
-              Start by adding recipients and funding your contract, then Clavis will record every approval and rejection automatically.
+              Approved settlements and policy rejections appear after the contract records them.
+              Agent uptime and contract funding are separate operational requirements.
             </p>
             <Link to="/guide/business" className="button-secondary mt-5">
               Read the business guide
@@ -136,7 +137,7 @@ export function PaymentHistory({
         <div className="flex gap-1">
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-full border border-line disabled:opacity-30"
+            className="grid h-11 w-11 place-items-center rounded-full border border-line disabled:opacity-30"
             disabled={page === 0}
             onClick={() => setPage((value) => value - 1)}
             aria-label="Previous audit page"
@@ -145,7 +146,7 @@ export function PaymentHistory({
           </button>
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-full border border-line disabled:opacity-30"
+            className="grid h-11 w-11 place-items-center rounded-full border border-line disabled:opacity-30"
             disabled={page + 1 >= pageCount}
             onClick={() => setPage((value) => value + 1)}
             aria-label="Next audit page"

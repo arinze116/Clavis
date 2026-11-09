@@ -1,49 +1,54 @@
-# Privacy-minimization model
+# Clavis privacy boundary
 
-Clavis minimizes the data written into its dedicated audit entries. It does not provide transaction
-confidentiality on NEAR testnet. The boundary below separates **public chain data**, **audit fields**,
-and **off-chain payroll data**.
+Clavis provides a privacy-minimized audit, not confidential blockchain execution.
 
 ## Public by design
 
-- Contract owner and authorized agent account
-- Policy limits and active/paused state
-- Recipient configuration in the current hackathon contract
-- Transaction caller and arguments for direct NEAR calls
-- Payment ID, timestamp, block height, approval/rejection, and rejection reason
-- Public-safe anomaly descriptions
+- contract owner and authorized agent accounts;
+- configured limits, pause state, recipient labels, caps, schedules, and routes;
+- standard transaction caller, function arguments, timing, gas, and receipts;
+- payment ID, timestamp, block height, outcome, and rejection reason;
+- public-safe anomaly descriptions.
 
-## Kept out of the audit record
+For v0.2 native settlement, the recipient account and amount are transaction inputs and therefore observable even though they are omitted from the dedicated audit event.
 
-- Payment amount
-- Recipient commitment, wallet address, and display name
-- Destination chain and token
-- Intent destination address
-- Payroll report totals
+## Omitted from the Clavis audit entry
 
-## Kept in access-controlled agent storage
+- payment amount;
+- recipient commitment and wallet address;
+- display name;
+- destination chain, token, and address;
+- private scheduled amount and report totals.
 
-- Scheduled payment amount
-- Destination addresses
-- Cross-chain allocation
-- Delivery status and retry state
-- Owner payroll reports
+Omission reduces repeated disclosure in the application’s audit ledger; it does not erase transaction data from NEAR.
 
-Files containing this data are created with owner-only permissions where supported and are excluded
-by `.gitignore`. This reduces casual disclosure; it is not cryptographic privacy and depends on the
-security of the VPS and its operators.
+## Access-controlled agent storage
 
-## Confidential execution boundary
+The agent stores:
 
-The agent exposes a `CONFIDENTIAL_EXECUTOR_URL` adapter. In real mode, sensitive intent envelopes are sent over TLS to that executor and never logged. In dry-run mode, the agent produces a deterministic receipt for testing without claiming settlement.
+- scheduled payment amount;
+- worker NEAR account;
+- destination configuration;
+- notification email or Telegram chat ID;
+- staged private-plan operations;
+- report and deduplication state.
 
-This adapter alone does not hide the arguments of the preceding direct `request_payment` NEAR transaction. End-to-end confidentiality requires the rules engine or a verifiable policy proof to execute inside the official confidential runtime. The current repository intentionally labels that integration as pending rather than presenting a public call as private.
+Files are created with owner-only permissions where supported, updated through atomic replacement, ignored by Git, and never returned in plan-management responses. This boundary depends on host and operator security and is not cryptographic confidentiality.
 
-## Production hardening path
+There is no `CONFIDENTIAL_EXECUTOR_URL` implementation and no dry-run confidential executor in this repository.
 
-1. Replace wallet-address SHA-256 values with random or salted commitments managed by a confidential registry.
-2. Move recipient names, caps, schedules, and routes into encrypted/confidential state.
-3. Execute policy checks in the confidential runtime.
-4. Publish only a proof or attested decision commitment to the public audit contract.
-5. Bind settlement receipts to the payment ID without publishing the destination.
-6. Require wallet-signature authentication for worker earnings and delivery history.
+## Consistency protection
+
+Private recipient changes are staged and become active only after final on-chain state matches. Wallet cancellation, service failure, or browser termination therefore does not overwrite the previous active plan. Pending operations survive service restart and expire after 24 hours.
+
+## Worker view limitation
+
+Audit entries intentionally omit recipient identity. The worker portal therefore shows employer-wide decisions and cannot prove that an entry belongs to the connected worker.
+
+## Hardening path
+
+1. Replace predictable unsalted account hashes with random or salted commitments.
+2. Move labels, caps, schedules, and routes into encrypted or confidential state.
+3. Execute policy checks inside a verifiable confidential runtime.
+4. Publish only an attested decision commitment.
+5. Add authenticated worker-specific delivery records without weakening audit minimization.

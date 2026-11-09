@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { NearRpcClient } from "./near.js";
-import { isPayrollOwner, summarizeTransaction } from "./notification-api.js";
+import {
+  isPayrollOwner,
+  pendingOperationMatchesRecipient,
+  recipientMatchesExpectedPolicy,
+  summarizeTransaction,
+} from "./notification-api.js";
+import type { PendingPayrollOperation } from "./payroll-plan-store.js";
+import type { RecipientView } from "./types.js";
 
 function encodedArgs(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString("base64");
@@ -79,5 +86,76 @@ describe("isPayrollOwner", () => {
     await expect(
       isPayrollOwner(rpc, "acme.clavis.testnet", "attacker.testnet"),
     ).resolves.toBe(false);
+  });
+});
+
+describe("payroll plan reconciliation", () => {
+  const recipient: RecipientView = {
+    recipient_hash: "a".repeat(64),
+    name: "Ada",
+    personal_cap: "200",
+    active: true,
+    preferred_chain: "near",
+    preferred_token: "NEAR",
+    payment_split: [],
+    schedule: "Weekly",
+    last_paid: 0,
+    next_payment_at: 0,
+  };
+  const operation: PendingPayrollOperation = {
+    operationId: "11111111-1111-4111-8111-111111111111",
+    action: "upsert",
+    contractId: "acme.clavis.testnet",
+    recipientHash: "a".repeat(64),
+    recipient: {
+      recipientHash: "a".repeat(64),
+      name: "Ada",
+      nearAddress: "ada.testnet",
+      amountYocto: "100",
+      milestoneReady: false,
+      destinations: [
+        {
+          chain: "near",
+          token: "NEAR",
+          address: "ada.testnet",
+          percentage: 100,
+        },
+      ],
+    },
+    expectedPolicy: {
+      name: "Ada",
+      personalCapYocto: "200",
+      active: true,
+      preferredChain: "near",
+      preferredToken: "NEAR",
+      paymentSplit: [],
+      schedule: "Weekly",
+    },
+    createdAt: "2026-11-09T00:00:00.000Z",
+    expiresAt: "2026-11-10T00:00:00.000Z",
+  };
+
+  it("promotes an upsert only after every public policy field matches", () => {
+    expect(recipientMatchesExpectedPolicy(recipient, operation.expectedPolicy)).toBe(true);
+    expect(pendingOperationMatchesRecipient(operation, recipient)).toBe(true);
+    expect(
+      pendingOperationMatchesRecipient(operation, {
+        ...recipient,
+        personal_cap: "201",
+      }),
+    ).toBe(false);
+  });
+
+  it("promotes removal only after the recipient is absent", () => {
+    const removal: PendingPayrollOperation = {
+      operationId: "22222222-2222-4222-8222-222222222222",
+      action: "remove",
+      contractId: "acme.clavis.testnet",
+      recipientHash: "a".repeat(64),
+      createdAt: "2026-11-09T00:00:00.000Z",
+      expiresAt: "2026-11-10T00:00:00.000Z",
+    };
+    expect(pendingOperationMatchesRecipient(removal, recipient)).toBe(false);
+    expect(pendingOperationMatchesRecipient(removal, null)).toBe(true);
   });
 });

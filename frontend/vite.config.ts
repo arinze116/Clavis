@@ -2,16 +2,16 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-const rpcProxyPath = "/near-rpc";
+const rpcProxyPath = "/api/near-rpc";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://rpc.testnet.fastnear.com";
+  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://rpc.testnet.near.org";
   const proxy = {
     [rpcProxyPath]: {
       target: rpcTarget,
       changeOrigin: true,
-      rewrite: (path: string) => path.replace(/^\/near-rpc/, "") || "/",
+      rewrite: (path: string) => path.replace(/^\/api\/near-rpc/, "") || "/",
     },
   };
 

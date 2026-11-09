@@ -60,8 +60,8 @@ export function RulesPanel(props: RulesPanelProps) {
       setLimitsError("Both limits must be positive NEAR amounts.");
       return;
     }
-    if (BigInt(nearToYocto(perPayment)) >= BigInt(nearToYocto(daily))) {
-      setLimitsError("The per-payment limit must be less than the daily limit.");
+    if (BigInt(nearToYocto(perPayment)) > BigInt(nearToYocto(daily))) {
+      setLimitsError("The per-payment limit cannot exceed the daily limit.");
       return;
     }
     try {

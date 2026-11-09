@@ -158,7 +158,7 @@ export function AnomalyNotificationBell() {
             </div>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-moss disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1.5 px-2 text-xs font-semibold text-moss disabled:opacity-40"
               onClick={markAllRead}
               disabled={unread.length === 0}
             >
@@ -177,7 +177,7 @@ export function AnomalyNotificationBell() {
                 </div>
                 <button
                   type="button"
-                  className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1 px-2 text-xs font-semibold"
                   onClick={() => void refresh()}
                   disabled={loading}
                 >

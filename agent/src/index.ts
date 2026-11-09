@@ -1,15 +1,12 @@
 import path from "node:path";
 
-import {
-  AgentCredentialProvider,
-  assertSeparateSettlementAccount,
-} from "./agent-credentials.js";
+import { AgentCredentialProvider } from "./agent-credentials.js";
 import { config } from "./config.js";
 import { ContractEventMonitor } from "./contract-event-monitor.js";
 import { IntentStore } from "./intent-store.js";
 import { IntentClient } from "./intents.js";
 import { errorMessage, logger } from "./logger.js";
-import { FactoryClient, NearTransferClient } from "./near.js";
+import { FactoryClient } from "./near.js";
 import { NotificationApiServer } from "./notification-api.js";
 import { NotificationEventStore } from "./notification-event-store.js";
 import { NotificationPreferenceStore } from "./notification-preferences.js";
@@ -32,18 +29,6 @@ async function main(): Promise<void> {
         }
       : {}),
   });
-  assertSeparateSettlementAccount(credentials, config.settlementAccountId);
-  const transferClient =
-    config.settlementAccountId && config.settlementPrivateKey
-      ? new NearTransferClient({
-          networkId: config.nearNetwork,
-          rpcUrl: config.nearRpcUrl,
-          accountId: config.settlementAccountId,
-          privateKey: config.settlementPrivateKey,
-        })
-      : undefined;
-  if (transferClient) await transferClient.connect();
-
   const factory = new FactoryClient({
     rpcUrl: config.nearRpcUrl,
     factoryContractId: config.factoryContractId,
@@ -57,10 +42,6 @@ async function main(): Promise<void> {
   const intents = new IntentClient({
     solverRelayUrl: config.solverRelayUrl,
     apiKey: config.intentsApiKey,
-    intentsContractId: config.intentsContractId,
-    signerAccountId: config.settlementAccountId,
-    signerPrivateKey: config.settlementPrivateKey,
-    transferClient,
   });
   const notifications = new NotificationManager({
     resendApiKey: config.resendApiKey,
