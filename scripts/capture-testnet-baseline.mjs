@@ -18,7 +18,7 @@ const allowedRpcUrls = new Set([
   "https://rpc.testnet.fastnear.com",
   "https://archival-rpc.testnet.fastnear.com",
 ]);
-const rpcUrl = process.env.NEAR_RPC_URL ?? "https://rpc.testnet.fastnear.com";
+const rpcUrl = process.env.NEAR_RPC_URL ?? "https://rpc.testnet.near.org";
 const outputDirectory = path.resolve(
   process.argv[2] ?? `/home/ubuntu/.local/state/clavis-v02-${formatDate(new Date())}`,
 );

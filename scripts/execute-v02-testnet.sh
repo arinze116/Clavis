@@ -8,7 +8,7 @@ readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly SIGNER_BINARY="/home/ubuntu/.local/lib/clavis-near/clavis-near-signer"
 readonly OWNER_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.fastnear.com}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
 readonly EVIDENCE_DIRECTORY="${CLAVIS_BASELINE_DIRECTORY:-/home/ubuntu/.local/state/clavis-v02-20261109}/execution"
 readonly SIGNER_REPORT="$ROOT_DIR/docs/reports/clavis-near-signer-connection-20261109.md"
 
@@ -109,13 +109,21 @@ chmod 0600 "$EVIDENCE_DIRECTORY/factory-status.txt"
 "$ROOT_DIR/scripts/deploy-v02-agent-testnet.sh" prepare
 
 "$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" workers
-"$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" unauthorized-probe
+if [[ -f "$EVIDENCE_DIRECTORY/recovered-initial-transactions.json" ]]; then
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" recovered-unauthorized
+else
+  "$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" unauthorized-probe
+fi
 
-"$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" add-failure-probe
-failure_probe_added=1
-node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" failed-transfer
-"$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" remove-failure-probe
-failure_probe_added=0
+if [[ -f "$EVIDENCE_DIRECTORY/recovered-failed-transfer.json" ]]; then
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" recovered-failed-transfer
+else
+  "$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" add-failure-probe
+  failure_probe_added=1
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" failed-transfer
+  "$ROOT_DIR/scripts/configure-v02-payroll-testnet.sh" remove-failure-probe
+  failure_probe_added=0
+fi
 
 node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" agent-permission
 node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" invalid-recipient

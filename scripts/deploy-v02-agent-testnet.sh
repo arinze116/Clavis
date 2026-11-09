@@ -6,7 +6,7 @@ umask 077
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly DEPLOY_DIR="/opt/clavis"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.fastnear.com}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
 readonly CONTRACT_ID="clavis.testnet"
 readonly FACTORY_ID="factory.clavis.testnet"
 readonly CREDENTIAL_PATH="$DEPLOY_DIR/agent/config/agent-credentials.local.json"
