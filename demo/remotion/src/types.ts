@@ -19,7 +19,7 @@ export interface NarrationParagraph {
 
 export interface NarrationTiming {
   version: number;
-  audioFile: string;
+  audioFile: string | null;
   durationSeconds: number;
   paragraphs: NarrationParagraph[];
   captions: CaptionCue[];

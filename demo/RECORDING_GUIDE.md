@@ -28,28 +28,34 @@ If any item is missing, record a source-and-test walkthrough instead. State that
 
 - Canvas and output: 1920×1080
 - Frame rate: 30 fps
-- Recording: H.264 video, muted microphone and desktop audio
-- Browser: clean profile, 100% zoom, no developer tools or unrelated extensions visible
-- Cursor: visible during actions, parked away from evidence between actions
-- Source duration: allow 5–10 seconds of still footage before the first action and after the final action
+- Public origin: `https://clavisapp.vercel.app`
+- Browser: isolated Playwright context, no developer tools, extensions, wallet state, or notifications
+- Source capture: Playwright WebM with the pointer parked away from evidence
+- Final render: H.264 High, yuv420p MP4
+- Caption-led fallback: no audio stream when no approved narration credential is configured
 
-Save the source recording outside version control, then register it with:
+The reproducible source-and-test path is:
 
 ```bash
-npm run demo:register-recording -- "/absolute/path/to/clavis-walkthrough.mp4"
+npm run demo:prepare:source
+CLAVIS_DEMO_URL=https://clavisapp.vercel.app npm run demo:capture:source
+npm run demo:typecheck
+npm run demo:render
 ```
+
+The generated source video, timing data, and final MP4 are ignored by Git. `npm run demo:record:obs` remains available for a future owner-signed live-v0.2 walkthrough after every deployment gate passes.
 
 ## 4. Prepare the browser sequence
 
 Open these pages from the verified deployed origin:
 
 1. Landing page at the public-proof boundary.
-2. Setup page showing the factory version gate.
-3. Owner dashboard showing the v0.2 settlement label, treasury, roster, and rules.
-4. Native settlement transaction and callback evidence in NearBlocks.
-5. Public audit with an event-derived transaction link.
-6. Worker portal showing the employer-wide decision-history disclosure.
-7. Security evidence and the mobile navigation state.
+2. Public dashboard showing the live v0.1 authorization-only warning.
+3. Dashboard settlement boundary showing source-v0.2 versus deployed-v0.1 behavior.
+4. Security evidence showing the 31 Rust, 66 agent, 30 API, and 5 browser checks.
+5. Public audit showing minimized fields and rejection evidence.
+6. Audit disclosure explaining employer-wide, non-confidential history.
+7. Security evidence and a branded end card that names the signer-gated upgrade.
 
 Do not manufacture wallet state through `localStorage`. Use the actual public read-only flow and owner-authorized testnet wallet when a signed action is part of the verified rehearsal.
 
@@ -57,14 +63,13 @@ Do not manufacture wallet state through `localStorage`. Use the actual public re
 
 | Beat | Action | Required statement |
 | --- | --- | --- |
-| Promise | Hold the landing proof boundary. | “Source v0.2 controls native NEAR settlement; the UI reads the deployed version before making that claim.” |
-| Configure | Show limits, a native recipient, and the restricted agent. | “Only native NEAR executes in this release. Cross-chain and split routes fail closed.” |
-| Constrain | Show the restricted-key and policy controls. | “The agent can call `request_payment`; it cannot rewrite policy or move funds independently.” |
-| Settle | Open the native payment and callback evidence. | “The contract transfers its own NEAR and records approval only after transfer success.” |
-| Reconcile | Show a staged recipient change or its documented evidence. | “The private plan changes only after exact final-chain reconciliation.” |
-| Verify | Open the audit transaction link. | “The emitted payment ID identifies this transaction; no block-order guess is used.” |
-| Disclose | Show the worker history and privacy copy. | “The history is employer-wide, and audit minimization is not transaction confidentiality.” |
-| Close | Show Security evidence and mobile navigation. | “Repository tests are source-linked evidence, not an independent audit.” |
+| Promise | Hold the landing proof boundary. | “The public web app is live, while settlement guarantees remain versioned.” |
+| Deploy truth | Show the dashboard warning. | “The deployed v0.1 root authorizes requests but does not control settlement funds.” |
+| Constrain | Show the settlement boundary. | “Source v0.2 limits the scheduler to `request_payment`; native funds remain in the contract.” |
+| Enforce | Show Security evidence. | “Callback success commits approval; failure rolls policy and schedule state back.” |
+| Reconcile | Hold the audit/source evidence. | “Signed private-plan changes become active only after final-chain reconciliation.” |
+| Disclose | Show audit privacy and rejection evidence. | “History is employer-wide, minimized rather than confidential, and explorer links never guess.” |
+| Close | Return to Security evidence and the end card. | “132 tests verify source v0.2; segregated root and factory signers still gate deployment.” |
 
 ## 6. Validate the finished render
 
@@ -72,6 +77,8 @@ Do not manufacture wallet state through `localStorage`. Use the actual public re
 npm run demo:typecheck
 npm run demo:render
 ffprobe -v error -show_streams -show_format demo/output/clavis-demo-1080p.mp4
+ffmpeg -hide_banner -i demo/output/clavis-demo-1080p.mp4 \
+  -vf 'blackdetect=d=0.25:pix_th=0.02' -an -f null -
 ```
 
-Inspect frames at the opening, every scene transition, the settlement proof, the worker disclosure, and the end card. Confirm readable text, synchronized captions, clean audio, no black frames, no secret material, and no claim that is stronger than the deployed evidence. Record the final metadata and video URL in `DEMO.md` and `SUBMISSION.md` only after inspection passes.
+Inspect frames at the opening, every scene transition, the audit disclosure, security evidence, and the end card. Confirm readable text, synchronized captions, no black frames, no secret material, and no claim stronger than the deployed evidence. For the caption-led fallback, verify that the file intentionally has no audio stream; narrated variants must additionally pass an audio review. Record final metadata and the video URL in `DEMO.md` and `SUBMISSION.md` only after inspection passes.

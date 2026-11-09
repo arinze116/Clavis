@@ -1,13 +1,13 @@
-Meet Clavis: privacy-minimized, rule-bound payroll on NEAR testnet.
+Clavis is privacy-minimized, rule-bound payroll on NEAR testnet.
 
-Employers set approved workers, schedules, caps, treasury limits, and one executable native NEAR route.
+The public web app is live. It reads clavis.testnet directly and labels the deployed version zero point one contract as authorization-only, so the interface never borrows the source version zero point two settlement guarantee.
 
-A restricted agent runs each cycle. Its Function Call key can request payment on one contract—and nothing else.
+In source version zero point two, the scheduler holds only a request payment Function Call key. Native NEAR stays in the payroll contract, which verifies the recipient commitment and every owner-defined policy.
 
-The contract checks identity, timing, caps, daily spend, route, and the recipient commitment onchain.
+The contract reserves policy state, transfers its own funds, and records approval only after the callback succeeds. A failed transfer rolls back spend and schedule state. Cross-chain and split execution fail closed.
 
-In source v0.2, approved native payments move directly from the contract and finalize only after transfer success. Unsupported cross-chain requests fail closed.
+Recipient changes use a signed, durable two-phase workflow. The active private plan changes only after final-chain reconciliation, so wallet cancellation or a service restart leaves the prior plan intact.
 
-The public audit proves employer-wide decisions without repeating salaries, recipient identities, or routes. Normal NEAR transaction data remains public.
+The public audit shows employer-wide decisions, not worker-specific history. Audit fields omit salary and recipient identity, while normal transaction data remains public and explorer links fall back rather than guess.
 
-Clavis gives automation enough authority to work, and none to break the rules.
+One hundred thirty-two repository tests cover the source release. The remaining live upgrade requires the segregated root and factory signing keys. Until those keys are connected, Clavis presents version zero point two as source-verified, not deployed.

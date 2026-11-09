@@ -433,7 +433,11 @@ function readFrontendEvidence(filePath) {
 
 const options = parseArguments(process.argv.slice(2));
 const commit = options.commit || process.env.GITHUB_SHA || gitValue(["rev-parse", "HEAD"], "unknown");
-const treeState = gitValue(["status", "--porcelain"], "") ? "modified" : "clean";
+// Untracked local files cannot be linked to the selected commit and do not
+// affect any mapped evidence source. Only tracked changes make the snapshot dirty.
+const treeState = gitValue(["status", "--porcelain", "--untracked-files=no"], "")
+  ? "modified"
+  : "clean";
 const repositoryUrl = "https://github.com/arinze116/Clavis";
 const sources = new Map();
 const evidenceCases = cases.map((item) => {

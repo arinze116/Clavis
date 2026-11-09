@@ -13,7 +13,9 @@
     "types": ["node", "react", "react-dom"]
   },
   "include": [
+    "../scripts/capture-source-demo.ts",
     "../scripts/generate-demo-narration.ts",
+    "../scripts/prepare-source-demo.ts",
     "../scripts/record-demo.ts",
     "../scripts/register-demo-recording.ts",
     "../remotion.config.ts",

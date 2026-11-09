@@ -4,16 +4,24 @@
 
 Clavis is a testnet payroll control plane for remote teams. Owners define recipients, caps, schedules, routes, pause state, and treasury limits. A TypeScript scheduler may call only `request_payment`; it cannot change policy or transfer funds independently.
 
+Public release links:
+
+- Web app: <https://clavisapp.vercel.app>
+- Repository: <https://github.com/arinze116/Clavis>
+- Source-and-test demo: <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4>
+- Release evidence: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
+
 ## Deployment status
 
 Source behavior and deployed behavior are deliberately separated.
 
 | Target | Verified status on 2026-11-09 |
 | --- | --- |
-| Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. |
-| `clavis.testnet` | Reports `contract_version = 0.1.0`; this live deployment authorizes requests but does not provide the v0.2 settlement guarantee. |
-| `factory.clavis.testnet` | Does not expose `contract_version`; the web setup treats it as legacy and blocks new deployments. |
-| v0.2 deployment | Not performed by this change. Contract upgrades and publishing require explicit owner approval. |
+| Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. PR [#13](https://github.com/arinze116/Clavis/pull/13) is merged. |
+| Public web app | Deployed at <https://clavisapp.vercel.app> from the merged source release. It reads live final-block state and labels legacy contracts rather than claiming v0.2 is live. |
+| `clavis.testnet` | Reports `contract_version = 0.1.0`; code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`. This live deployment authorizes requests but does not provide the v0.2 settlement guarantee. |
+| `factory.clavis.testnet` | `contract_version` returns `MethodNotFound`; code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW`. The web setup treats it as legacy and blocks new deployments at the signed deployment step. |
+| v0.2 contract and agent deployment | Not performed. The required root and factory Full Access signers are not available on this host or in GitHub Actions; the restricted agent key cannot deploy code. Starting the v0.2 agent against the legacy root would fail closed. |
 
 The dashboard reads `contract_version` and labels each contract honestly:
 
@@ -210,6 +218,8 @@ npm audit --omit=dev --audit-level=moderate
 git diff --check
 ```
 
+The merged source release passed [CI](https://github.com/arinze116/Clavis/actions/runs/42602465954) and [security-evidence verification](https://github.com/arinze116/Clavis/actions/runs/42602465956). The public origin then passed two uninterrupted six-route rehearsals and deployed visual checks at 390, 768, and 1440 pixels with one `main`, one `h1`, no horizontal overflow, and no application errors. Screenshots are attached to the source-verified release.
+
 Generated security evidence is refreshed with:
 
 ```bash
@@ -231,7 +241,7 @@ The root v0.1 payroll contract must be upgraded with the v0.2 WASM by its contra
 
 The factory must then be upgraded so newly created child contracts embed v0.2. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement. Do not imply otherwise in the UI or submission.
 
-No deployment, push, or publication is performed automatically.
+The production frontend is published, but no contract upgrade or agent restart is performed automatically. Contract deployment still requires the segregated root and factory signers plus an owner-reviewed transaction preview.
 
 ## Known limitations
 
