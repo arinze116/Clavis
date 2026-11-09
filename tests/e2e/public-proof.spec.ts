@@ -127,10 +127,12 @@ test("security page keeps limitations beside the test evidence", async ({ page }
 
 test("audit copy does not imply transaction confidentiality", async ({ page }) => {
   const errors = collectPageErrors(page);
-  await mockPublicContractReads(page);
+  await mockPublicContractReads(page, 1_000);
 
   await page.goto("/audit");
 
+  await expect(page.locator("main")).toHaveCount(1);
+  await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Proof without payroll exposure." })).toBeVisible();
   await expect(page.getByText("Minimized audit fields", { exact: true })).toBeVisible();
   await expect(page.getByText(/Final block \d+ · refreshes every 10 seconds/i)).toBeVisible();

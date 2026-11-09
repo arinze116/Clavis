@@ -26,7 +26,7 @@ function AuditLogContent() {
       <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
         <AuditHero />
         <div className="mt-10">
-          <LoadingState label="Reading two public contract views" />
+          <LoadingState label="Reading two public contract views" pageHeading={false} />
         </div>
       </div>
     );

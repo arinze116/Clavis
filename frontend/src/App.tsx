@@ -40,7 +40,7 @@ const descriptions = {
 
 export default function App() {
   return (
-    <Suspense fallback={<LoadingState label="Loading Clavis" />}>
+    <Suspense fallback={<ApplicationLoadingState />}>
       <Routes>
         <Route
           path="/"
@@ -159,6 +159,14 @@ export default function App() {
         />
       </Routes>
     </Suspense>
+  );
+}
+
+function ApplicationLoadingState() {
+  return (
+    <main id="main-content" tabIndex={-1}>
+      <LoadingState label="Loading Clavis" />
+    </main>
   );
 }
 

@@ -1,9 +1,15 @@
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
-export function LoadingState({ label = "Loading contract state" }: { label?: string }) {
+export function LoadingState({
+  label = "Loading contract state",
+  pageHeading = true,
+}: {
+  label?: string;
+  pageHeading?: boolean;
+}) {
   return (
     <div className="mx-auto min-h-[50vh] max-w-[1180px] px-5 py-14 lg:px-10">
-      <h1 className="sr-only">{label}</h1>
+      {pageHeading ? <h1 className="sr-only">{label}</h1> : <p className="sr-only">{label}</p>}
       <div className="animate-pulse space-y-6" aria-hidden="true">
         <div className="h-4 w-28 rounded-full bg-ink/10" />
         <div className="h-14 max-w-xl rounded-2xl bg-ink/10" />
