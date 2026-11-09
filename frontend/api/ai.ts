@@ -98,6 +98,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 12;
 const MAX_RATE_LIMIT_CLIENTS = 2_000;
 const ROUTE_RPC_TIMEOUT_MS = 2_500;
+const DEPRECATED_TESTNET_RPC_HOSTS = new Set(["rpc.testnet.near.org"]);
 const VERIFIED_EVIDENCE_FALLBACK_TASKS = new Set<AiTask>([
   "anomaly",
   "payroll-report",
@@ -1471,13 +1472,15 @@ function nearRpcEndpoints(): URL[] {
   const values = [
     process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
     process.env.NEAR_RPC_URL?.trim(),
-    "https://rpc.testnet.near.org",
-    "https://rpc.testnet.fastnear.com",
+    "https://test.rpc.fastnear.com",
+    "https://near-testnet.drpc.org",
   ];
   return [...new Set(values.filter((value): value is string => Boolean(value)))].flatMap((value) => {
     try {
       const endpoint = new URL(value);
-      return endpoint.protocol === "https:" ? [endpoint] : [];
+      return endpoint.protocol === "https:" && !DEPRECATED_TESTNET_RPC_HOSTS.has(endpoint.hostname)
+        ? [endpoint]
+        : [];
     } catch {
       return [];
     }
@@ -1532,10 +1535,7 @@ async function enrichRouteRequest(body: AiRequestBody): Promise<AiRequestBody> {
 }
 
 async function observeRouteConditions(): Promise<RouteConditions> {
-  const nearUrl =
-    process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim() ||
-    process.env.NEAR_RPC_URL?.trim() ||
-    "https://rpc.testnet.near.org";
+  const nearUrl = nearRpcEndpoints()[0]?.href ?? "https://test.rpc.fastnear.com";
   const ethereumUrl =
     process.env.CLAVIS_ETHEREUM_SEPOLIA_RPC_URL?.trim() ||
     "https://ethereum-sepolia-rpc.publicnode.com";

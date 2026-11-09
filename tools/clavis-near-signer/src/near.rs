@@ -9,6 +9,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
+const TESTNET_RPC_URLS: [&str; 3] = [
+    "https://test.rpc.fastnear.com",
+    "https://near-testnet.drpc.org",
+    "https://testnet-rpc.intea.rs",
+];
+
 #[derive(Clone, Debug)]
 pub struct AccessKeyRecord {
     pub public_key: String,
@@ -48,15 +54,36 @@ pub fn fetch_access_keys(account_id: &str) -> Result<Vec<AccessKeyRecord>, Strin
         .timeout(Duration::from_secs(20))
         .build()
         .map_err(|error| format!("Unable to configure NEAR RPC client: {error}"))?;
-    let response: Value = client
-        .post("https://rpc.testnet.near.org")
-        .json(&body)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|error| format!("NEAR RPC request failed for {account_id}: {error}"))?
-        .json()
-        .map_err(|error| format!("NEAR RPC response was invalid for {account_id}: {error}"))?;
-    parse_access_keys(account_id, &response)
+    let mut failures = Vec::new();
+    for rpc_url in TESTNET_RPC_URLS {
+        let response = match client
+            .post(rpc_url)
+            .json(&body)
+            .send()
+            .and_then(|response| response.error_for_status())
+        {
+            Ok(response) => response,
+            Err(error) => {
+                failures.push(format!("{rpc_url}: {error}"));
+                continue;
+            }
+        };
+        let response: Value = match response.json() {
+            Ok(response) => response,
+            Err(error) => {
+                failures.push(format!("{rpc_url}: invalid JSON ({error})"));
+                continue;
+            }
+        };
+        match parse_access_keys(account_id, &response) {
+            Ok(keys) => return Ok(keys),
+            Err(error) => failures.push(format!("{rpc_url}: {error}")),
+        }
+    }
+    Err(format!(
+        "All verified NEAR Testnet RPC providers failed for {account_id}: {}",
+        failures.join("; ")
+    ))
 }
 
 fn parse_access_keys(account_id: &str, response: &Value) -> Result<Vec<AccessKeyRecord>, String> {

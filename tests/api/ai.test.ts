@@ -1146,5 +1146,10 @@ function restoreEnvironment(name: string, value: string | undefined): void {
 }
 
 function isNearViewRpc(url: string): boolean {
-  return url.includes("rpc.testnet.fastnear.com") || url.includes("rpc.testnet.near.org");
+  return (
+    url.includes("test.rpc.fastnear.com") ||
+    url.includes("near-testnet.drpc.org") ||
+    url.includes("rpc.testnet.fastnear.com") ||
+    url.includes("rpc.testnet.near.org")
+  );
 }

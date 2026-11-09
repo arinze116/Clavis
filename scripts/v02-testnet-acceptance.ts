@@ -15,11 +15,17 @@ import {
 } from "./lib/v02-acceptance.js";
 
 const allowedRpcUrls = new Set([
+  "https://test.rpc.fastnear.com",
+  "https://near-testnet.drpc.org",
+  "https://testnet-rpc.intea.rs",
+  "https://archival-rpc.testnet.near.org",
+]);
+const historicalEvidenceRpcUrls = new Set([
   "https://rpc.testnet.near.org",
   "https://rpc.testnet.fastnear.com",
   "https://archival-rpc.testnet.fastnear.com",
 ]);
-const rpcUrl = (process.env.NEAR_RPC_URL ?? "https://rpc.testnet.near.org").replace(/\/$/u, "");
+const rpcUrl = (process.env.NEAR_RPC_URL ?? "https://test.rpc.fastnear.com").replace(/\/$/u, "");
 const contractId = "clavis.testnet";
 const agentAccountId = "clavis-agent.testnet";
 const workerOneId = "arinze-worker1.testnet";
@@ -126,7 +132,10 @@ switch (phase) {
     const recovered = parseRecoveredFailedTransferEvidence(
       JSON.parse(await readFile(recoveredPath, "utf8")) as unknown,
     );
-    if (!allowedRpcUrls.has(recovered.rpc_url.replace(/\/$/u, ""))) {
+    if (
+      !allowedRpcUrls.has(recovered.rpc_url.replace(/\/$/u, "")) &&
+      !historicalEvidenceRpcUrls.has(recovered.rpc_url.replace(/\/$/u, ""))
+    ) {
       throw new Error(`Recovered evidence used an unrecognised RPC endpoint: ${recovered.rpc_url}`);
     }
     const transaction = await rpc.jsonRpc<FinalTransactionOutcome>("tx", {

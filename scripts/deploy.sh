@@ -12,7 +12,7 @@ fi
 : "${OWNER_ID:?Set OWNER_ID in .env}"
 : "${NEAR_ACCOUNT_ID:?Set NEAR_ACCOUNT_ID in .env}"
 : "${CONTRACT_ID:?Set CONTRACT_ID in .env}"
-RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
+RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
 
 [[ "${CLAVIS_NEAR_KEYRING_ACTIVE:-}" == "1" ]] || {
   echo "Run this script through scripts/run-with-clavis-near-keyring.sh." >&2
@@ -23,7 +23,7 @@ RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
   exit 2
 }
 case "${RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
 esac
 

@@ -14,11 +14,12 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const allowedRpcUrls = new Set([
-  "https://rpc.testnet.near.org",
-  "https://rpc.testnet.fastnear.com",
-  "https://archival-rpc.testnet.fastnear.com",
+  "https://test.rpc.fastnear.com",
+  "https://near-testnet.drpc.org",
+  "https://testnet-rpc.intea.rs",
+  "https://archival-rpc.testnet.near.org",
 ]);
-const rpcUrl = process.env.NEAR_RPC_URL ?? "https://rpc.testnet.near.org";
+const rpcUrl = process.env.NEAR_RPC_URL ?? "https://test.rpc.fastnear.com";
 const outputDirectory = path.resolve(
   process.argv[2] ?? `/home/ubuntu/.local/state/clavis-v02-${formatDate(new Date())}`,
 );

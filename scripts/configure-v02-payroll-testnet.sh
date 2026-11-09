@@ -6,7 +6,7 @@ umask 077
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
 readonly CONTRACT_ID="clavis.testnet"
 readonly OWNER_ID="clavis.testnet"
 readonly OWNER_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
@@ -37,7 +37,7 @@ for account_id in "$CONTRACT_ID" "$OWNER_ID" "$WORKER_ONE_ID" "$WORKER_TWO_ID" "
   [[ "$account_id" == *.testnet ]] || { echo "Refusing non-Testnet account: $account_id" >&2; exit 2; }
 done
 case "${RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
 esac
 mkdir -p "$EVIDENCE_DIRECTORY"

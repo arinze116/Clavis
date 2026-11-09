@@ -174,7 +174,7 @@ Relevant agent configuration:
 
 ```dotenv
 NEAR_NETWORK=testnet
-NEAR_RPC_URL=https://rpc.testnet.near.org
+NEAR_RPC_URL=https://test.rpc.fastnear.com
 FACTORY_CONTRACT_ID=factory.clavis.testnet
 AGENT_CREDENTIALS_PATH=./config/agent-credentials.local.json
 PAYROLL_CONFIG_PATH=./config/payroll.local.json

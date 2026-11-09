@@ -7,7 +7,7 @@ import type {
   RecipientView,
 } from "./types.js";
 
-export const DEFAULT_TESTNET_RPC_URL = "https://rpc.testnet.near.org";
+export const DEFAULT_TESTNET_RPC_URL = "https://test.rpc.fastnear.com";
 
 interface RpcResponse<T> {
   result?: T;
