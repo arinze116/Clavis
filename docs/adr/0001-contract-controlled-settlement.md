@@ -21,7 +21,7 @@ Recipient management wrote public contract state and private plan state in diffe
 7. Private-plan changes use persisted pending operations and commit only after exact final-chain reconciliation.
 8. The React application stages first, signs the public transaction second, and requests immediate reconciliation third; background reconciliation handles crashes and restarts.
 9. The UI reads contract versions and distinguishes v0.2 settlement guarantees from legacy authorization-only deployments.
-10. No recovery method accepts an operator-supplied transfer result. An uncertain callback remains locked until an evidence-based contract upgrade, preventing a guessed failure from enabling a duplicate payout.
+10. A callback that remains unresolved is locked for ten minutes. The owner may then resolve it with a public NEAR transaction hash and an explicit delivered/failed attestation; the contract emits a `payment_recovery` event.
 
 ## Consequences
 
@@ -29,7 +29,7 @@ Recipient management wrote public contract state and private plan state in diffe
 - A contract-account Full Access deployment key remains outside this enforcement boundary. The legacy root key must be segregated from the agent; factory-created v0.2 children from this source have no access keys.
 - Approval cannot be stranded between contract authorization and agent persistence.
 - Native throughput is serialized to one in-flight transfer per payroll contract.
-- Callback uncertainty fails closed and may require an owner-reviewed upgrade, trading availability for duplicate-payment safety.
+- Callback uncertainty fails closed during the finality window. Recovery restores availability but depends on correct owner verification of the referenced receipt; a false failure attestation can enable a duplicate retry.
 - Cross-chain routes are unavailable in this release.
 - The root v0.1 contract requires an explicitly approved deployment-key upgrade plus stored-owner-checked migration; the factory must be upgraded before creating v0.2 children.
 - Factory-created v0.1 children have no deployment key or legacy self-upgrade entry point, so their policy owner cannot migrate them in place through this repository and may need to replace them.

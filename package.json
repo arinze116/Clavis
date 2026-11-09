@@ -17,6 +17,7 @@
     "test:e2e:built": "playwright test",
     "test:agent": "npm run test --workspace=@clavis/agent",
     "test:contract": "cargo test --manifest-path contract/Cargo.toml",
+    "testnet:typecheck": "tsc -p tsconfig.testnet.json --pretty false",
     "build:contract": "cargo build --manifest-path contract/Cargo.toml --target wasm32-unknown-unknown --release",
     "demo:narration": "node --experimental-strip-types scripts/generate-demo-narration.ts",
     "demo:prepare:source": "node --experimental-strip-types scripts/prepare-source-demo.ts",

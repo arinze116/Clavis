@@ -12,6 +12,15 @@ fi
 : "${OWNER_ID:?Set OWNER_ID in .env}"
 : "${CONTRACT_ID:?Set CONTRACT_ID in .env}"
 
+[[ "${CLAVIS_NEAR_KEYRING_ACTIVE:-}" == "1" ]] || {
+  echo "Run this script through scripts/run-with-clavis-near-keyring.sh." >&2
+  exit 2
+}
+[[ "$OWNER_ID" == *.testnet && "$CONTRACT_ID" == *.testnet ]] || {
+  echo "Owner and contract identities must be .testnet accounts." >&2
+  exit 2
+}
+
 WORKER_ONE_ID="${WORKER_ONE_ID:-worker-one.testnet}"
 WORKER_TWO_ID="${WORKER_TWO_ID:-worker-two.testnet}"
 WORKER_THREE_ID="${WORKER_THREE_ID:-worker-three.testnet}"
@@ -29,7 +38,7 @@ call_owner() {
     attached-deposit "0 NEAR" \
     sign-as "$OWNER_ID" \
     network-config testnet \
-    sign-with-legacy-keychain \
+    sign-with-keychain \
     send
 }
 

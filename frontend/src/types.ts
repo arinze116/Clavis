@@ -88,6 +88,7 @@ export interface ContractSnapshot {
   perPaymentLimit: string;
   treasuryBalance: string;
   paused: boolean;
+  pendingNativePaymentRecoveryAt: string | null;
   recipients: Recipient[];
   auditLog: AuditEntry[];
   anomalies: AnomalyEntry[];

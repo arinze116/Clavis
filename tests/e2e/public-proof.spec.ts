@@ -30,6 +30,7 @@ async function mockPublicContractReads(page: Page, delayMs = 0) {
     get_per_payment_limit: "20000000000000000000000000",
     get_treasury_balance: "9940000000000000000000000",
     is_paused: false,
+    get_pending_native_payment_recovery_at: null,
     get_recipients: [],
     get_audit_log_reverse: [],
     get_anomaly_count: 0,

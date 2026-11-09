@@ -40,6 +40,7 @@ For a native NEAR payment:
 5. The contract reserves policy state and transfers NEAR from its own balance.
 6. The callback records approval only after transfer success.
 7. A failed transfer rolls back daily spend and schedule state, then records rejection.
+8. If the callback itself never finalizes, the contract remains locked for ten minutes; the owner may then resolve it only with a public Testnet transaction hash and an explicit delivered/failed attestation.
 
 There is no agent-held Full Access settlement wallet. The restricted agent key can only ask its assigned contract to execute `request_payment`, and the runtime rejects the removed `SETTLEMENT_ACCOUNT_ID` and `SETTLEMENT_PRIVATE_KEY` configuration.
 
@@ -194,12 +195,12 @@ Verified locally on the current working tree:
 
 | Suite | Result |
 | --- | --- |
-| Payroll contract | 28 passed |
+| Payroll contract | 31 passed |
 | Factory contract | 3 passed |
 | Agent Vitest | 66 passed |
 | API/utility Node tests | 30 passed |
 | Playwright browser paths | 5 passed |
-| Repository total | 132 passed |
+| Repository total | 135 passed |
 
 The complete release gate is:
 
@@ -251,7 +252,7 @@ The production frontend is published, but no contract upgrade or agent restart i
 - Factory-created legacy child contracts may require replacement because v0.1 has no in-place owner upgrade path.
 - Cross-chain and split execution are disabled.
 - Only one native settlement may be pending per contract at a time.
-- Callback uncertainty fails closed: there is no operator-supplied success/failure override. While a callback is unresolved, new payments, mutation of its recipient, and withdrawal remain locked; an exceptional callback that can never finalize requires an owner-reviewed contract upgrade.
+- Callback uncertainty fails closed during the finality window. After ten minutes, the owner can resolve a stale callback only by supplying the reviewed NEAR transaction hash and attesting whether delivery occurred; that recovery event is public. A wrong attestation can cause false accounting or a duplicate retry, so operators must verify the final receipt first.
 - Unsalted hashes of predictable account IDs are commitments, not anonymity.
 - Recipient policy configuration remains public contract state.
 - Audit links depend on third-party indexing plus NEAR RPC and remain best-effort.

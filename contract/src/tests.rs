@@ -2,6 +2,7 @@ use near_sdk::json_types::U128;
 use near_sdk::test_utils::VMContextBuilder;
 use near_sdk::{testing_env, AccountId, NearToken, PromiseOrValue, PromiseResult};
 
+use crate::payments::PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS;
 use crate::{
     Clavis, PaymentOutcome, PaymentSchedule, RecipientConfigInput, SecurityAuditScenario,
     SplitConfig, DAY_NS,
@@ -184,6 +185,85 @@ fn failed_native_transfer_rolls_back_reserved_policy_state() {
             .last_paid,
         0
     );
+}
+
+#[test]
+#[should_panic(expected = "Pending payment is not yet recoverable")]
+fn stale_native_payment_cannot_be_resolved_before_finality_window() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    let requested_at = DAY_NS + BUSINESS_HOUR_NS;
+    testing_env!(context("agent.testnet", requested_at).build());
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300));
+
+    testing_env!(context(
+        "owner.testnet",
+        requested_at + PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS - 1,
+    )
+    .build());
+    contract.resolve_stale_native_payment(
+        false,
+        "11111111111111111111111111111111111111111111".to_string(),
+    );
+}
+
+#[test]
+fn stale_failed_callback_can_be_rolled_back_with_transaction_evidence() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    let requested_at = DAY_NS + BUSINESS_HOUR_NS;
+    testing_env!(context("agent.testnet", requested_at).build());
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300));
+    assert_eq!(
+        contract.get_pending_native_payment_recovery_at(),
+        Some(near_sdk::json_types::U64(
+            requested_at + PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS
+        ))
+    );
+
+    testing_env!(context(
+        "owner.testnet",
+        requested_at + PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS,
+    )
+    .build());
+    let result = contract.resolve_stale_native_payment(
+        false,
+        "11111111111111111111111111111111111111111111".to_string(),
+    );
+
+    assert!(!result.approved);
+    assert!(!result.settled);
+    assert_eq!(contract.get_daily_spent(), U128(0));
+    assert!(contract.pending_native_payment.is_none());
+    assert_eq!(
+        contract
+            .get_recipient(recipient_hash(WORKER_ACCOUNT))
+            .unwrap()
+            .last_paid,
+        0
+    );
+}
+
+#[test]
+fn stale_successful_callback_can_be_finalized_without_repaying() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    let requested_at = DAY_NS + BUSINESS_HOUR_NS;
+    testing_env!(context("agent.testnet", requested_at).build());
+    expect_transfer(request(&mut contract, &recipient_hash(WORKER_ACCOUNT), 300));
+
+    testing_env!(context(
+        "owner.testnet",
+        requested_at + PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS,
+    )
+    .build());
+    let result = contract.resolve_stale_native_payment(
+        true,
+        "11111111111111111111111111111111111111111111".to_string(),
+    );
+
+    assert!(result.approved);
+    assert!(result.settled);
+    assert_eq!(contract.get_daily_spent(), U128(300));
+    assert!(contract.pending_native_payment.is_none());
+    assert_eq!(contract.get_log_count(), 1);
 }
 
 #[test]
