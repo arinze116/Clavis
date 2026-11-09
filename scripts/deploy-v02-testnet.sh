@@ -171,9 +171,10 @@ verify_keychain_public_key() {
 
 verify_root_state() {
   local expected_hash="$1"
-  node --input-type=module - "$RPC_URL" "$BASELINE_PATH" "$expected_hash" <<'NODE'
+  local verification_mode="${2:-strict}"
+  node --input-type=module - "$RPC_URL" "$BASELINE_PATH" "$expected_hash" "$verification_mode" <<'NODE'
 import { readFile } from "node:fs/promises";
-const [rpcUrl, baselinePath, expectedHash] = process.argv.slice(2);
+const [rpcUrl, baselinePath, expectedHash, verificationMode] = process.argv.slice(2);
 const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
 async function rpc(method, params) {
   const response = await fetch(rpcUrl, {
@@ -217,16 +218,50 @@ const actual = {
 };
 if (actual.version !== "0.2.0") throw new Error(`Unexpected root version ${actual.version}`);
 if (actual.pending_recovery_at !== null) throw new Error("Migration created an unexpected pending payment");
-for (const key of [
-  "owner", "agent", "daily_limit", "per_payment_limit", "daily_spent",
-  "last_reset_timestamp", "paused", "recipient_count", "recipients", "log_count",
-  "audit", "anomaly_count", "anomalies",
-]) {
-  if (JSON.stringify(actual[key]) !== JSON.stringify(baseline.root[key])) {
-    throw new Error(`Migrated root state differs at ${key}`);
+if (verificationMode === "strict") {
+  for (const key of [
+    "owner", "agent", "daily_limit", "per_payment_limit", "daily_spent",
+    "last_reset_timestamp", "paused", "recipient_count", "recipients", "log_count",
+    "audit", "anomaly_count", "anomalies",
+  ]) {
+    if (JSON.stringify(actual[key]) !== JSON.stringify(baseline.root[key])) {
+      throw new Error(`Migrated root state differs at ${key}`);
+    }
   }
+  console.log(`Verified migrated root v${actual.version} with preserved policy and audit state.`);
+} else if (verificationMode === "resume") {
+  for (const key of [
+    "owner", "agent", "daily_limit", "per_payment_limit", "last_reset_timestamp", "paused",
+  ]) {
+    if (JSON.stringify(actual[key]) !== JSON.stringify(baseline.root[key])) {
+      throw new Error(`Resume verification differs from the baseline at ${key}`);
+    }
+  }
+  const actualRecipients = new Map(actual.recipients.map((entry) => [entry.recipient_hash, entry]));
+  for (const expected of baseline.root.recipients) {
+    if (JSON.stringify(actualRecipients.get(expected.recipient_hash)) !== JSON.stringify(expected)) {
+      throw new Error(`Resume verification lost or changed baseline recipient ${expected.recipient_hash}`);
+    }
+  }
+  const actualAudit = new Map(actual.audit.map((entry) => [entry.payment_id, entry]));
+  for (const expected of baseline.root.audit) {
+    if (JSON.stringify(actualAudit.get(expected.payment_id)) !== JSON.stringify(expected)) {
+      throw new Error(`Resume verification lost or changed baseline audit ${expected.payment_id}`);
+    }
+  }
+  const actualAnomalies = new Map(actual.anomalies.map((entry) => [entry.anomaly_id, entry]));
+  for (const expected of baseline.root.anomalies) {
+    if (JSON.stringify(actualAnomalies.get(expected.anomaly_id)) !== JSON.stringify(expected)) {
+      throw new Error(`Resume verification lost or changed baseline anomaly ${expected.anomaly_id}`);
+    }
+  }
+  if (actual.recipient_count < baseline.root.recipient_count || actual.log_count < baseline.root.log_count) {
+    throw new Error("Resume verification observed a counter below the pre-migration baseline");
+  }
+  console.log(`Verified resume-safe root v${actual.version} state with the complete baseline preserved.`);
+} else {
+  throw new Error(`Unknown root verification mode ${verificationMode}`);
 }
-console.log(`Verified migrated root v${actual.version} with preserved policy and audit state.`);
 NODE
 }
 
@@ -280,7 +315,7 @@ deploy_root() {
   baseline_hash="$(node -e 'const b=require(process.argv[1]);process.stdout.write(b.accounts["clavis.testnet"].code_hash)' "$BASELINE_PATH")"
 
   if [[ "$current_version" == '"0.2.0"' && "$current_hash" == "$expected_hash" ]]; then
-    verify_root_state "$expected_hash"
+    verify_root_state "$expected_hash" resume
     echo "Root already matches the reviewed v0.2 artifact; no transaction submitted."
     return
   fi
@@ -302,7 +337,7 @@ deploy_root() {
     attached-deposit "0 NEAR" \
     network-config testnet \
     sign-with-keychain --signer-public-key "$ROOT_PUBLIC_KEY" \
-    send --wait-until final \
+    send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/root-deploy.log"
   chmod 0600 "$EVIDENCE_DIRECTORY/root-deploy.log"
   verify_root_state "$expected_hash"
@@ -332,7 +367,7 @@ deploy_factory() {
     without-init-call \
     network-config testnet \
     sign-with-keychain --signer-public-key "$FACTORY_PUBLIC_KEY" \
-    send --wait-until final \
+    send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/factory-deploy.log"
   chmod 0600 "$EVIDENCE_DIRECTORY/factory-deploy.log"
   verify_factory_state "$expected_hash"
