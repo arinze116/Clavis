@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify-security-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,6 +39,14 @@ jobs:
             --reporter=json \
             --outputFile=../artifacts/security-evidence/vitest.json
 
+      - name: Run API and browser evidence suites
+        run: |
+          npm run typecheck
+          npm run test:api
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:e2e:built
+
       - name: Generate source-linked security report
         env:
           SECURITY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -49,6 +57,13 @@ jobs:
             --run-url "${SECURITY_RUN_URL}" \
             --vitest-report artifacts/security-evidence/vitest.json \
             --output-dir artifacts/security-evidence
+
+      - name: Verify committed security evidence is current
+        run: |
+          node scripts/security/generate-security-report.mjs \
+            --check \
+            --vitest-report artifacts/security-evidence/vitest.json \
+            --frontend-output frontend/src/data/securityEvidence.generated.ts
 
       - name: Add report to the workflow summary
         run: cat artifacts/security-evidence/security-report.md >> "$GITHUB_STEP_SUMMARY"

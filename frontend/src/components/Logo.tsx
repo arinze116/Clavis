@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
-    <Link to="/" className="inline-flex items-center gap-3" aria-label="Clavis home">
+    <Link to="/" className="inline-flex min-h-11 items-center gap-3" aria-label="Clavis home">
       <img
         src="/clavis-mark.svg"
         alt=""

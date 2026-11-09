@@ -18,7 +18,7 @@ const routes = [
     path: "worker",
     title: "Worker Portal · Clavis",
     description:
-      "Register a NEAR testnet wallet, choose a settlement preference, and verify privacy-minimized payroll decisions.",
+      "Register a NEAR testnet wallet, choose a settlement preference, and inspect employer-wide payroll decisions.",
   },
   {
     path: "audit",
@@ -34,7 +34,8 @@ const routes = [
   {
     path: "setup",
     title: "Configure Payroll · Clavis",
-    description: "Deploy and configure an isolated Clavis payroll contract on NEAR testnet.",
+    description:
+      "Deploy a v0.2 isolated Clavis payroll contract when the live factory supports contract-controlled native settlement.",
   },
   {
     path: "guide",
@@ -49,7 +50,8 @@ const routes = [
   {
     path: "guide/worker",
     title: "Worker Guide · Clavis",
-    description: "Join a Clavis payroll roster, receive payments, and review your history.",
+    description:
+      "Create a NEAR testnet wallet, join an employer roster, receive native NEAR, and review employer decision history.",
   },
   {
     path: "guide/developer",

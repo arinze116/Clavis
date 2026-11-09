@@ -16,6 +16,7 @@ const evidenceTreeState: string = securityEvidence.verification.tree_state;
 const evidenceRunUrl: string = securityEvidence.verification.run_url;
 const evidenceUrl = evidenceRunUrl || securityEvidence.verification.workflow_url;
 const verificationFailed = evidenceStatus === "failed";
+const verificationPassed = evidenceStatus === "passed";
 const statusLabel =
   evidenceStatus === "passed"
     ? securityEvidence.verification.run_url
@@ -38,7 +39,7 @@ export default function SecurityEvidence() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-[1240px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
+      <div className="mx-auto max-w-[1240px] px-4 py-10 sm:px-5 lg:px-10 lg:py-16">
         <section className="overflow-hidden rounded-[32px] bg-ink p-7 text-white sm:p-10 lg:p-14">
           <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div>
@@ -79,16 +80,28 @@ export default function SecurityEvidence() {
               <EvidenceMetric label="Categories" value={securityEvidence.summary.categories} />
               <EvidenceMetric label="Rust tests" value={securityEvidence.summary.repository_tests.rust} />
               <EvidenceMetric label="Agent tests" value={securityEvidence.summary.repository_tests.agent} />
+              <EvidenceMetric label="API tests" value={securityEvidence.summary.repository_tests.api} />
+              <EvidenceMetric label="Browser paths" value={securityEvidence.summary.repository_tests.browser} />
             </div>
           </div>
         </section>
 
         <section className="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
           <div className="panel flex min-w-0 items-center gap-4 p-5">
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[12px] ${verificationFailed ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+            <span
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-[12px] ${
+                verificationFailed
+                  ? "bg-red-50 text-red-700"
+                  : verificationPassed
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-amber-50 text-amber-700"
+              }`}
+            >
               {verificationFailed
                 ? <TriangleAlert className="h-5 w-5" aria-hidden="true" />
-                : <CheckCircle2 className="h-5 w-5" aria-hidden="true" />}
+                : verificationPassed
+                  ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  : <FileCheck2 className="h-5 w-5" aria-hidden="true" />}
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold">{statusLabel}</p>
@@ -143,14 +156,20 @@ export default function SecurityEvidence() {
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
                   <p>{item.protection}</p>
                 </div>
-                <a
-                  className="mt-6 inline-flex items-center gap-2 break-all font-mono text-[11px] font-semibold text-moss underline decoration-moss/20 underline-offset-4"
-                  href={item.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {item.test} <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                </a>
+                {item.source_url ? (
+                  <a
+                    className="mt-6 inline-flex items-center gap-2 break-all font-mono text-[11px] font-semibold text-moss underline decoration-moss/20 underline-offset-4"
+                    href={item.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {item.test} <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  </a>
+                ) : (
+                  <p className="mt-6 break-all font-mono text-[11px] font-semibold text-moss">
+                    {item.source}:{item.line} · {item.test}
+                  </p>
+                )}
               </article>
             ))}
           </div>
@@ -187,7 +206,7 @@ export default function SecurityEvidence() {
             remain deterministic and source-controlled.
           </p>
         </section>
-      </main>
+      </div>
     </AppShell>
   );
 }

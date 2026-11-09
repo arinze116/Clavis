@@ -202,6 +202,7 @@ test("builds payroll facts from live NEAR RPC data and ignores browser-supplied 
   const nowNs = BigInt(Date.now()) * 1_000_000n;
   const lastWeekNs = nowNs - 8n * 24n * 60n * 60n * 1_000_000_000n;
   const viewValues: Record<string, unknown> = {
+    contract_version: "0.2.0",
     get_audit_log_reverse: [
       { payment_id: 3, timestamp: nowNs.toString(), outcome: "Approved", block_height: 101 },
       {
@@ -297,7 +298,9 @@ test("builds payroll facts from live NEAR RPC data and ignores browser-supplied 
   assert.match(payload.result.text, /Exceeds per-payment limit/);
   assert.match(payload.result.text, /HIGH HIGH_FREQUENCY/);
   assert.match(payload.result.text, /stored authorization counter belongs to an expired 24-hour window/i);
-  assert.match(payload.result.text, /not verified payroll-settlement runway/i);
+  assert.match(payload.result.text, /Native NEAR payroll settles directly from this account/i);
+  assert.match(payload.result.text, /Cross-chain delivery is disabled/i);
+  assert.doesNotMatch(payload.result.text, /separately configured settlement funding/i);
   assert.doesNotMatch(payload.result.text, /Estimated runway is/i);
   assert.doesNotMatch(payload.result.text, /999999|Invented person/);
   assert.equal(payload.result.evidence.source, "NEAR testnet RPC");
@@ -309,6 +312,49 @@ test("builds payroll facts from live NEAR RPC data and ignores browser-supplied 
       (method) => method && rpcArgsByMethod.has(method),
     ),
   );
+});
+
+test("labels a legacy payroll report as authorization-only", async () => {
+  process.env.NEAR_AI_API_KEY = "test-key";
+  process.env.NEAR_AI_DISCOVER_MODELS = "false";
+  process.env.NEAR_AI_MODELS = "provider/report-instruct";
+  const nowNs = BigInt(Date.now()) * 1_000_000n;
+  const viewValues: Record<string, unknown> = {
+    contract_version: "0.1.0",
+    get_anomaly_count: 0,
+    get_audit_log_reverse: [],
+    get_anomalies: [],
+    get_recipients: [],
+    get_treasury_balance: "3000",
+    get_daily_spent: "0",
+    get_daily_limit: "1000",
+    get_last_reset_timestamp: nowNs.toString(),
+    get_log_count: 0,
+  };
+
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (isNearViewRpc(url)) {
+      const body = rpcRequestBody(init);
+      if (body.method === "block") return nearFinalBlockResponse(208, nowNs);
+      const method = body.params?.method_name ?? "";
+      return nearViewResponse(viewValues[method], 208);
+    }
+    return jsonResponse({
+      choices: [{ message: { content: '{"recommendation_code":"monitor_operations"}' } }],
+    });
+  };
+
+  const response = await invokeAiTask({
+    task: "payroll-report",
+    input: { contract_id: "payroll.testnet" },
+  });
+
+  assert.equal(response.statusCode, 200);
+  const payload = response.body as { result: { text: string } };
+  assert.match(payload.result.text, /reports 0\.1\.0 and is authorization-only/i);
+  assert.match(payload.result.text, /does not prove payroll settlement funding/i);
+  assert.doesNotMatch(payload.result.text, /Native NEAR payroll settles directly from this account/i);
 });
 
 test("removes policy values that the model invents", async () => {
@@ -839,8 +885,8 @@ test("returns route measurements from live RPC evidence instead of model prose",
     result: { chain: string; reason: string; gas_comparison: string; observed_at: string };
   };
   assert.equal(payload.result.chain, "near");
-  assert.match(payload.result.reason, /supported by the current Clavis settlement code path/);
-  assert.match(payload.result.reason, /does not prove agent uptime or completed delivery/i);
+  assert.match(payload.result.reason, /only route supported by Clavis source v0\.2/i);
+  assert.match(payload.result.reason, /does not prove the deployed contract version, agent uptime, or completed delivery/i);
   assert.match(payload.result.gas_comparison, /NEAR testnet: .*gas-unit price 100000000/);
   assert.doesNotMatch(payload.result.gas_comparison, /Invented gas claim/);
   assert.doesNotMatch(payload.result.reason, /Invented route claim/);
@@ -944,7 +990,9 @@ test("keeps anomaly and route guidance available without an AI key", async () =>
   assert.match(anomaly.result.meaning, /contract recorded/i);
   assert.equal(anomaly.result.actions.length, 2);
   assert.equal(route.result.chain, "near");
-  assert.match(route.result.reason, /does not prove agent uptime/i);
+  assert.match(route.result.reason, /does not prove the deployed contract version/i);
+  assert.match(route.result.reason, /agent uptime/i);
+  assert.match(route.result.reason, /completed delivery/i);
 });
 
 async function invokeSecuritySummary(): Promise<TestResponse> {

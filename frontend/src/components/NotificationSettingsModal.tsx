@@ -11,7 +11,7 @@ import {
   Unlink,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -38,6 +38,7 @@ interface Props {
 type BusyAction = "email-send" | "email-verify" | "telegram" | "unlink" | null;
 
 export function NotificationSettingsModal({ accountId, wallet, onClose }: Props) {
+  const panelRef = useRef<HTMLElement>(null);
   const initial = getLinkedNotificationSettings(accountId);
   const [settings, setSettings] = useState<LinkedNotificationSettings | null>(initial);
   const [email, setEmail] = useState(initial?.email ?? "");
@@ -56,11 +57,44 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
   const anyLinked = emailLinked || telegramLinked;
 
   useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+    const previousOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    panelRef.current
+      ?.querySelector<HTMLElement>(
+        "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+      )
+      ?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = [
+        ...panelRef.current.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+        ),
+      ];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
   }, [onClose]);
 
   useEffect(() => {
@@ -239,6 +273,7 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
       }}
     >
       <section
+        ref={panelRef}
         className="max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-canvas p-5 text-ink shadow-2xl sm:max-w-xl sm:rounded-[28px] sm:p-7"
         role="dialog"
         aria-modal="true"
@@ -258,7 +293,7 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
           </div>
           <button
             type="button"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink/10 bg-white"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-ink/10 bg-white"
             onClick={onClose}
             aria-label="Close notification settings"
           >
@@ -271,7 +306,7 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
           <span className="min-w-0 flex-1 truncate font-mono text-xs">{accountId}</span>
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-full text-ink/45 transition hover:bg-canvas hover:text-ink"
+            className="grid h-11 w-11 place-items-center rounded-full text-ink/45 transition hover:bg-canvas hover:text-ink"
             onClick={() => void copyWallet()}
             aria-label="Copy connected wallet address"
           >
@@ -467,7 +502,7 @@ export function NotificationSettingsModal({ accountId, wallet, onClose }: Props)
         {anyLinked && (
           <button
             type="button"
-            className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-red-700"
+            className="mt-5 inline-flex min-h-11 items-center gap-2 px-2 text-xs font-semibold text-red-700"
             disabled={busy !== null}
             onClick={() => void unlink("all")}
           >

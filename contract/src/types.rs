@@ -1,6 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::AccountId;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(crate = "near_sdk::serde")]
@@ -95,6 +96,16 @@ pub struct PaymentResult {
     pub approved: bool,
     pub payment_id: u64,
     pub reason: Option<String>,
+    pub settled: bool,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PendingNativePayment {
+    pub recipient_hash: String,
+    pub recipient_account_id: AccountId,
+    pub amount: u128,
+    pub reserved_at: u64,
+    pub previous_last_paid: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]

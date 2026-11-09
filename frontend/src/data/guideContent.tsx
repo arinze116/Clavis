@@ -88,11 +88,11 @@ export const businessGuide: RoleGuide = {
       id: "connect-wallet",
       title: "Connect a NEAR testnet wallet",
       summary:
-        "Your owner wallet signs setup and policy changes. Meteor, Sender, and MyNearWallet connect directly; HERE users can use the same testnet account through a supported browser wallet.",
+        "Your owner wallet signs setup and policy changes. Meteor, Sender, and MyNearWallet are the wallet adapters included in this release.",
       content: (
         <div className="grid gap-4">
           <BulletList>
-            <li>Install Meteor Wallet, HERE Wallet, Sender, or open MyNearWallet in a new tab.</li>
+            <li>Install Meteor Wallet or Sender, or open MyNearWallet in a new tab.</li>
             <li>Open the wallet network settings and select <strong>Testnet</strong> before connecting.</li>
             <li>Create or import a testnet account, then use the wallet button in the Clavis header.</li>
           </BulletList>
@@ -108,7 +108,7 @@ export const businessGuide: RoleGuide = {
         caption: "The connection prompt shows the active network before you approve access.",
         rows: [
           { label: "Network", value: "NEAR testnet", state: "active" },
-          { label: "Wallet", value: "Meteor / HERE / Sender" },
+          { label: "Wallet", value: "Meteor / MyNearWallet / Sender" },
           { label: "Permission", value: "View account + request signatures", state: "muted" },
         ],
       },
@@ -124,12 +124,13 @@ export const businessGuide: RoleGuide = {
           <BulletList>
             <li>Open Setup and choose a short business name; it becomes <code className="font-mono text-xs">name.clavis.testnet</code>.</li>
             <li>Describe your policy for the AI rule generator or enter daily and per-payment limits manually.</li>
-            <li>Add each recipient's NEAR wallet, scheduled amount, personal cap, schedule, and preferred route. Cross-chain routes also need the private destination address.</li>
+            <li>Add each recipient's NEAR wallet, scheduled amount, personal cap, and schedule. Native NEAR is the only executable route in this release.</li>
             <li>Enter the payroll agent account, review the summary, and approve deployment in your wallet.</li>
           </BulletList>
           <Note>
-            Keep approximately 6–10 testnet NEAR available for account creation, contract storage,
-            and an initial operating balance. Testnet funds are free from the faucet.
+            Setup checks that the deployed factory reports v0.2.0 or newer. Legacy factories are
+            blocked because they would create authorization-only contracts. Keep approximately
+            6–10 testnet NEAR available for deployment and initial native payouts.
           </Note>
         </div>
       ),
@@ -188,7 +189,7 @@ export const businessGuide: RoleGuide = {
             <li>Set the agent account during setup or update it later from Policy controls.</li>
             <li>Use a Function Call Key restricted to the contract and the <code className="font-mono text-xs">request_payment</code> method.</li>
             <li>Verify the key on NearBlocks under Access keys: receiver and method names should match the payroll contract exactly.</li>
-            <li>The contract still rechecks pause state, recipient approval, caps, daily limit, schedule, and route for every request.</li>
+            <li>The scheduler also refuses contracts older than v0.2.0, then the contract rechecks pause state, recipient approval, caps, daily limit, schedule, route, and recipient commitment for every request.</li>
           </BulletList>
           <Note>
             A restricted key can request a decision, but it cannot add recipients, raise limits,
@@ -218,7 +219,7 @@ export const businessGuide: RoleGuide = {
         <BulletList>
           <li>Open the bell, enter your email, and verify the six-digit code Clavis sends.</li>
           <li>Select Connect Telegram, open the Clavis bot, and press Start to complete the secure pairing.</li>
-          <li>Expect alerts for approvals, rejections, anomalies, recipient changes, pause events, withdrawals, and settlement outcomes.</li>
+          <li>While the linked session and notification service are available, confirmed approvals, rejections, anomalies, owner transactions, and settlement outcomes can generate alerts.</li>
           <li>You can disconnect either channel from the same browser panel at any time.</li>
         </BulletList>
       ),
@@ -229,7 +230,7 @@ export const businessGuide: RoleGuide = {
         rows: [
           { label: "Email", value: "Verified", state: "active" },
           { label: "Telegram", value: "Connected", state: "active" },
-          { label: "Anomaly alerts", value: "Immediate" },
+          { label: "Anomaly alerts", value: "≈10-second poll" },
           { label: "Daily report", value: "Enabled", state: "muted" },
         ],
       },
@@ -242,7 +243,7 @@ export const businessGuide: RoleGuide = {
         "The business console brings contract funding, authorization capacity, recipients, policy controls, anomalies, and privacy-minimized audit decisions into one operating view.",
       content: (
         <BulletList>
-          <li>Authorization status compares the contract balance with effective usage in the active 24-hour policy window; settlement funding is verified separately.</li>
+          <li>On v0.2 contracts, the displayed contract balance is also the native-NEAR payout treasury. Legacy deployments are labelled authorization-only.</li>
           <li>The payroll roster shows each worker’s route, personal cap, schedule, next authorization eligibility, and active state.</li>
           <li>Anomaly alerts surface off-hours, high-frequency, replay, route-change, and near-limit behavior.</li>
           <li>Generate the verified payroll report from a fresh NEAR final-state read; AI only prioritizes an evidence-backed recommendation.</li>
@@ -298,18 +299,18 @@ export const businessGuide: RoleGuide = {
 
 export const workerGuide: RoleGuide = {
   role: "Worker",
-  title: "Join payroll and follow every decision",
+  title: "Join payroll and inspect employer decisions",
   intro:
-    "Create a NEAR testnet identity, share it securely with your employer, choose a settlement preference, and view the privacy-minimized decision history available from the contract.",
+    "Create a NEAR testnet identity, share it securely with your employer, and view the employer-wide privacy-minimized decision history available from the contract.",
   sections: [
     {
       id: "get-wallet",
       title: "Get a NEAR testnet wallet",
       summary:
-        "Your wallet is your payroll identity. Meteor and HERE Wallet both support testnet accounts suitable for the Clavis demo.",
+        "Your wallet is your payroll identity. Use a NEAR testnet account through one of the wallet adapters included in Clavis.",
       content: (
         <BulletList>
-          <li>Install Meteor Wallet or HERE Wallet from its official website or app store listing.</li>
+          <li>Install Meteor Wallet or Sender, or use MyNearWallet from its official website.</li>
           <li>Switch the wallet network to Testnet before creating the account.</li>
           <li>Choose a readable testnet account name and keep the recovery method private.</li>
           <li>Use only testnet funds in Clavis; they have no monetary value.</li>
@@ -334,10 +335,9 @@ export const workerGuide: RoleGuide = {
         "The worker portal prepares a shareable wallet card while keeping your route preferences local until your employer approves them on-chain.",
       content: (
         <BulletList>
-          <li>Open <strong>clavisapp.vercel.app/worker</strong> and connect your testnet wallet.</li>
-          <li>Enter your display name and select your preferred destination chain and token.</li>
+          <li>Open the deployed app’s <strong>/worker</strong> route and connect your testnet wallet.</li>
+          <li>Enter your display name. Native NEAR is the only executable destination in this release.</li>
           <li>Copy your NEAR wallet address or let your employer scan the QR code.</li>
-          <li>If you selected Ethereum or BNB Chain, also share the destination wallet address through the same trusted channel.</li>
           <li>Share the card through a trusted channel; Clavis hashes the address before the employer stores it in the contract.</li>
         </BulletList>
       ),
@@ -386,38 +386,40 @@ export const workerGuide: RoleGuide = {
       content: (
         <BulletList>
           <li>The agent checks payroll schedules approximately every 60 seconds.</li>
-          <li>You receive a notification when the contract approves or rejects the request.</li>
-          <li>For cross-chain preferences, NEAR Intents may find a solver route. If it does not, delivery fails visibly instead of substituting a direct NEAR transfer.</li>
+          <li>If you linked a notification channel and the service is online, you receive an approval or rejection alert.</li>
+          <li>On v0.2 contracts, approved native NEAR moves directly from the contract and approval is recorded only after the transfer succeeds.</li>
+          <li>Cross-chain requests fail closed in this release because custody is not contract-controlled end to end.</li>
           <li>If the route changes, your employer must approve the corresponding contract update first.</li>
         </BulletList>
       ),
       visual: {
         label: "Payment status",
         title: "Authorization approved",
-        caption: "The public record proves authorization. A separate delivery record must prove what route actually settled.",
+        caption: "For v0.2 native payments, the finalized transaction includes both the contract transfer and the approval event.",
         rows: [
           { label: "Policy decision", value: "Approved", state: "active" },
-          { label: "Route", value: "NEAR Intents" },
+          { label: "Route", value: "Native NEAR" },
           { label: "Notification", value: "Delivered" },
-          { label: "Public salary amount", value: "Hidden", state: "muted" },
+          { label: "Audit amount", value: "Omitted · transaction input remains public", state: "muted" },
         ],
       },
       action: { label: "View worker dashboard", to: "/worker" },
     },
     {
       id: "payment-history",
-      title: "View your payment history",
+      title: "View employer decision history",
       summary:
-        "Reconnect at /worker to see the contract’s approval and rejection history, timestamps, and explorer proofs.",
+        "Reconnect at /worker to see the employer contract’s approval and rejection history, timestamps, and explorer proofs. Entries do not identify recipients, so this is not worker-specific history.",
       content: (
         <div className="grid gap-4">
           <BulletList>
             <li>Open the worker portal with the same wallet your employer registered.</li>
-            <li>Use the payment history filters to review approved or rejected policy decisions.</li>
+            <li>Use the decision-history filters to review employer-wide approved or rejected policy decisions.</li>
             <li>Select the explorer icon beside an entry to verify its block or transaction on NearBlocks.</li>
           </BulletList>
           <Note>
-            Amounts are omitted from Clavis audit entries, but normal NEAR transaction arguments
+            Recipient identity and amounts are omitted from Clavis audit entries, so the worker
+            portal cannot prove which entries belong to you. Normal NEAR transaction arguments
             and chain metadata remain public. Use employer records to reconcile actual payroll.
           </Note>
         </div>
@@ -432,7 +434,7 @@ export const workerGuide: RoleGuide = {
           { label: "Decision #0046", value: "Payment not due", state: "warning" },
         ],
       },
-      action: { label: "View payment history", to: "/worker" },
+      action: { label: "View decision history", to: "/worker" },
     },
   ],
 };
@@ -443,11 +445,11 @@ const ownerMethods: Array<[string, string, string]> = [
   ["suspend_recipient / reinstate_recipient", "recipient_hash: String", "Changes active payment eligibility"],
   ["update_recipient_cap", "recipient_hash: String, personal_cap: U128", "Updates the recipient-specific maximum"],
   ["update_schedule", "recipient_hash: String, schedule: PaymentSchedule", "Sets Weekly, Biweekly, or Milestone"],
-  ["update_recipient_route", "recipient_hash, preferred_chain, preferred_token, payment_split", "Validates and updates allowed settlement routes"],
+  ["update_recipient_route", "recipient_hash, preferred_chain, preferred_token, payment_split", "Validates route policy; only native NEAR executes in v0.2"],
   ["update_agent", "new_agent: AccountId", "Changes the only account allowed to request payments"],
   ["update_limits", "daily: Option<U128>, per_payment: Option<U128>", "Updates positive global limits without going below daily spend"],
   ["pause / unpause", "—", "Blocks or resumes all payment authorization"],
-  ["emergency_withdraw", "—", "Pauses and returns balance above the storage reserve"],
+  ["emergency_withdraw", "—", "Pauses and returns balance above measured storage plus the operational reserve"],
   ["dismiss_anomaly", "anomaly_id: u64", "Marks an owner-reviewed anomaly"],
   ["run_security_audit", "—", "Runs the five fixed no-funds rejection probes and returns structured results"],
 ];
@@ -479,10 +481,10 @@ export const developerGuide: RoleGuide = {
       id: "architecture",
       title: "Architecture overview",
       summary:
-        "Clavis separates scheduling, authorization, settlement, and presentation so no single off-chain process becomes the source of truth.",
+        "Clavis separates scheduling, private planning, contract-controlled native settlement, and presentation so no off-chain settlement wallet can bypass policy.",
       content: (
         <BulletList>
-          <li><strong>Smart contract (Rust):</strong> the final rules engine for ownership, caps, schedules, routes, pause state, audit, and anomalies.</li>
+          <li><strong>Smart contract (Rust):</strong> the final rules engine and native-NEAR settlement custodian for v0.2 deployments.</li>
           <li><strong>Payroll agent (TypeScript):</strong> the autonomous 60-second scheduler that discovers due work and submits <code className="font-mono text-xs">request_payment</code>.</li>
           <li><strong>Frontend (React + TypeScript):</strong> wallet connection, setup, owner controls, worker portal, AI assistance, and public verification.</li>
           <li><strong>Factory contract:</strong> deploys one isolated <code className="font-mono text-xs">*.clavis.testnet</code> payroll account per owner.</li>
@@ -496,7 +498,7 @@ export const developerGuide: RoleGuide = {
           { label: "React client", value: "Owner + worker actions" },
           { label: "Factory", value: "Isolated deployment" },
           { label: "Rust contract", value: "Policy authority", state: "active" },
-          { label: "Agent + Intents", value: "Schedule + settlement" },
+          { label: "Agent", value: "Schedule + request only" },
         ],
       },
       action: { label: "Read source code", to: repositoryUrl, external: true },
@@ -505,39 +507,44 @@ export const developerGuide: RoleGuide = {
       id: "run-locally",
       title: "Run Clavis locally",
       summary:
-        "Use Node.js 20+, Rust stable with the wasm target, NEAR CLI RS, and a funded NEAR testnet account.",
+        "Verify the source and run the frontend with Node.js 20+ and Rust stable. Starting the scheduler additionally requires a verified v0.2 contract and a restricted contract-scoped key.",
       content: (
         <div className="grid gap-4">
           <BulletList>
             <li>Clone the repository and install workspace dependencies.</li>
-            <li>Copy the example environment file and fill only testnet credentials.</li>
-            <li>Build and deploy the contracts, start the scheduler, then start Vite.</li>
+            <li>Run the typechecks, deterministic tests, contract builds, and production build before relying on a local change.</li>
+            <li>The frontend can inspect the current legacy public contracts, but it labels them authorization-only.</li>
+            <li>Start the scheduler only after targeting a deployed v0.2 payroll contract, creating a <code className="font-mono text-xs">request_payment</code>-only key, and preparing permission-restricted credential and payroll files.</li>
           </BulletList>
           <CodeBlock>{`git clone https://github.com/arinze116/Clavis.git
 cd Clavis
 npm ci
 rustup target add wasm32-unknown-unknown
-cp .env.example agent/.env
-cp .env.example frontend/.env
-npm run build:contract
-bash scripts/deploy-factory.sh
-npm run dev:agent
+npm run typecheck
+npm run test:api
+npm run test:agent
+cargo test --manifest-path contract/Cargo.toml
+bash scripts/build-contracts.sh
+npm run build
 npm run dev:frontend`}</CodeBlock>
           <Note>
             Never commit private keys, AI credentials, payroll plans, notification secrets, or
             generated agent state. The browser should call AI services through the serverless proxy.
+            The current public root is v0.1.0 and is rejected by the v0.2 scheduler. Contract
+            deployment and migration sign testnet transactions; review the account IDs and obtain
+            explicit owner approval before running deployment scripts.
           </Note>
         </div>
       ),
       visual: {
         label: "Local stack",
-        title: "Three processes, one testnet",
-        caption: "The contract is remote on NEAR testnet; the frontend and scheduler can run locally against it.",
+        title: "Source checks before runtime",
+        caption: "The frontend can read legacy testnet state; the scheduler admits only v0.2.0-or-newer payroll contracts.",
         rows: [
-          { label: "Contract", value: "NEAR testnet", state: "active" },
-          { label: "Agent", value: "Node.js 20+" },
+          { label: "Public root", value: "Legacy v0.1.0", state: "warning" },
+          { label: "Agent target", value: "v0.2.0+ required" },
           { label: "Frontend", value: "Vite · localhost:5173" },
-          { label: "Verification", value: "npm test + build", state: "muted" },
+          { label: "Verification", value: "Tests + both WASM builds", state: "active" },
         ],
       },
       action: { label: "Open repository", to: repositoryUrl, external: true },
@@ -546,12 +553,12 @@ npm run dev:frontend`}</CodeBlock>
       id: "near-concepts",
       title: "Key NEAR concepts",
       summary:
-        "The security story depends on protocol-level key restrictions, intent-based settlement, and a clear confidential-execution boundary.",
+        "The security story depends on protocol-level key restrictions, contract-controlled native settlement, and an explicit public-data boundary.",
       content: (
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ["Function Call Keys", "Each contract uses a key restricted to that receiver and request_payment, so the scheduler cannot invoke owner controls."],
-            ["NEAR Intents", "Approved work can become a solver request; only a filled intent with a verifiable reference counts as cross-chain settlement evidence."],
+            ["Native settlement", "The v0.2 contract transfers NEAR itself and records approval only after the transfer callback succeeds."],
             ["Privacy boundary", "Audit entries omit amounts and destination details; standard NEAR call arguments and metadata remain public."],
           ].map(([title, text]) => (
             <div key={title} className="rounded-2xl border border-line bg-white p-4">
@@ -564,12 +571,12 @@ npm run dev:frontend`}</CodeBlock>
       visual: {
         label: "Authorization path",
         title: "Constrained before settlement",
-        caption: "A solver never decides payroll policy; it only handles a route after the contract approves the request.",
+        caption: "Native funds never pass through a separate settlement signer. Cross-chain execution is disabled in this release.",
         rows: [
           { label: "1 · Agent key", value: "request_payment only" },
           { label: "2 · Contract", value: "Rules enforced", state: "active" },
-          { label: "3 · Executor", value: "Access-controlled envelope" },
-          { label: "4 · Intent", value: "Verified route or visible failure" },
+          { label: "3 · Contract transfer", value: "Native NEAR only" },
+          { label: "4 · Callback", value: "Commit or rollback" },
         ],
       },
       action: { label: "Inspect public audit", to: "/audit" },
@@ -584,7 +591,7 @@ npm run dev:frontend`}</CodeBlock>
           <div>
             <h3 className="mb-3 text-sm font-semibold">Agent and owner change methods</h3>
             <MethodTable rows={[
-              ["request_payment", "recipient_hash: String, amount: U128, chain: String, token: String", "PaymentResult; agent only, audited after caller validation"],
+              ["request_payment", "recipient_hash, amount, chain, token, recipient_account_id", "PromiseOrValue<PaymentResult>; agent only; native approval finalizes after transfer success"],
               ...ownerMethods,
             ]} />
           </div>
@@ -612,6 +619,7 @@ npm run dev:frontend`}</CodeBlock>
               ["on_factory_refund_complete", "contract_id: AccountId", "Factory-only completion callback for a failed provision"],
               ["on_payroll_provisioned", "refund_to: AccountId, amount: U128", "Root-only callback that confirms initialization or refunds the factory"],
               ["on_provision_refund_complete", "—", "Root-only refund completion callback"],
+              ["on_native_payment_settled", "—", "Private payroll callback that commits approval after transfer success or rolls policy state back"],
             ]} />
           </div>
           <div>
@@ -643,12 +651,12 @@ npm run dev:frontend`}</CodeBlock>
       visual: {
         label: "Rules engine",
         title: "Stable order, deterministic result",
-        caption: "The first failed rule becomes the privacy-minimized rejection reason; an approval updates daily spend and the recipient schedule.",
+        caption: "The first failed rule becomes the privacy-minimized rejection reason. A passing native request reserves policy state; the callback keeps it on success or rolls it back on failure.",
         rows: [
           { label: "Caller", value: "Authorized agent", state: "active" },
           { label: "Recipient + caps", value: "Passed" },
           { label: "Schedule + route", value: "Passed" },
-          { label: "Result", value: "Approval logged", state: "active" },
+          { label: "Callback result", value: "Commit or rollback", state: "active" },
         ],
       },
       action: { label: "Verify on NearBlocks", to: `${explorerUrl}/address/clavis.testnet`, external: true },

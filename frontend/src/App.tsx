@@ -22,15 +22,15 @@ const SecurityEvidence = lazy(() => import("./pages/SecurityEvidence"));
 const descriptions = {
   home: "Privacy-minimized, rule-bound payroll automation with public audit and security evidence on NEAR testnet.",
   dashboard: "Inspect live Clavis treasury, policy, roster, anomalies, and audit evidence without connecting a wallet.",
-  worker: "Register your NEAR testnet wallet, choose a settlement route, and verify payroll decisions.",
+  worker: "Register your NEAR testnet wallet and inspect employer-wide payroll decisions without claiming worker-specific history.",
   audit: "Inspect privacy-minimized Clavis payroll decisions with the public NEAR transaction boundary disclosed.",
   security: "Review Clavis threat cases, source-linked tests, CI evidence, and documented limitations.",
-  setup: "Deploy and configure an isolated Clavis payroll contract on NEAR testnet.",
+  setup: "Deploy a v0.2 isolated Clavis payroll contract when the live factory supports contract-controlled native settlement.",
   guide: "Step-by-step guides for Clavis business owners, workers, and developers.",
   businessGuide:
     "Deploy, fund, secure, and monitor an autonomous Clavis payroll contract as a business owner.",
   workerGuide:
-    "Create a NEAR testnet wallet, join an employer roster, receive payments, and review payroll history.",
+    "Create a NEAR testnet wallet, join an employer roster, receive native NEAR, and review employer decision history.",
   developerGuide:
     "Run Clavis locally and understand its Rust contracts, TypeScript agent, React client, and NEAR architecture.",
   privacy: "Understand the privacy boundary and data handling model used by Clavis.",
@@ -40,7 +40,7 @@ const descriptions = {
 
 export default function App() {
   return (
-    <Suspense fallback={<LoadingState label="Loading Clavis" />}>
+    <Suspense fallback={<ApplicationLoadingState />}>
       <Routes>
         <Route
           path="/"
@@ -159,6 +159,14 @@ export default function App() {
         />
       </Routes>
     </Suspense>
+  );
+}
+
+function ApplicationLoadingState() {
+  return (
+    <main id="main-content" tabIndex={-1}>
+      <LoadingState label="Loading Clavis" />
+    </main>
   );
 }
 

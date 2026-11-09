@@ -105,7 +105,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 href={toast.explorerHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-acid"
+                className="inline-flex min-h-11 items-center gap-1 px-2 text-xs font-semibold text-acid"
               >
                 View on explorer <ExternalLink className="h-3.5 w-3.5" />
               </a>
@@ -113,7 +113,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              className="text-white/45 hover:text-white"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white/45 hover:bg-white/10 hover:text-white"
               aria-label="Dismiss notification"
             >
               <X className="h-4 w-4" />

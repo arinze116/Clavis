@@ -12,7 +12,7 @@ export function LegalPage({ eyebrow, title, intro, sections }: { eyebrow: string
   return (
     <div className="min-h-screen bg-ink text-white">
       <MarketingHeader />
-      <main className="bg-canvas px-5 py-16 text-ink lg:px-10 lg:py-24">
+      <main id="main-content" tabIndex={-1} className="bg-canvas px-5 py-16 text-ink lg:px-10 lg:py-24">
         <div className="mx-auto max-w-4xl">
           <p className="eyebrow">{eyebrow}</p>
           <h1 className="mt-5 font-display text-5xl font-semibold leading-none tracking-tight md:text-7xl">{title}</h1>

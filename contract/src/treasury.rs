@@ -3,6 +3,21 @@ use near_sdk::{env, near_bindgen, NearToken, Promise};
 
 use crate::{Clavis, ClavisExt};
 
+const OPERATIONAL_RESERVE: NearToken = NearToken::from_near(1);
+
+impl Clavis {
+    pub(crate) fn operational_reserve(additional_storage_bytes: u64) -> NearToken {
+        let reserved_storage_bytes =
+            u128::from(env::storage_usage().saturating_add(additional_storage_bytes));
+        let storage_reserve = env::storage_byte_cost()
+            .as_yoctonear()
+            .saturating_mul(reserved_storage_bytes);
+        NearToken::from_yoctonear(
+            storage_reserve.saturating_add(OPERATIONAL_RESERVE.as_yoctonear()),
+        )
+    }
+}
+
 #[near_bindgen]
 impl Clavis {
     pub fn update_limits(&mut self, daily: Option<U128>, per_payment: Option<U128>) {
@@ -43,12 +58,15 @@ impl Clavis {
 
     pub fn emergency_withdraw(&mut self) -> Promise {
         self.assert_owner();
+        assert!(
+            self.pending_native_payment.is_none(),
+            "A native payment transfer is still pending"
+        );
         self.paused = true;
 
-        // Keep a storage reserve so the contract remains readable after the
-        // emergency action. For the capped 20-recipient demo, one NEAR safely
-        // covers state rent with substantial headroom.
-        let reserve = NearToken::from_near(1);
+        // Preserve the measured storage stake plus an operational reserve so
+        // the account remains readable and upgradeable after withdrawal.
+        let reserve = Self::operational_reserve(0);
         let available = env::account_balance().saturating_sub(reserve);
         assert!(!available.is_zero(), "No withdrawable balance");
         Promise::new(self.owner.clone()).transfer(available)

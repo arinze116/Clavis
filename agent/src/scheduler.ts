@@ -195,8 +195,9 @@ export class Scheduler {
       contractId,
     });
     await client.connect();
+    const contractVersion = await client.verifyContractVersion();
     const keyMode = await client.verifyAgentKey();
-    logger.info("agent.contract_connected", { contractId, keyMode });
+    logger.info("agent.contract_connected", { contractId, contractVersion, keyMode });
     this.#clients.set(contractId, client);
     return client;
   }
@@ -219,7 +220,8 @@ function mergeContracts(
   const contracts = new Map(
     factoryContracts.map((contract) => [contract.contract_id, contract]),
   );
-  // Keep explicitly configured legacy contracts operational during migration.
+  // Include explicitly configured contracts that are not indexed by the factory.
+  // The per-contract v0.2 admission check still decides whether the scheduler may use them.
   for (const business of catalog.businesses) {
     if (!contracts.has(business.contract_id)) {
       contracts.set(business.contract_id, {

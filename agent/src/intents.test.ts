@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { buildIntentEnvelopes, buildTokenDiffIntent, IntentClient } from "./intents.js";
-import type { NearTransferClient } from "./near.js";
+import { buildIntentEnvelopes, IntentClient } from "./intents.js";
 
 describe("buildIntentEnvelopes", () => {
   it("allocates an exact total and gives rounding remainder to the final route", () => {
@@ -31,78 +30,41 @@ describe("buildIntentEnvelopes", () => {
   });
 });
 
-describe("buildTokenDiffIntent", () => {
-  it("builds the live testnet token diff with a two-minute deadline", () => {
-    expect(
-      buildTokenDiffIntent(
-        "1000",
-        "nep141:usdc.fakes.testnet",
-        "25",
-        1_000,
-      ),
-    ).toEqual({
-      intent_type: "token_diff",
-      diff: {
-        "nep141:wrap.testnet": "-1000",
-        "nep141:usdc.fakes.testnet": "+25",
-      },
-      deadline: { timestamp: 1_120 },
-    });
-  });
-
-  it("refuses an invalid same-asset token diff", () => {
-    expect(() =>
-      buildTokenDiffIntent("1000", "nep141:wrap.testnet", "1000"),
-    ).toThrow("requires different input and output assets");
-  });
-});
-
 describe("IntentClient settlement semantics", () => {
-  it("uses the configured native payout destination instead of the worker identity wallet", async () => {
-    const transferNear = vi.fn(async () => "native-near-transaction");
+  it("accepts a single native route whose destination matches the worker account", async () => {
     const client = new IntentClient({
       solverRelayUrl: "https://solver-relay-v2.chaindefuser.com/rpc",
       apiKey: undefined,
-      intentsContractId: "intents.near",
-      signerAccountId: undefined,
-      signerPrivateKey: undefined,
-      transferClient: { transferNear } as unknown as NearTransferClient,
     });
-
-    const result = await client.submit({
+    const envelope = {
       intentId: "clavis.testnet:1:1",
       contractId: "clavis.testnet",
       paymentId: 1,
       recipientHash: "a".repeat(64),
       recipientName: "Worker",
-      nearRecipient: "identity-wallet.testnet",
+      nearRecipient: "worker.testnet",
       sourceAsset: "NEAR",
       sourceAmountYocto: "10",
       destination: {
         chain: "near",
         token: "NEAR",
-        address: "payout-wallet.testnet",
+        address: "worker.testnet",
         percentage: 100,
       },
       createdAt: new Date(0).toISOString(),
-    });
+    } as const;
 
-    expect(transferNear).toHaveBeenCalledWith("payout-wallet.testnet", "10");
-    expect(result).toMatchObject({ settlementKind: "native_near", fallback: false });
+    await expect(client.preflight([envelope])).resolves.toBeUndefined();
   });
 
-  it("refuses to present a direct NEAR substitute as a BNB cross-chain settlement", async () => {
+  it("rejects a native payout address that differs from the worker account", async () => {
     const client = new IntentClient({
       solverRelayUrl: "https://solver-relay-v2.chaindefuser.com/rpc",
       apiKey: undefined,
-      intentsContractId: "intents.near",
-      signerAccountId: undefined,
-      signerPrivateKey: undefined,
-      transferClient: undefined,
     });
 
     await expect(
-      client.submit({
+      client.preflight([{
         intentId: "clavis.testnet:1:1",
         contractId: "clavis.testnet",
         paymentId: 1,
@@ -112,24 +74,20 @@ describe("IntentClient settlement semantics", () => {
         sourceAsset: "NEAR",
         sourceAmountYocto: "1",
         destination: {
-          chain: "bnb",
-          token: "BUSD",
-          address: "0x1111111111111111111111111111111111111111",
+          chain: "near",
+          token: "NEAR",
+          address: "attacker.testnet",
           percentage: 100,
         },
         createdAt: new Date(0).toISOString(),
-      }),
-    ).rejects.toThrow("refusing to relabel direct NEAR as cross-chain settlement");
+      }]),
+    ).rejects.toThrow("must match the approved recipient account");
   });
 
-  it("fails preflight before authorization when a cross-chain signer is unavailable", async () => {
+  it("fails preflight before authorization for every cross-chain route", async () => {
     const client = new IntentClient({
       solverRelayUrl: "https://solver-relay-v2.chaindefuser.com/rpc",
       apiKey: undefined,
-      intentsContractId: "intents.near",
-      signerAccountId: undefined,
-      signerPrivateKey: undefined,
-      transferClient: undefined,
     });
     const [envelope] = buildIntentEnvelopes("clavis.testnet", 0, {
       recipientHash: "a".repeat(64),
@@ -148,7 +106,28 @@ describe("IntentClient settlement semantics", () => {
     });
 
     await expect(client.preflight([envelope!])).rejects.toThrow(
-      "Cross-chain settlement signer is not configured",
+      "Cross-chain settlement is disabled",
+    );
+  });
+
+  it("never submits funds from an external settlement signer", async () => {
+    const client = new IntentClient({
+      solverRelayUrl: "https://solver-relay-v2.chaindefuser.com/rpc",
+      apiKey: undefined,
+    });
+    const [envelope] = buildIntentEnvelopes("clavis.testnet", 1, {
+      recipientHash: "a".repeat(64),
+      name: "Worker",
+      nearAddress: "worker.testnet",
+      amountYocto: "10",
+      milestoneReady: false,
+      destinations: [
+        { chain: "near", token: "NEAR", address: "worker.testnet", percentage: 100 },
+      ],
+    });
+
+    await expect(client.submit(envelope!)).rejects.toThrow(
+      "native NEAR is transferred by the payroll contract",
     );
   });
 });

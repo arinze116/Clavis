@@ -14,7 +14,8 @@ const guides = [
   {
     to: "/guide/worker",
     label: "I’m a worker",
-    description: "Join a payroll roster, choose a route, receive notifications, and verify decisions.",
+    description:
+      "Join a payroll roster, share a testnet wallet, receive notifications, and review employer-wide decisions.",
     detail: "5 steps",
     icon: UserRound,
   },
@@ -66,7 +67,7 @@ export default function GuideLanding() {
               </h2>
               <p className="mt-2 text-sm text-ink/50">Each guide keeps your place as you move between steps.</p>
             </div>
-            <Link className="text-sm font-semibold text-moss underline decoration-moss/25 underline-offset-4" to="/setup">
+            <Link className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-moss underline decoration-moss/25 underline-offset-4" to="/setup">
               Skip to setup
             </Link>
           </div>

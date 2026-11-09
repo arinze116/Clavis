@@ -34,7 +34,7 @@ export function SiteFooter() {
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-acid">Product</p>
           <nav className="mt-5 grid gap-3" aria-label="Product links">
             {productLinks.map((link) => (
-              <Link key={link.to} to={link.to} className="w-fit text-sm text-white/55 transition hover:text-white">
+              <Link key={link.to} to={link.to} className="inline-flex min-h-11 min-w-11 w-fit items-center text-sm text-white/55 transition hover:text-white">
                 {link.label}
               </Link>
             ))}
@@ -50,7 +50,7 @@ export function SiteFooter() {
                 href={link.href}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex w-fit items-center gap-2 text-sm text-white/55 transition hover:text-white"
+                className="inline-flex min-h-11 min-w-11 w-fit items-center gap-2 text-sm text-white/55 transition hover:text-white"
               >
                 {link.label}
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -65,9 +65,9 @@ export function SiteFooter() {
           <p>© 2026 Clavis · MIT License</p>
           <p>Running on NEAR Testnet · Not financial advice</p>
           <p className="md:text-right">
-            <Link to="/privacy" className="transition hover:text-white">Privacy</Link>
+            <Link to="/privacy" className="inline-flex min-h-11 min-w-11 items-center transition hover:text-white">Privacy</Link>
             {" · "}
-            <Link to="/terms" className="transition hover:text-white">Terms</Link>
+            <Link to="/terms" className="inline-flex min-h-11 min-w-11 items-center transition hover:text-white">Terms</Link>
           </p>
         </div>
       </div>

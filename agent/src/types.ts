@@ -50,6 +50,8 @@ export interface PaymentResult {
   approved: boolean;
   payment_id: number;
   reason: string | null;
+  settled: boolean;
+  transaction_hash: string;
 }
 
 export interface Destination {

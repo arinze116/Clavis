@@ -1,140 +1,77 @@
 # Clavis walkthrough recording guide
 
-This guide produces the clean 69-second source walkthrough that Remotion will finish with narration, synchronized captions, scene wipes, titles, and product callouts.
+This guide records the source walkthrough used by the Remotion demo. Do not record or publish the v0.2 settlement story until every deployment gate in [`DEMO.md`](../DEMO.md) has passed.
 
-## 1. Start the local application
+## 1. Verify the release before capture
 
-From `C:\Users\hp\Arinze\clavis`:
+Record from the deployed release only after you have evidence for all of the following:
 
-```powershell
-npm.cmd run build --workspace=@clavis/frontend
-npm.cmd run preview --workspace=@clavis/frontend -- --host 127.0.0.1
+- the root and factory report v0.2.0 or newer;
+- the deployed code hashes match the locally verified WASM files;
+- the frontend and agent run the same verified revision;
+- one native payment shows the transfer and successful callback approval event;
+- one failed-transfer test shows policy rollback;
+- exact explorer-link enrichment has been verified on a real emitted `payment_id`;
+- two uninterrupted browser rehearsals pass.
+
+If any item is missing, record a source-and-test walkthrough instead. State that the public contracts are still legacy and do not present v0.2 settlement as live.
+
+## 2. Protect credentials and payroll data
+
+- Use dedicated NEAR testnet accounts and non-sensitive demonstration recipients.
+- Keep signing inside the wallet extension. Never paste or display a seed phrase, private key, API key, environment file, or terminal history containing credentials.
+- Do not show private scheduled amounts, notification contacts, agent storage, or real worker destination addresses.
+- Use the public dashboard and audit without a wallet wherever signing is unnecessary.
+- Review every browser tab, notification, and wallet popup before recording.
+
+## 3. Capture settings
+
+- Canvas and output: 1920×1080
+- Frame rate: 30 fps
+- Recording: H.264 video, muted microphone and desktop audio
+- Browser: clean profile, 100% zoom, no developer tools or unrelated extensions visible
+- Cursor: visible during actions, parked away from evidence between actions
+- Source duration: allow 5–10 seconds of still footage before the first action and after the final action
+
+Save the source recording outside version control, then register it with:
+
+```bash
+npm run demo:register-recording -- "/absolute/path/to/clavis-walkthrough.mp4"
 ```
 
-Use `http://127.0.0.1:4173`. Do not record the deployed Vercel URL.
+## 4. Prepare the browser sequence
 
-## 2. Configure OBS
+Open these pages from the verified deployed origin:
 
-Use a dedicated scene named `Clavis Demo`.
+1. Landing page at the public-proof boundary.
+2. Setup page showing the factory version gate.
+3. Owner dashboard showing the v0.2 settlement label, treasury, roster, and rules.
+4. Native settlement transaction and callback evidence in NearBlocks.
+5. Public audit with an event-derived transaction link.
+6. Worker portal showing the employer-wide decision-history disclosure.
+7. Security evidence and the mobile navigation state.
 
-- Video base canvas: `1920x1080`
-- Video output resolution: `1920x1080`
-- Frame rate: `30 fps`
-- Recording format: `Hybrid MP4` (use MKV only if Hybrid MP4 is unavailable)
-- Encoder: hardware H.264 if available; otherwise x264
-- Quality: high quality / medium file size
-- Desktop audio: muted
-- Microphone: muted
-- Source: Display Capture for the primary display
-- Source transform: Fit to screen, then Stretch to screen if black borders remain
-- Cursor: enabled, but park it in the lower-right corner between actions
-- Recording folder: `C:\Users\hp\Arinze\clavis\demo\remotion\public\video`
+Do not manufacture wallet state through `localStorage`. Use the actual public read-only flow and owner-authorized testnet wallet when a signed action is part of the verified rehearsal.
 
-The display is 1280x720, so Chrome must be full-screen and OBS will scale the clean capture to 1920x1080. Remotion applies a restrained camera crop afterward.
+## 5. Recording cue sheet
 
-## 3. Prepare six Chrome tabs before recording
+| Beat | Action | Required statement |
+| --- | --- | --- |
+| Promise | Hold the landing proof boundary. | “Source v0.2 controls native NEAR settlement; the UI reads the deployed version before making that claim.” |
+| Configure | Show limits, a native recipient, and the restricted agent. | “Only native NEAR executes in this release. Cross-chain and split routes fail closed.” |
+| Constrain | Show the restricted-key and policy controls. | “The agent can call `request_payment`; it cannot rewrite policy or move funds independently.” |
+| Settle | Open the native payment and callback evidence. | “The contract transfers its own NEAR and records approval only after transfer success.” |
+| Reconcile | Show a staged recipient change or its documented evidence. | “The private plan changes only after exact final-chain reconciliation.” |
+| Verify | Open the audit transaction link. | “The emitted payment ID identifies this transaction; no block-order guess is used.” |
+| Disclose | Show the worker history and privacy copy. | “The history is employer-wide, and audit minimization is not transaction confidentiality.” |
+| Close | Show Security evidence and mobile navigation. | “Repository tests are source-linked evidence, not an independent audit.” |
 
-Open Chrome, set zoom to 80%, and use DevTools Console to prepare each tab. Chrome may ask you to type `allow pasting` before accepting pasted console commands.
+## 6. Validate the finished render
 
-These commands use public testnet account IDs only. They do not load a private key and cannot sign a transaction.
-
-### Tab 1 — landing hero
-
-Open `http://127.0.0.1:4173/`, then run:
-
-```js
-localStorage.clear(); sessionStorage.clear(); location.href = "/";
+```bash
+npm run demo:typecheck
+npm run demo:render
+ffprobe -v error -show_streams -show_format demo/output/clavis-demo-1080p.mp4
 ```
 
-### Tab 2 — owner setup
-
-Open another local tab and run:
-
-```js
-localStorage.setItem("signedAccountId", "clavis.testnet");
-localStorage.setItem("near-wallet-selector:selectedWalletId", JSON.stringify("my-near-wallet"));
-localStorage.setItem("near-wallet-selector:recentlySignedInWallets", JSON.stringify(["my-near-wallet"]));
-location.href = "/setup";
-```
-
-Wait for the page to load, then click `Continue` once so the tab is parked on **Set treasury limits**.
-
-### Tab 3 — owner dashboard
-
-Open another local tab, repeat the owner command above, and set the final line to:
-
-```js
-location.href = "/dashboard";
-```
-
-Park the page at the top with **Good morning, owner** visible.
-
-### Tab 4 — public audit
-
-Open `http://127.0.0.1:4173/audit`. Confirm the summary shows:
-
-- Total decisions: 2
-- Approved in view: 1
-- Rejected in view: 1
-
-### Tab 5 — worker portal
-
-Open another local tab and run:
-
-```js
-localStorage.setItem("signedAccountId", "worker-one.testnet");
-localStorage.setItem("near-wallet-selector:selectedWalletId", JSON.stringify("my-near-wallet"));
-localStorage.setItem("near-wallet-selector:recentlySignedInWallets", JSON.stringify(["my-near-wallet"]));
-location.href = "/worker";
-```
-
-Confirm **Hello, Worker One** is visible.
-
-### Tab 6 — architecture close
-
-Open `http://127.0.0.1:4173/`, scroll to the acid-green **Configure once. Let policy do the rest.** section, and leave it there.
-
-After all tabs are prepared, return to Tab 1 and press `F11` for full-screen Chrome.
-
-## 4. Record this exact cue sheet
-
-Start OBS while Tab 1 is visible. Use `Ctrl+1` through `Ctrl+6` to switch tabs while Chrome is full-screen.
-
-| Recording time | Action |
-| --- | --- |
-| `00:00` | Start recording on Tab 1. Hold the landing hero. |
-| `00:07` | `Ctrl+2` to owner setup. Show treasury limits. |
-| `00:10` | Click `Continue` to show approved recipients. |
-| `00:13` | Click `Continue` to show the restricted agent account. |
-| `00:16` | `Ctrl+3` to the owner dashboard. Hold treasury, anomaly alert, roster, and rules engine. |
-| `00:27` | Scroll down slowly to show more of the roster, payment audit, and emergency controls. |
-| `00:34` | `Ctrl+4` to the public audit. Hold the privacy headline and two decision counts. |
-| `00:39` | Click the `Rejected` filter so **Recipient not approved** is visible. |
-| `00:47` | Click `All` again and hold the privacy proof. |
-| `00:52` | `Ctrl+5` to the worker portal. Hold the schedule, private earnings notice, route, and allocation. |
-| `00:57` | `Ctrl+6` to the architecture section. Hold the autonomous loop cards. |
-| `01:04` | Stop interacting; keep the architecture section still for the branded end card. |
-| `01:10` | Stop OBS recording. |
-
-Move deliberately. Do not click transaction buttons, change policy, connect a real wallet, or expose DevTools during the recording.
-
-## 5. Register the recording
-
-If OBS saved directly into the requested video folder, pass that file path. Otherwise the command copies it and preserves the original:
-
-```powershell
-npm.cmd run demo:register-recording -- "C:\path\to\your\Clavis Walkthrough.mp4"
-```
-
-Then verify the registration:
-
-```powershell
-npm.cmd run demo:typecheck
-npx.cmd remotion compositions demo/remotion/src/index.ts
-```
-
-Once the file is registered, the final render command is:
-
-```powershell
-npm.cmd run demo:render
-```
+Inspect frames at the opening, every scene transition, the settlement proof, the worker disclosure, and the end card. Confirm readable text, synchronized captions, clean audio, no black frames, no secret material, and no claim that is stronger than the deployed evidence. Record the final metadata and video URL in `DEMO.md` and `SUBMISSION.md` only after inspection passes.

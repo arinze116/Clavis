@@ -255,6 +255,10 @@ impl Factory {
     pub fn get_root_account(&self) -> AccountId {
         self.root_account.clone()
     }
+
+    pub fn contract_version(&self) -> String {
+        env!("CARGO_PKG_VERSION").to_string()
+    }
 }
 
 fn normalize_name(name: &str) -> String {

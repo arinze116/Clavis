@@ -1,6 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { assertRestrictedAgentAccessKey } from "./near.js";
+import {
+  assertContractControlledSettlementVersion,
+  assertRestrictedAgentAccessKey,
+} from "./near.js";
+
+describe("assertContractControlledSettlementVersion", () => {
+  it.each(["0.2.0", "0.3.0", "1.0.0"])("accepts settlement-capable version %s", (version) => {
+    expect(() => assertContractControlledSettlementVersion(version)).not.toThrow();
+  });
+
+  it.each(["0.1.0", "0.0.9"])("rejects legacy authorization-only version %s", (version) => {
+    expect(() => assertContractControlledSettlementVersion(version)).toThrow(
+      "v0.2.0 or newer is required",
+    );
+  });
+
+  it.each(["", "v0.2.0", "0.2", "0.2.0-beta"])("rejects invalid version %j", (version) => {
+    expect(() => assertContractControlledSettlementVersion(version)).toThrow(
+      "returned an invalid version",
+    );
+  });
+});
 
 describe("assertRestrictedAgentAccessKey", () => {
   it("accepts only request_payment on the intended contract", () => {

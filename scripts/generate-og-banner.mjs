@@ -72,20 +72,20 @@ await page.setContent(`<!doctype html>
   <main class="frame">
     <section>
       <div class="brand"><div class="mark"><div class="key"></div></div><div class="wordmark">Clavis</div></div>
-      <div class="eyebrow">PRIVATE PAYROLL · PUBLIC PROOF</div>
+      <div class="eyebrow">VERSIONED PAYROLL · PUBLIC EVIDENCE</div>
       <h1>Payroll that keeps its promises</h1>
-      <p class="sub">Give an autonomous agent enough authority to run payroll—and no authority to break the rules.</p>
-      <div class="proof"><span class="dot"></span><span>NEAR testnet</span><span class="line"></span><span>Rules enforced on-chain</span><span class="line"></span><span>Salary data stays private</span></div>
+      <p class="sub">Source v0.2 keeps native NEAR settlement inside the contract and labels legacy deployments honestly.</p>
+      <div class="proof"><span class="dot"></span><span>NEAR testnet</span><span class="line"></span><span>Source v0.2 verified</span><span class="line"></span><span>Audit fields minimized</span></div>
     </section>
     <section class="panel">
-      <div class="panel-head"><div><div class="label">LIVE POLICY ENGINE</div><div class="cycle">Payroll cycle #048</div></div><div class="status">Protected</div></div>
+      <div class="panel-head"><div><div class="label">SOURCE EVIDENCE</div><div class="cycle">Contract v0.2.0</div></div><div class="status">Versioned</div></div>
       <div class="rules">
-        <div class="rule"><span class="check">✓</span><span>Agent key authorized</span><span class="number">01</span></div>
-        <div class="rule"><span class="check">✓</span><span>Recipient commitment approved</span><span class="number">02</span></div>
-        <div class="rule"><span class="check">✓</span><span>Treasury limits respected</span><span class="number">03</span></div>
-        <div class="rule"><span class="check">✓</span><span>Destination route registered</span><span class="number">04</span></div>
+        <div class="rule"><span class="check">✓</span><span>Contract controls native NEAR</span><span class="number">01</span></div>
+        <div class="rule"><span class="check">✓</span><span>Approval follows transfer success</span><span class="number">02</span></div>
+        <div class="rule"><span class="check">✓</span><span>Unsupported routes fail closed</span><span class="number">03</span></div>
+        <div class="rule"><span class="check">✓</span><span>Legacy deployments are labelled</span><span class="number">04</span></div>
       </div>
-      <div class="result"><div class="protected"><div class="big">8/8</div><div class="small">Core rules passed</div></div><div class="private"><div class="big">••••</div><div class="small">Amount stays private</div></div></div>
+      <div class="result"><div class="protected"><div class="big">Native</div><div class="small">Contract-paid in source v0.2</div></div><div class="private"><div class="big">Legacy</div><div class="small">Clearly disclosed when deployed</div></div></div>
     </section>
   </main>
 </body>

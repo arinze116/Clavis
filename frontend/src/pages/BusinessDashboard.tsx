@@ -42,13 +42,23 @@ import {
 } from "../utils/contract";
 import { chainLabel, formatNear, nearToYocto } from "../utils/format";
 import { explorerUrl, rootContractId } from "../utils/near";
-import { notifyTransaction } from "../utils/notifications";
 import {
+  expectedRecipientPolicyFromDraft,
+  reconcilePayrollOperation,
   removePayrollRecipient,
+  type StagedPayrollOperation,
   upsertPayrollRecipient,
 } from "../utils/payrollPlans";
 
 export default function BusinessDashboard() {
+  return (
+    <AppShell>
+      <BusinessDashboardContent />
+    </AppShell>
+  );
+}
+
+function BusinessDashboardContent() {
   const { accountId, wallet, loading: walletLoading } = useWallet();
   const ownerContract = useOwnerContract(accountId);
   const contractId = ownerContract.contract?.contract_id ?? rootContractId;
@@ -68,12 +78,10 @@ export default function BusinessDashboard() {
     }
     if (!data) {
       return (
-        <AppShell>
-          <ErrorState
-            message={error ?? "No contract state returned"}
-            retry={() => void refresh()}
-          />
-        </AppShell>
+        <ErrorState
+          message={error ?? "No contract state returned"}
+          retry={() => void refresh()}
+        />
       );
     }
     return (
@@ -88,38 +96,26 @@ export default function BusinessDashboard() {
   if (ownerContract.error) {
     return data
       ? <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={ownerContract.error ?? error} />
-      : (
-          <AppShell>
-            <ErrorState message={ownerContract.error} retry={() => void ownerContract.refresh()} />
-          </AppShell>
-        );
+      : <ErrorState message={ownerContract.error} retry={() => void ownerContract.refresh()} />;
   }
   if (!ownerContract.contract) {
     if (loading && !data) return <PublicDashboardLoading />;
     if (!data) {
       return (
-        <AppShell>
-          <ErrorState message={error ?? "No public contract state returned"} retry={() => void refresh()} />
-        </AppShell>
+        <ErrorState message={error ?? "No public contract state returned"} retry={() => void refresh()} />
       );
     }
     return <PublicDashboard snapshot={data} loading={loading} refresh={refresh} refreshError={error} />;
   }
   if (loading && !data) {
-    return (
-      <AppShell>
-        <LoadingState label="Reading your on-chain payroll state" />
-      </AppShell>
-    );
+    return <LoadingState label="Reading your on-chain payroll state" />;
   }
   if (!data) {
     return (
-      <AppShell>
-        <ErrorState
-          message={error ?? "No contract state returned"}
-          retry={() => void refresh()}
-        />
-      </AppShell>
+      <ErrorState
+        message={error ?? "No contract state returned"}
+        retry={() => void refresh()}
+      />
     );
   }
   const activeWallet = wallet;
@@ -158,18 +154,19 @@ export default function BusinessDashboard() {
     }
   }
 
-  async function runPrivatePlanAction(
-    action: () => Promise<void>,
+  async function runPrivatePlanAction<T>(
+    action: () => Promise<T>,
     successMessage: string,
-  ): Promise<void> {
+  ): Promise<T> {
     const toastId = showToast({
       status: "pending",
       message: "Authorizing private payroll plan",
     });
     setBusy(true);
     try {
-      await action();
+      const result = await action();
       updateToast(toastId, { status: "success", message: `${successMessage} ✅` });
+      return result;
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "Private payroll update failed";
       updateToast(toastId, {
@@ -179,6 +176,34 @@ export default function BusinessDashboard() {
       throw reason;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function finalizePrivatePlan(
+    operation: StagedPayrollOperation,
+    successMessage: string,
+  ): Promise<void> {
+    if (operation.reconciliationStatus === "committed") return;
+    try {
+      const result = await reconcilePayrollOperation({
+        accountId: activeAccountId,
+        operationId: operation.operationId,
+      });
+      if (result.reconciliationStatus === "committed") {
+        showToast({ status: "success", message: `${successMessage} ✅` });
+      } else {
+        showToast({
+          status: "info",
+          message:
+            "On-chain change confirmed; private plan reconciliation is pending and will retry automatically.",
+        });
+      }
+    } catch {
+      showToast({
+        status: "info",
+        message:
+          "On-chain change confirmed; private plan reconciliation will continue automatically.",
+      });
     }
   }
 
@@ -248,32 +273,44 @@ export default function BusinessDashboard() {
 
     setBusyRecipient(recipient.recipient_hash);
     try {
+      let stagedOperation: StagedPayrollOperation | null = null;
       if (privatePlanChanged) {
-        await runPrivatePlanAction(
+        const privateDraft = {
+          name: recipient.name,
+          walletAddress: update.walletAddress,
+          personalCapNear: update.personalCapNear,
+          paymentAmountNear: update.paymentAmountNear,
+          destinationAddress: update.destinationAddress,
+          preferredChain: update.preferredChain,
+          preferredToken: update.preferredToken,
+          schedule: update.schedule,
+        };
+        stagedOperation = await runPrivatePlanAction(
           () =>
             upsertPayrollRecipient({
               wallet: activeWallet,
               accountId: activeAccountId,
               contractId: snapshot.contractId,
               expectedRecipientHash: recipient.recipient_hash,
-              recipient: {
-                name: recipient.name,
-                walletAddress: update.walletAddress,
-                personalCapNear: update.personalCapNear,
-                paymentAmountNear: update.paymentAmountNear,
-                destinationAddress: update.destinationAddress,
-                preferredChain: update.preferredChain,
-                preferredToken: update.preferredToken,
-                schedule: update.schedule,
-              },
+              recipient: privateDraft,
+              expectedPolicy: expectedRecipientPolicyFromDraft(privateDraft, {
+                active: update.active,
+                paymentSplit: recipient.payment_split,
+              }),
             }),
-          `${recipient.name}'s private delivery plan updated`,
+          `${recipient.name}'s private delivery change staged`,
         );
       }
       if (calls.length > 0) {
         await runTransaction(
           () => changeMany(activeWallet, activeAccountId, snapshot.contractId, calls),
           `${recipient.name} updated`,
+        );
+      }
+      if (stagedOperation) {
+        await finalizePrivatePlan(
+          stagedOperation,
+          `${recipient.name}'s private delivery plan reconciled`,
         );
       }
     } finally {
@@ -284,14 +321,7 @@ export default function BusinessDashboard() {
   async function removeRecipient(recipient: Recipient): Promise<void> {
     setBusyRecipient(recipient.recipient_hash);
     try {
-      const submission = await runTransaction(
-        () =>
-          change(activeWallet, activeAccountId, snapshot.contractId, "remove_recipient", {
-            recipient_hash: recipient.recipient_hash,
-          }),
-        `${recipient.name} removed`,
-      );
-      await runPrivatePlanAction(
+      const stagedOperation = await runPrivatePlanAction(
         () =>
           removePayrollRecipient({
             wallet: activeWallet,
@@ -299,13 +329,19 @@ export default function BusinessDashboard() {
             contractId: snapshot.contractId,
             recipientHash: recipient.recipient_hash,
           }),
-        `${recipient.name} removed from the agent plan`,
+        `${recipient.name}'s private removal staged`,
       );
-      void notifyTransaction({
-        accountId: activeAccountId,
-        receiverId: snapshot.contractId,
-        transactionHash: submission.hash,
-      });
+      await runTransaction(
+        () =>
+          change(activeWallet, activeAccountId, snapshot.contractId, "remove_recipient", {
+            recipient_hash: recipient.recipient_hash,
+          }),
+        `${recipient.name} removed`,
+      );
+      await finalizePrivatePlan(
+        stagedOperation,
+        `${recipient.name} removed from the private plan`,
+      );
     } finally {
       setBusyRecipient(null);
     }
@@ -327,10 +363,16 @@ export default function BusinessDashboard() {
   }
 
   return (
-    <AppShell>
+    <>
       {data.paused && (
         <div className="border-b border-red-300 bg-red-700 px-4 py-3 text-center text-sm font-semibold text-white" role="alert">
           CONTRACT PAUSED — All payments blocked
+        </div>
+      )}
+      {!data.contractControlsSettlement && (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-950" role="alert">
+          Legacy contract detected: policy authorization is on-chain, but settlement funds are not
+          contract-controlled until this deployment is upgraded to v0.2.0.
         </div>
       )}
       {error && (
@@ -373,6 +415,8 @@ export default function BusinessDashboard() {
                 dailyLimit={data.dailyLimit}
                 dailySpent={data.dailySpent}
                 dailyWindowExpired={data.dailyWindowExpired}
+                contractControlsSettlement={data.contractControlsSettlement}
+                contractVersion={data.contractVersion}
               />
             </ErrorBoundary>
             <ErrorBoundary compact>
@@ -426,19 +470,24 @@ export default function BusinessDashboard() {
                   );
                 }}
                 onAddRecipient={async (draft: RecipientDraft) => {
-                  await runPrivatePlanAction(
+                  const stagedOperation = await runPrivatePlanAction(
                     () =>
                       upsertPayrollRecipient({
                         wallet,
                         accountId,
                         contractId: data.contractId,
                         recipient: draft,
+                        expectedPolicy: expectedRecipientPolicyFromDraft(draft),
                       }),
-                    `${draft.name}'s private delivery plan saved`,
+                    `${draft.name}'s private delivery change staged`,
                   );
                   await runTransaction(
                     () => addRecipient(wallet, accountId, data.contractId, draft),
                     `${draft.name} added to payroll`,
+                  );
+                  await finalizePrivatePlan(
+                    stagedOperation,
+                    `${draft.name}'s private delivery plan reconciled`,
                   );
                 }}
               />
@@ -485,7 +534,7 @@ export default function BusinessDashboard() {
           onClose={() => setReportOpen(false)}
         />
       )}
-    </AppShell>
+    </>
   );
 }
 
@@ -504,13 +553,19 @@ function PublicDashboard({
   const activeRecipients = snapshot.recipients.filter((recipient) => recipient.active).length;
 
   return (
-    <AppShell>
+    <>
       {snapshot.paused && (
         <div
           className="border-b border-red-300 bg-red-700 px-4 py-3 text-center text-sm font-semibold text-white"
           role="alert"
         >
           CONTRACT PAUSED — All payments blocked
+        </div>
+      )}
+      {!snapshot.contractControlsSettlement && (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-950" role="status">
+          This live contract is legacy {snapshot.contractVersion ?? "pre-v0.2"}: it proves
+          authorization policy, not contract-controlled settlement.
         </div>
       )}
       {refreshError && (
@@ -522,7 +577,7 @@ function PublicDashboard({
       )}
       <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-5 lg:px-10 lg:py-14">
         <div className="rounded-[28px] border border-moss/20 bg-[#eef3e9] px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-start gap-4">
               <span className="relative mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-ink text-acid">
                 <Activity className="h-5 w-5" aria-hidden="true" />
@@ -595,6 +650,8 @@ function PublicDashboard({
                 dailyLimit={snapshot.dailyLimit}
                 dailySpent={snapshot.dailySpent}
                 dailyWindowExpired={snapshot.dailyWindowExpired}
+                contractControlsSettlement={snapshot.contractControlsSettlement}
+                contractVersion={snapshot.contractVersion}
               />
             </ErrorBoundary>
             <PublicRoster snapshot={snapshot} />
@@ -605,7 +662,7 @@ function PublicDashboard({
           <aside className="min-w-0 space-y-6">
             <PublicPolicy snapshot={snapshot} />
             <PublicAnomalies anomalies={activeAnomalies} />
-            <PublicSettlementEvidence />
+            <PublicSettlementEvidence snapshot={snapshot} />
             <section className="rounded-[22px] bg-ink p-6 text-white lg:p-8">
               <Bot className="h-5 w-5 text-acid" aria-hidden="true" />
               <h2 className="mt-8 font-display text-2xl font-semibold">Owner controls stay locked.</h2>
@@ -621,7 +678,7 @@ function PublicDashboard({
           </aside>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
 
@@ -640,7 +697,11 @@ function StaleEvidenceWarning({
         <span>
           Latest refresh failed. Showing verified final block {blockHeight}. {message}
         </span>
-        <button type="button" className="shrink-0 font-semibold underline" onClick={() => void refresh()}>
+        <button
+          type="button"
+          className="min-h-11 shrink-0 px-2 font-semibold underline"
+          onClick={() => void refresh()}
+        >
           Retry now
         </button>
       </div>
@@ -650,10 +711,10 @@ function StaleEvidenceWarning({
 
 function PublicDashboardLoading() {
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-5 lg:px-10 lg:py-14">
         <div className="rounded-[28px] border border-moss/20 bg-[#eef3e9] px-5 py-5 sm:px-7 sm:py-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-start gap-4">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-ink text-acid">
                 <Activity className="h-5 w-5 animate-pulse" aria-hidden="true" />
@@ -713,7 +774,7 @@ function PublicDashboardLoading() {
           </section>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
 
@@ -853,30 +914,38 @@ function PublicAnomalies({ anomalies }: { anomalies: AnomalyEntry[] }) {
   );
 }
 
-function PublicSettlementEvidence() {
+function PublicSettlementEvidence({ snapshot }: { snapshot?: ContractSnapshot }) {
+  const nativeSettlementCopy = snapshot
+    ? snapshot.contractControlsSettlement
+      ? `Contract-controlled native NEAR settlement is active on v${snapshot.contractVersion}.`
+      : `This deployed ${snapshot.contractVersion ?? "legacy"} contract authorizes requests only. Upgrade to v0.2.0 before claiming contract-controlled settlement.`
+    : "Reading the deployed contract version before describing its settlement guarantees.";
+  const nativeEvidenceTone = snapshot?.contractControlsSettlement
+    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+    : "border-amber-200 bg-amber-50 text-amber-900";
   return (
     <section className="panel p-6 lg:p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="eyebrow">Settlement evidence</p>
-          <h2 className="mt-2 font-display text-2xl font-semibold">What the demo proves</h2>
+          <h2 className="mt-2 font-display text-2xl font-semibold">Settlement boundary</h2>
         </div>
         <Globe2 className="h-5 w-5 text-moss" aria-hidden="true" />
       </div>
       <dl className="mt-6 grid gap-3 text-xs leading-5">
-        <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-4">
-          <dt className="font-semibold text-emerald-900">Native NEAR</dt>
-          <dd className="mt-1 text-emerald-900/70">Direct testnet delivery is supported for NEAR routes.</dd>
+        <div className={`rounded-[12px] border p-4 ${nativeEvidenceTone}`}>
+          <dt className="font-semibold">Native NEAR</dt>
+          <dd className="mt-1 opacity-70">{nativeSettlementCopy}</dd>
         </div>
         <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-4">
           <dt className="font-semibold text-amber-900">Cross-chain</dt>
           <dd className="mt-1 text-amber-900/70">
-            No filled solver intent is published for this demo. Unsupported routes fail visibly;
-            they are never replaced with NEAR and called cross-chain.
+            Cross-chain execution is disabled in this release because custody cannot remain
+            contract-controlled end to end. Such requests fail closed before policy state advances.
           </dd>
         </div>
       </dl>
-      <Link className="mt-4 inline-flex text-xs font-semibold text-moss underline" to="/security">
+      <Link className="mt-4 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-moss underline" to="/security">
         Review evidence and limitations
       </Link>
     </section>

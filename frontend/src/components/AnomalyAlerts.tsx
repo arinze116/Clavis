@@ -97,7 +97,7 @@ export function AnomalyAlerts({
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="inline-flex items-center gap-2 rounded-[8px] border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-ink transition-colors hover:border-moss disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center gap-2 rounded-[8px] border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-ink transition-colors hover:border-moss disabled:opacity-50"
                       disabled={analysisBusy === anomaly.anomaly_id}
                       onClick={() => void analyze(anomaly)}
                       aria-expanded={expanded}
@@ -125,7 +125,7 @@ export function AnomalyAlerts({
                 </div>
                 <button
                   type="button"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-white text-ink/45 transition-colors hover:text-moss disabled:opacity-30"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] bg-white text-ink/45 transition-colors hover:text-moss disabled:opacity-30"
                   disabled={writeBusy || busyId === anomaly.anomaly_id}
                   onClick={() => void onDismiss(anomaly).catch(() => undefined)}
                   aria-label="Mark anomaly reviewed"

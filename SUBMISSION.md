@@ -1,243 +1,83 @@
-# Clavis submission package
+# Clavis submission status
 
-## Release status
+## Current status
 
-The production infrastructure gates were verified on 2026-11-07: merged source, Vercel, NEAR AI, the VPS agent, notification bridge, and root/factory bytecode are live. Complete the remaining manual product rehearsal and submission-asset items before publishing the final entry.
+The v0.2 source has passed the local repository gate and is **not yet deployed or ready to publish as the live release**.
 
-## Submission fields
+Verified live state on 2026-11-09:
 
-**Project name**
-Clavis
+- `clavis.testnet` reports contract v0.1.0;
+- `factory.clavis.testnet` has no `contract_version` method and is treated as legacy;
+- the live contracts therefore authorize requests but do not provide v0.2 contract-controlled settlement;
+- no v0.2 deployment, Vercel publication, final rehearsal, or demo video was performed in this change.
 
-**Tagline**
-Privacy-minimized, rule-bound payroll automation for autonomous agents on NEAR testnet.
+## Accurate product description
 
-**One sentence**
-Clavis lets an AI payroll agent schedule work while an isolated Rust contract enforces recipients, caps, schedules, routes, emergency controls, and a privacy-minimized public audit.
+Clavis source v0.2 is a privacy-minimized testnet payroll application in which a restricted scheduler requests due native NEAR payments and the Rust payroll contract itself:
 
-**Short pitch**
-Payroll automation creates a dangerous tradeoff: the more useful an agent becomes, the more treasury authority it usually receives. Clavis breaks that link. Owners configure payroll in the browser, use NEAR AI to draft and understand policy, and deploy an isolated NEAR contract that independently approves or rejects every request. The public audit omits recipient identities and amounts from its own entries while the product explicitly discloses normal NEAR transaction visibility and public recipient policy configuration.
+- enforces owner-defined policy;
+- verifies the recipient-account commitment;
+- transfers native NEAR from its treasury;
+- records approval only after transfer success;
+- rolls back spend and schedule state when transfer fails.
 
-**Full description**
-Clavis is a NEAR testnet payroll control plane for remote teams. A business owner deploys an isolated contract, defines global and per-recipient limits, approves destination routes, configures a private scheduled amount, and appoints an agent account. The TypeScript scheduler checks due work every 60 seconds, but the Rust contract remains the authority for pause state, caller identity, recipient approval, active status, off-hours policy, per-payment limits, personal caps, daily limits, schedules, and routes.
+There is no agent-held Full Access settlement signer. Cross-chain and split execution are disabled until custody can remain contract-controlled end to end. The legacy root contract still has separate Full Access deployment authority; that key is outside contract enforcement and must remain segregated from the agent host.
 
-NEAR AI is used where language adds value: it converts plain-English policy into a source-grounded editable draft, prioritizes an anomaly hypothesis, selects a code-supported testnet route from timestamped multi-network RPC observations, and prioritizes an evidence-backed report recommendation. Contract-backed report, anomaly, and security facts are rendered deterministically from coherent NEAR final-block evidence. Security probes are fixed and versioned rather than model-generated; returned payment IDs and rejection reasons are independently matched against the live audit ledger before Clavis renders the summary.
+Private recipient changes are signed, durably staged, and promoted only after exact final-chain reconciliation. Wallet cancellation or service failure leaves the prior active plan unchanged.
 
-The AI boundary is fail-closed: extracted policy numbers must exist in the owner's text, anomaly facts are reloaded from the contract by ID, route measurements are server-rendered from the live RPC snapshot, and model prose cannot alter contract severity, route-support status, report facts, or probe outcomes.
+## Browser behavior
 
-Sensitive delivery configuration is signed by the owner in the browser and stored in the access-controlled agent service rather than in the public audit log. Approved work is prepared for a NEAR Intents settlement adapter. The current hackathon deployment is testnet-only; routes are preflighted and completed cross-chain settlement is not claimed without a filled solver reference.
+- The dashboard detects contract versions and warns on legacy authorization-only deployments.
+- Setup blocks a legacy factory rather than creating another v0.1 child.
+- Mobile navigation lives in one persistent `AppShell` while dashboard content loads.
+- The worker portal labels the employer-wide decision history and does not claim entries are worker-specific.
+- Explorer links map emitted `payment_id` values to exact final transaction hashes; block/order guessing was removed.
 
-## Problem
+## Cross-chain answer
 
-Remote teams want programmable payroll, but a conventional payroll bot often holds enough authority to pay the wrong person, exceed a limit, run at the wrong time, or hide what happened. Existing automation also forces an uncomfortable choice between public transparency and exposing sensitive payroll details.
+**Is cross-chain payment live?**
 
-## Solution
+No. The code does not run a dry-run relay. It rejects cross-chain execution visibly in both preflight and contract policy because the release cannot keep custody contract-controlled end to end. A cross-chain request does not consume daily capacity or advance the recipient schedule.
 
-Clavis separates four responsibilities:
+## Privacy answer
 
-```text
-Owner browser
-  ├─ wallet-signed public policy ───────► isolated NEAR payroll contract
-  └─ wallet-signed private plan ────────► private agent service
-                                                │
-60-second scheduler ── request_payment only ────┤
-                                                ▼
-                                      contract rules + public audit
-                                                │
-                                                ▼
-                                      NEAR Intents adapter / worker route
-```
+The audit entry omits amount and recipient identity, but standard NEAR function arguments and configured recipient policy remain public. There is no `CONFIDENTIAL_EXECUTOR_URL` adapter in this repository.
 
-AI proposes and explains. The owner confirms. The contract decides.
+## Current local evidence
 
-## Why NEAR
-
-- **Rust contracts:** deterministic rules and owner-only emergency controls.
-- **Account model and access keys:** one restricted Function Call key per payroll contract, each verified on-chain as `request_payment`-only; Full Access payroll-agent keys are rejected. NEP-413 settlement signing uses a separate, minimally funded account that is rejected if it overlaps any payroll agent account.
-- **Factory architecture:** one isolated `*.clavis.testnet` contract per business.
-- **Fast testnet UX:** wallet-signed setup and policy updates from the browser.
-- **NEAR Intents:** a settlement abstraction for worker-selected routes after contract approval.
-- **Public verification:** NearBlocks links connect UI decisions to testnet transactions.
-
-## NEAR AI usage
-
-Server-side endpoint: `https://cloud-api.near.ai/v1/chat/completions`
-
-Preferred model: `meta-llama/Llama-3.3-70B-Instruct`
-
-Default fallback: `deepseek-ai/DeepSeek-V4.1-Flash-1017`. The proxy checks NEAR AI's live model
-catalog, honors the environment-configured priority list, and can select another suitable
-NEAR-hosted instruction model when the catalog changes. Slow or failed models are temporarily
-deprioritized, and successful responses expose the active choice through the `x-clavis-ai-model`
-header.
-
-Implemented tasks:
-
-1. Plain-English policy extraction into limits, schedule, recipient caps, summary, and warnings.
-2. Cautious anomaly explanation with two recommended owner actions.
-3. Recommendation prioritization for a deterministic report built from fresh NEAR final-state evidence.
-4. Code-supported testnet route recommendation enriched with point-in-time NEAR, Sepolia, and BNB RPC observations, without claiming agent uptime or delivery.
-5. Next-step prioritization after five fixed canonical security results are matched against the live audit ledger.
-
-The API key stays in the Vercel serverless environment. Browser code calls same-origin `/api/ai` and never imports the secret.
-
-## Strongest differentiators
-
-- **AI is not the authority.** It assists with language; deterministic contract code controls funds.
-- **Security evidence is reproducible.** A versioned threat model maps claims to repeatable contract and agent tests; five on-chain probes provide an additional browser demonstration without moving funds.
-- **Audit data is deliberately minimized.** Scheduled amounts and destination addresses live in an owner-authorized off-chain plan; audit entries contain decision evidence rather than payroll identities or amounts. Standard chain arguments remain public.
-- **Every owner workflow is browser-accessible.** Setup, recipient CRUD, private plan sync, limits, agent updates, pause, emergency withdrawal, notification linking, security audit, reports, and documentation do not require a user terminal.
-
-## Architecture
-
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Payroll contract | Rust, NEAR SDK | Rules, treasury controls, recipients, audit, anomalies, security probes |
-| Factory/root | Rust, NEAR promises | Isolated business-account deployment and owner registry |
-| Agent | TypeScript, Node.js, PM2 | 60-second scheduling, anomaly processing, private plans, intent construction, notifications |
-| Private browser bridge | Vercel function + restricted SSH forward | Relays signed plan and notification requests without exposing service credentials |
-| AI proxy | Vercel function | Validates, rate-limits, and sends task-specific prompts to NEAR AI Cloud |
-| Frontend | React, TypeScript, Vite | Owner, worker, audit, setup, guide, wallet and transaction UX |
-
-## Live links
-
-- App: https://clavisapp.vercel.app
-- Repository: https://github.com/arinze116/Clavis
-- Root contract: https://testnet.nearblocks.io/address/clavis.testnet
-- Factory contract: https://testnet.nearblocks.io/address/factory.clavis.testnet
-- Public audit: https://clavisapp.vercel.app/audit
-- Guide: https://clavisapp.vercel.app/guide
-- Demo video: **[add final video URL]**
-- Security-audit transaction: https://testnet.nearblocks.io/txns/Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc
-- Root upgrade transaction: https://testnet.nearblocks.io/txns/6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj
-- Factory upgrade transaction: https://testnet.nearblocks.io/txns/7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn
-
-## Track fit
-
-| Track | Fit |
+| Check | Result |
 | --- | --- |
-| Agents | Autonomous scheduling with a deliberately narrow contract role and human-readable AI assistance |
-| Security | Fail-closed policy engine, owner-only controls, restricted keys, mapped CI tests, and observable five-scenario probes |
-| Privacy | Access-controlled delivery plan plus privacy-minimized audit entries, with standard-NEAR visibility disclosed |
-| Real-world | Payroll operations, worker portal, notifications, reports, and recovery controls |
-| Business | Isolated contracts per business, CFO summary, roster management, and clear operating documentation |
+| Payroll contract | 28 passed |
+| Agent Vitest | 66 passed |
+| API, audit-link, and RPC-boundary tests | 30 passed |
+| TypeScript typecheck | Passed |
+| Factory tests and release WASM builds | 3 passed; payroll and factory WASM built |
+| Production build | Passed |
+| Playwright proof paths | 5 passed, including six delayed-load mobile-menu trials |
+| Responsive visual QA | Inspected at 320, 375, 390, 768, 1024, and 1440 px with no horizontal overflow, duplicate main landmarks, console errors, or sub-44px visible controls |
+| Production dependency audit | 0 moderate/high/critical; 17 low transitive `elliptic` advisories in the NEAR wallet stack |
+| Live exact-link enrichment | Not verified: both available RPCs timed out on historical transaction-outcome lookup; deterministic event-mapping tests passed |
+| Deployment scripts | `bash -n` syntax checks and NEAR CLI RS v0.31.1 source comparison passed; not executed because the CLI is absent and deployment is approval-gated |
 
-## Verified evidence
+## Submission checklist
 
-Run this exact gate after the final integration commit:
+- [x] Native funds originate from the v0.2 payroll contract in source.
+- [x] Transfer success commits approval; failure rolls policy state back.
+- [x] Cross-chain execution fails closed.
+- [x] External settlement credentials are removed and rejected.
+- [x] Private recipient changes use persisted two-phase reconciliation.
+- [x] Dashboard and setup distinguish legacy deployments from v0.2.
+- [x] Worker history wording matches employer-wide audit data.
+- [x] Explorer links use emitted payment IDs.
+- [x] README, architecture, privacy, threat-model, and demo claims are aligned with source behavior.
+- [x] Complete the local release gate with final recorded counts.
+- [ ] Upgrade `clavis.testnet` with owner-authorized `migrate`.
+- [ ] Upgrade `factory.clavis.testnet` so new children embed v0.2.
+- [ ] Deploy the updated frontend and agent.
+- [ ] Confirm deployed code hashes and `contract_version` responses.
+- [ ] Run two uninterrupted browser rehearsals and record the results.
+- [ ] Capture desktop, tablet, and mobile screenshots from the deployed release.
+- [ ] Record and inspect the final demo video.
+- [ ] Add final app, repository, video, contract, and security-transaction URLs.
 
-```bash
-bash scripts/verify.sh
-git diff --check
-```
-
-Most recent component evidence before final release:
-
-- API evidence tests: `23/23` passing.
-- Agent tests: `54/54` passing.
-- Contract tests: `22/22` passing.
-- Factory tests: `3/3` passing.
-- Frontend, agent, and API TypeScript checks pass.
-- Production frontend build and both release WASM builds pass.
-- Playwright public-proof suite: `5/5` passing across landing, dashboard, audit, security, and 390px mobile navigation; no horizontal overflow or console errors.
-- Release source PR #9 was merged as `a7acd65`; main-branch CI, security evidence, browser smoke, and both Vercel production checks passed.
-- `clavis.testnet` was upgraded in transaction `6wQpeSvVKPG29Tc66H8J2ak6N4ESCyY9AWL8WvGsPXpj`; deployed code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV` matches release SHA-256 `4f0781cb30195800be283b9bbd864355657fff9f77ab0fb78c6b91e1d2a14e2e`.
-- `factory.clavis.testnet` was upgraded in transaction `7iPSiTGWogj4ovkcjh63gtbMUyY2HKUJMscMPVcwq3Mn`; deployed code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` matches release SHA-256 `bc70097e6b85a4196eb494d09a433b72d7557478d3c3690f7564285c9cbc90b1`.
-- Production policy extraction and all four bounded-choice tasks returned HTTP 200 through NEAR AI model `deepseek-ai/DeepSeek-V4.1-Flash-1017`; contract-backed tasks were pinned to NEAR final block `276654783` during release verification.
-- The Oracle VPS runs the merged `main` release; PM2 reports `clavis-agent online`, the notification API is healthy, and the Vercel bridge reached the agent successfully.
-- Live security audit transaction `Ng3cFYga534jZJJoFeAuzDgH5xLrMXP9Yrg52gkT4rc` returned five blocked results and wrote payment IDs 5–9.
-- Production dependency audit has no moderate, high, or critical findings. It reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack; the available forced remediation is a breaking dependency upgrade and is documented rather than applied blindly.
-
-Final local release verification completed on 2026-11-07 with `bash scripts/verify.sh`; the deployed application and contract source merge is `a7acd65`.
-
-## Honest disclosures
-
-- Clavis is **NEAR testnet only**.
-- Completed cross-chain settlement is not claimed without a `FILLED` solver intent and verifiable relay reference. Unsupported cross-chain preferences fail visibly instead of being replaced with direct NEAR.
-- The public audit omits recipient identities and amounts. Standard NEAR function-call arguments and current recipient policy configuration are still public; complete confidentiality requires the documented confidential-executor boundary.
-- AI output is advisory. Owners can edit generated policy, and the contract—not the model—makes authorization decisions.
-- Route advice is a point-in-time testnet recommendation. RPC latency is not settlement time, and gas-unit values are not compared directly across chains.
-- Existing child contracts retain the bytecode they were created with; the two registry children are not claimed as upgraded. The active root is upgraded, and future factory-created contracts use the verified embedded release WASM.
-- The production `NEAR_AI_API_KEY` is configured and model-backed policy extraction plus bounded model choices were verified. Evidence-backed report, security, anomaly, and route fallbacks remain available during upstream model outages.
-
-## Likely judge questions
-
-**Why is this better than letting an agent call a multisig or wallet directly?**
-The payment request hits a purpose-built rules engine first. Recipient approval, status, time window, amount limits, daily usage, schedule, route, pause state, and caller identity are checked in a stable order before approval is logged.
-
-**Can the AI override a rule?**
-No. AI produces grounded drafts and advisory prioritization. Clavis composes factual reports from verified RPC evidence, owner-signed transactions change policy, and Rust code determines payment outcomes.
-
-**Does the security audit really test the contract?**
-Yes, as a demonstration layer. The owner-only method executes five fixed scenarios through the same pure evaluator used by real requests. It moves no funds, returns structured results, and records five minimized decisions. The stronger evidence is the reproducible threat-model suite mapped to versioned contract and agent tests.
-
-**What is private today?**
-The agent’s scheduled amount, raw worker address, and delivery destination are kept in its private store; the audit contains a decision ID, timestamp, outcome, and block height. Standard NEAR call arguments remain public, which is explicitly disclosed.
-
-**How does a browser update a private server safely?**
-The owner signs a scoped message containing the action, origin, nonce, expiry, and payload hash. The agent verifies the signature against NEAR, checks current contract ownership, rate-limits the request, prevents replay, validates the schema, and writes the plan atomically with restricted filesystem permissions.
-
-**What stops an arbitrary user from editing another business plan?**
-The private API calls `get_owner` on the target payroll contract and requires the signed account to match before any plan mutation.
-
-**What happens if the agent is compromised?**
-The contract still rejects requests that violate its configured identity, recipient, status, time, cap, daily, schedule, or route rules. The treasury can be paused immediately. Key scope for the exact deployed operator must be shown honestly in the demo.
-
-**How are workers notified?**
-Workers link email or Telegram to their wallet. After a finalized, verified `add_recipient` transaction, the private service resolves the saved worker account and notifies linked channels. Payment decisions and settlement state use the same wallet-linked preference store.
-
-**Why use a factory?**
-Each business receives an isolated account and state boundary instead of sharing one global payroll contract. The factory records owner-to-contract discovery for the browser and scheduler.
-
-**Is the cross-chain payment live?**
-Not in the current hackathon deployment. The approved payment creates a validated intent envelope and route, but the relay is deliberately in dry-run mode until production settlement credentials and liquidity are configured.
-
-**What would you build next?**
-Confidential submission of payment arguments, production Intents settlement, per-contract managed restricted agent keys, policy versioning, and multi-approver governance for high-risk changes.
-
-## Credits and attribution
-
-- Builder: Arinze — [@useClavis_](https://x.com/useClavis_)
-- NEAR SDK and NEAR Wallet Selector
-- NEAR AI Cloud
-- NEAR Intents / solver relay interface
-- NearBlocks explorer and API
-- React, TypeScript, Vite, Tailwind CSS, Lucide, Playwright, Vitest, and Remotion
-- Vercel, Oracle Cloud, PM2, Resend, and Telegram Bot API
-- License: MIT
-
-## Final submission checklist
-
-### Product
-
-- [x] Production `/api/ai` succeeds for policy, anomaly, report, route, and security-scenario tasks.
-- [ ] Add/edit/remove recipient updates both contract state and the private scheduler plan.
-- [ ] Limits, agent update, pause/unpause, and emergency withdrawal each show pending/success/failure transaction toasts.
-- [x] Security audit returns verified `5/5` and the public audit receives five entries.
-- [ ] Audit polling, anomaly bell, mark-all-read, empty states, skeletons, Escape-to-close, and Enter-to-submit are verified.
-- [ ] Home, dashboard, audit, worker, setup, guides, legal pages, and 404 pass desktop and 375px smoke with zero console errors.
-
-### Deployment
-
-- [x] `NEAR_AI_API_KEY` is configured as a Vercel server-side secret.
-- [x] Vercel production deployment is the merged release and `clavisapp.vercel.app` is healthy.
-- [x] VPS agent runs the merged release, PM2 reports `clavis-agent online`, and the private API health check passes.
-- [x] Root and factory code hashes match the final release WASM.
-- [x] The deployed agent logs confirm restricted per-contract key mode.
-
-### Repository and verification
-
-- [x] `bash scripts/verify.sh` passes on the final release evidence branch.
-- [x] `git diff --check` passes.
-- [x] Production dependency audit is reviewed and accepted low-severity upstream advisories are documented.
-- [x] PR #9 (`feat/verified-realtime-ai-evidence`) is pushed, reviewed, and merged to `main`.
-- [x] Repository visibility or explicit judge access is confirmed.
-- [x] README, HACKATHON.md, DEMO.md, SUBMISSION.md, SECURITY.md, LICENSE, and `.env.example` are current.
-
-### Submission assets
-
-- [ ] Four-minute walkthrough rehearsed twice.
-- [ ] Final video uses the verified production build and includes no secrets, wallet recovery phrases, private keys, raw salary amounts, or personal contact details.
-- [ ] Demo URL, repository URL, video URL, contract URLs, and security-audit transaction URL are added to the submission.
-- [ ] Team profile, track selections, credits, and disclosures are complete.
-- [ ] Final submission is previewed once in the hackathon form before publishing.
+Do not mark any unchecked item complete without its evidence.

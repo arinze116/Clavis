@@ -28,7 +28,9 @@ jobs:
           npm run test:api
           npm run test:agent
       - name: Build frontend and agent
-        run: npm run build
+        run: |
+          npm run build
+          npm run demo:typecheck
       - name: Test and build contract
         run: |
           cargo fmt --manifest-path contract/Cargo.toml --all -- --check

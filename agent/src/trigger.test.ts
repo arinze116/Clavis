@@ -152,10 +152,13 @@ describe("triggerDuePayments", () => {
       approved: true,
       payment_id: 8,
       reason: null,
+      settled: true,
+      transaction_hash: "contract-settlement-transaction",
     }));
     const recordRequest = vi.fn(async () => undefined);
     const recordPayment = vi.fn(async () => undefined);
     const paymentApproved = vi.fn(async () => undefined);
+    const deliveryFilled = vi.fn(async () => undefined);
     const preflight = vi.fn(async () => undefined);
 
     await triggerDuePayments({
@@ -177,7 +180,7 @@ describe("triggerDuePayments", () => {
         recipients: [plan("delivery-1")],
       },
       recipients: [milestoneRecipient],
-      notifications: { paymentApproved } as unknown as NotificationManager,
+      notifications: { paymentApproved, deliveryFilled } as unknown as NotificationManager,
       intentRetryDelayMs: 30_000,
       now,
     });
@@ -190,7 +193,15 @@ describe("triggerDuePayments", () => {
     );
     expect(recordRequest).toHaveBeenCalledOnce();
     expect(recordPayment).toHaveBeenCalledOnce();
+    expect(recordPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELIVERED" }),
+      [],
+      expect.anything(),
+    );
     expect(paymentApproved).toHaveBeenCalledOnce();
+    expect(deliveryFilled).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionHash: "contract-settlement-transaction" }),
+    );
   });
 
   it("does not consume authorization when settlement preflight fails", async () => {

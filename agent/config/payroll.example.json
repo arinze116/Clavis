@@ -6,23 +6,17 @@
       "telegram_chat_id": "123456789",
       "recipients": [
         {
-          "recipientHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "recipientHash": "a9323fd3b61b337f8fcda5fad9318ab03a8875b576d5e09a1e575b4739cec26b",
           "name": "Worker One",
           "nearAddress": "worker.testnet",
           "amountYocto": "4000000000000000000000000",
           "milestoneReady": false,
           "destinations": [
             {
-              "chain": "ethereum",
-              "token": "USDC",
-              "address": "0x1111111111111111111111111111111111111111",
-              "percentage": 70
-            },
-            {
               "chain": "near",
               "token": "NEAR",
               "address": "worker.testnet",
-              "percentage": 30
+              "percentage": 100
             }
           ]
         }

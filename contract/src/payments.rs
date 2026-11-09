@@ -1,9 +1,62 @@
-use near_sdk::env;
+use near_sdk::{
+    env, near_bindgen, AccountId, Gas, NearToken, Promise, PromiseOrValue, PromiseResult,
+};
 
-use crate::types::{PaymentOutcome, PaymentResult, RuleResult};
+use crate::types::{PaymentOutcome, PaymentResult, PendingNativePayment, RuleResult};
 use crate::{Clavis, ClavisExt, HOUR_NS, MINUTE_NS};
 
+const NATIVE_SETTLEMENT_CALLBACK_GAS: Gas = Gas::from_tgas(30);
+const NATIVE_SETTLEMENT_CALLBACK_STORAGE_BUFFER_BYTES: u64 = 8 * 1024;
+
 impl Clavis {
+    fn rejected_payment(payment_id: u64, reason: String) -> PaymentResult {
+        PaymentResult {
+            approved: false,
+            payment_id,
+            reason: Some(reason),
+            settled: false,
+        }
+    }
+
+    fn recipient_account_hash(account_id: &AccountId) -> String {
+        env::sha256(account_id.as_str().as_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
+    }
+
+    fn rollback_pending_native_payment(&mut self, pending: &PendingNativePayment) {
+        self.daily_spent = self.daily_spent.saturating_sub(pending.amount);
+        if let Some(mut recipient) = self.recipients.get(&pending.recipient_hash) {
+            if recipient.last_paid == pending.reserved_at {
+                recipient.last_paid = pending.previous_last_paid;
+                self.recipients.insert(&pending.recipient_hash, &recipient);
+            }
+        }
+    }
+
+    fn finalize_native_payment(&mut self, delivered: bool, failure_reason: &str) -> PaymentResult {
+        let pending = self
+            .pending_native_payment
+            .take()
+            .expect("No native payment is pending");
+        if delivered {
+            let payment_id = self.append_audit(PaymentOutcome::Approved);
+            self.inspect_treasury_threshold();
+            return PaymentResult {
+                approved: true,
+                payment_id,
+                reason: None,
+                settled: true,
+            };
+        }
+
+        self.rollback_pending_native_payment(&pending);
+        let reason = failure_reason.to_string();
+        let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+        Self::rejected_payment(payment_id, reason)
+    }
+
     pub(crate) fn is_off_hours_at(timestamp: u64) -> bool {
         let utc_hour = (timestamp / HOUR_NS) % 24;
         utc_hour < 6
@@ -123,28 +176,34 @@ impl Clavis {
     }
 }
 
-#[near_sdk::near_bindgen]
+#[near_bindgen]
 impl Clavis {
-    /// Authorizes a payment without exposing its amount or recipient in the
-    /// public audit record. Transaction arguments remain public on standard
-    /// NEAR; production confidentiality is supplied by the confidential
-    /// executor adapter documented in `docs/PRIVACY.md`.
+    /// Evaluates policy and, for native NEAR, transfers from the contract
+    /// treasury before recording approval. The minimized audit entry omits the
+    /// amount and recipient, but standard NEAR transaction arguments remain
+    /// public. Cross-chain execution fails closed in this release.
     pub fn request_payment(
         &mut self,
         recipient_hash: String,
         amount: near_sdk::json_types::U128,
         chain: String,
         token: String,
-    ) -> PaymentResult {
+        recipient_account_id: Option<AccountId>,
+    ) -> PromiseOrValue<PaymentResult> {
         // Do not write an audit entry or anomaly state for arbitrary public
         // callers. This prevents a storage-exhaustion attack against the
         // contract account while still returning a deterministic rejection.
         if env::predecessor_account_id() != self.agent {
-            return PaymentResult {
-                approved: false,
-                payment_id: 0,
-                reason: Some("Unauthorized caller".to_string()),
-            };
+            return PromiseOrValue::Value(Self::rejected_payment(
+                0,
+                "Unauthorized caller".to_string(),
+            ));
+        }
+        if self.pending_native_payment.is_some() {
+            return PromiseOrValue::Value(Self::rejected_payment(
+                0,
+                "A native payment transfer is already pending".to_string(),
+            ));
         }
 
         let valid_hash = recipient_hash.len() == 64
@@ -154,11 +213,7 @@ impl Clavis {
         if !valid_hash {
             let reason = "Invalid recipient hash".to_string();
             let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
-            return PaymentResult {
-                approved: false,
-                payment_id,
-                reason: Some(reason),
-            };
+            return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
         }
 
         self.inspect_request_anomalies(&recipient_hash);
@@ -166,29 +221,75 @@ impl Clavis {
         match self.enforce_rules(&recipient_hash, amount.0, &chain, &token) {
             RuleResult::Rejected(reason) => {
                 let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
-                PaymentResult {
-                    approved: false,
-                    payment_id,
-                    reason: Some(reason),
-                }
+                PromiseOrValue::Value(Self::rejected_payment(payment_id, reason))
             }
             RuleResult::Approved(mut recipient) => {
+                if chain != "near" || token != "NEAR" {
+                    let reason =
+                        "Cross-chain settlement is not contract-controlled in this release"
+                            .to_string();
+                    let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                    return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
+                }
+                let Some(recipient_account_id) = recipient_account_id else {
+                    let reason = "Native NEAR recipient account is required".to_string();
+                    let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                    return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
+                };
+                if Self::recipient_account_hash(&recipient_account_id) != recipient_hash {
+                    let reason =
+                        "Native NEAR recipient does not match the approved commitment".to_string();
+                    let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                    return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
+                }
+                // Leave enough balance for the account's existing storage, a
+                // bounded callback write buffer, and an operational reserve.
+                // This keeps a successful transfer from starving the callback
+                // that records approval and clears the pending settlement.
+                let reserve =
+                    Self::operational_reserve(NATIVE_SETTLEMENT_CALLBACK_STORAGE_BUFFER_BYTES);
+                let available = env::account_balance().saturating_sub(reserve);
+                if available.as_yoctonear() < amount.0 {
+                    let reason = "Insufficient contract treasury balance".to_string();
+                    let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                    return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
+                }
+
+                let reserved_at = env::block_timestamp();
+                let previous_last_paid = recipient.last_paid;
                 self.daily_spent = self
                     .daily_spent
                     .checked_add(amount.0)
                     .expect("Daily spend overflow was checked by the rules engine");
-                recipient.last_paid = env::block_timestamp();
+                recipient.last_paid = reserved_at;
                 self.recipients.insert(&recipient_hash, &recipient);
+                self.pending_native_payment = Some(PendingNativePayment {
+                    recipient_hash,
+                    recipient_account_id: recipient_account_id.clone(),
+                    amount: amount.0,
+                    reserved_at,
+                    previous_last_paid,
+                });
 
-                let payment_id = self.append_audit(PaymentOutcome::Approved);
-                self.inspect_treasury_threshold();
-
-                PaymentResult {
-                    approved: true,
-                    payment_id,
-                    reason: None,
-                }
+                PromiseOrValue::Promise(
+                    Promise::new(recipient_account_id)
+                        .transfer(NearToken::from_yoctonear(amount.0))
+                        .then(Promise::new(env::current_account_id()).function_call(
+                            "on_native_payment_settled".to_string(),
+                            b"{}".to_vec(),
+                            NearToken::from_yoctonear(0),
+                            NATIVE_SETTLEMENT_CALLBACK_GAS,
+                        )),
+                )
             }
         }
+    }
+
+    #[private]
+    pub fn on_native_payment_settled(&mut self) -> PaymentResult {
+        self.finalize_native_payment(
+            matches!(env::promise_result(0), PromiseResult::Successful(_)),
+            "Native NEAR transfer failed",
+        )
     }
 }

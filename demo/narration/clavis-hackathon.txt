@@ -1,13 +1,13 @@
-Meet Clavis: private, rule-bound payroll on NEAR.
+Meet Clavis: privacy-minimized, rule-bound payroll on NEAR testnet.
 
-Employers set approved workers, schedules, caps, treasury limits, and delivery routes once.
+Employers set approved workers, schedules, caps, treasury limits, and one executable native NEAR route.
 
-A restricted AI agent runs each cycle. Its Function Call Key can request payment on one contract—and nothing else.
+A restricted agent runs each cycle. Its Function Call key can request payment on one contract—and nothing else.
 
-The contract checks identity, timing, caps, daily spend, and route onchain.
+The contract checks identity, timing, caps, daily spend, route, and the recipient commitment onchain.
 
-Approved requests become cross-chain intents. Any violation fails closed, even if the agent is compromised.
+In source v0.2, approved native payments move directly from the contract and finalize only after transfer success. Unsupported cross-chain requests fail closed.
 
-The public audit proves every decision without exposing salaries, names, wallets, or chains. Workers see only their own schedule and route.
+The public audit proves employer-wide decisions without repeating salaries, recipient identities, or routes. Normal NEAR transaction data remains public.
 
 Clavis gives automation enough authority to work, and none to break the rules.

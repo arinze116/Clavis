@@ -17,7 +17,7 @@ export function PaymentSplit({ splits }: { splits: SplitConfig[] }) {
   return (
     <section className="panel p-6 lg:p-8">
       <p className="eyebrow">Payment split</p>
-      <h2 className="mt-2 font-display text-2xl font-semibold">Cross-chain allocation</h2>
+      <h2 className="mt-2 font-display text-2xl font-semibold">Configured route allocation</h2>
       <div className="mt-7 flex items-center gap-7">
         <div className="relative h-28 w-28 shrink-0 rounded-full" style={{ background: gradient }}><div className="absolute inset-5 rounded-full bg-white" /></div>
         <div className="min-w-0 flex-1 space-y-3">
@@ -27,6 +27,10 @@ export function PaymentSplit({ splits }: { splits: SplitConfig[] }) {
           {normalized.length === 0 && <p className="text-sm text-ink/45">100% to the primary route.</p>}
         </div>
       </div>
+      <p className="mt-5 text-xs leading-5 text-ink/45">
+        Only a 100% native NEAR route can execute in this release. Other saved preferences remain
+        non-executable until contract-controlled cross-chain custody exists.
+      </p>
     </section>
   );
 }
