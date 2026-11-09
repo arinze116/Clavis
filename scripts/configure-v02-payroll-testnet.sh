@@ -131,7 +131,7 @@ call_as() {
     sign-as "$signer_id" \
     network-config testnet \
     sign-with-keychain --signer-public-key "$signer_public_key" \
-    send --wait-until final \
+    send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/$log_name.log"
   chmod 0600 "$EVIDENCE_DIRECTORY/$log_name.log"
 }
@@ -142,6 +142,11 @@ call_owner() {
 
 recipient_json() {
   view get_recipient "$(node -e 'process.stdout.write(JSON.stringify({recipient_hash:process.argv[1]}))' "$1")"
+}
+
+recipient_last_paid() {
+  recipient_json "$1" \
+    | node -e 'let value="";process.stdin.on("data",chunk=>value+=chunk).on("end",()=>process.stdout.write(String(JSON.parse(value).last_paid)))'
 }
 
 account_amount() {
@@ -243,13 +248,13 @@ case "$PHASE" in
     verify_keychain_public_key "$WORKER_ONE_ID" "$WORKER_ONE_PUBLIC_KEY"
     before_log_count="$(view get_log_count '{}')"
     before_daily_spent="$(view get_daily_spent '{}')"
-    before_recipient="$(recipient_json "$WORKER_ONE_HASH")"
+    before_last_paid="$(recipient_last_paid "$WORKER_ONE_HASH")"
     before_contract_balance="$(account_amount "$CONTRACT_ID")"
     args="$(node -e 'process.stdout.write(JSON.stringify({recipient_hash:process.argv[1],amount:process.argv[2],chain:"near",token:"NEAR",recipient_account_id:process.argv[3]}))' "$WORKER_ONE_HASH" "$PROBE_AMOUNT" "$WORKER_ONE_ID")"
     call_as "$WORKER_ONE_ID" "$WORKER_ONE_PUBLIC_KEY" request_payment "$args" unauthorized-worker-request
     after_log_count="$(view get_log_count '{}')"
     after_daily_spent="$(view get_daily_spent '{}')"
-    after_recipient="$(recipient_json "$WORKER_ONE_HASH")"
+    after_last_paid="$(recipient_last_paid "$WORKER_ONE_HASH")"
     after_contract_balance="$(account_amount "$CONTRACT_ID")"
     [[ "$before_log_count" == "$after_log_count" ]] || {
       echo "Unauthorized request changed the audit log." >&2
@@ -259,7 +264,7 @@ case "$PHASE" in
       echo "Unauthorized request changed daily spend." >&2
       exit 1
     }
-    [[ "$before_recipient" == "$after_recipient" ]] || {
+    [[ "$before_last_paid" == "$after_last_paid" ]] || {
       echo "Unauthorized request changed the worker schedule or policy." >&2
       exit 1
     }

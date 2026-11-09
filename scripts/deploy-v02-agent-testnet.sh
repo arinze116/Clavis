@@ -179,7 +179,7 @@ run_once() {
       TELEGRAM_BOT_TOKEN= \
       TELEGRAM_CHAT_ID= \
       node --import tsx agent/src/index.ts
-  ) | tee "$EVIDENCE_DIRECTORY/agent-run-once.log"
+  ) 2>&1 | tee "$EVIDENCE_DIRECTORY/agent-run-once.log"
   chmod 0600 "$EVIDENCE_DIRECTORY/agent-run-once.log"
   rg -q '"event":"payment.approved"|payment.approved' "$EVIDENCE_DIRECTORY/agent-run-once.log" || {
     echo "The one-shot scheduler did not record an approved payment." >&2
