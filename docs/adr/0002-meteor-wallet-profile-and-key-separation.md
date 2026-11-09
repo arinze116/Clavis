@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-09
 
+This ADR records the earlier browser-wallet setup boundary. Current headless signer storage is defined by [ADR 0003](0003-dedicated-near-secret-service-keychain.md), and the root has since been upgraded to v0.2.0. The historical statements below describe the decision context at the time.
+
 ## Context
 
 Clavis uses three fixed NEAR Testnet identities. The owner and worker are interactive wallet identities. The agent is a backend-only signer. Reusing an existing Chromium profile, importing the agent key into a browser, or introducing another signing service would widen the credential boundary.

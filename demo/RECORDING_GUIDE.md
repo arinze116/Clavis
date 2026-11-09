@@ -1,20 +1,20 @@
 # Clavis walkthrough recording guide
 
-This guide records the source walkthrough used by the Remotion demo. Do not record or publish the v0.2 settlement story until every deployment gate in [`DEMO.md`](../DEMO.md) has passed.
+This guide prepares the next live-v0.2 Remotion demo. The currently published video predates deployment and remains historical evidence. Do not publish a replacement until every publication gate in [`DEMO.md`](../DEMO.md) has passed.
 
 ## 1. Verify the release before capture
 
 Record from the deployed release only after you have evidence for all of the following:
 
-- the root and factory report v0.2.0 or newer;
-- the deployed code hashes match the locally verified WASM files;
-- the frontend and agent run the same verified revision;
+- the root reports v0.2.0 and its deployed code hash matches the locally verified payroll WASM;
+- the legacy factory status is shown explicitly and setup remains blocked;
+- the frontend and agent revisions used in the recording are identified;
 - one native payment shows the transfer and successful callback approval event;
 - one failed-transfer test shows policy rollback;
 - exact explorer-link enrichment has been verified on a real emitted `payment_id`;
 - two uninterrupted browser rehearsals pass.
 
-If any item is missing, record a source-and-test walkthrough instead. State that the public contracts are still legacy and do not present v0.2 settlement as live.
+If root settlement evidence is missing, record a source-and-test walkthrough instead. If only the factory upgrade is missing, present root settlement as live but do not claim that new v0.2 child deployment works.
 
 ## 2. Protect credentials and payroll data
 
@@ -43,19 +43,19 @@ npm run demo:typecheck
 npm run demo:render
 ```
 
-The generated source video, timing data, and final MP4 are ignored by Git. `npm run demo:record:obs` remains available for a future owner-signed live-v0.2 walkthrough after every deployment gate passes.
+The generated source video, timing data, and final MP4 are ignored by Git. `npm run demo:record:obs` remains available for the approval-gated live-v0.2 walkthrough.
 
 ## 4. Prepare the browser sequence
 
 Open these pages from the verified deployed origin:
 
 1. Landing page at the public-proof boundary.
-2. Public dashboard showing the live v0.1 authorization-only warning.
-3. Dashboard settlement boundary showing source-v0.2 versus deployed-v0.1 behavior.
-4. Security evidence showing the 31 Rust, 66 agent, 30 API, and 5 browser checks.
+2. Public dashboard showing the live v0.2.0 root and contract-controlled treasury.
+3. Setup showing the separate legacy factory boundary.
+4. Security evidence showing the 34 contract, 7 signer, 66 agent, 44 API, and 5 browser checks.
 5. Public audit showing minimized fields and rejection evidence.
 6. Audit disclosure explaining employer-wide, non-confidential history.
-7. Security evidence and a branded end card that names the signer-gated upgrade.
+7. Security evidence and a branded end card that names the factory-only signer blocker.
 
 Do not manufacture wallet state through `localStorage`. Use the actual public read-only flow and owner-authorized testnet wallet when a signed action is part of the verified rehearsal.
 
@@ -64,12 +64,12 @@ Do not manufacture wallet state through `localStorage`. Use the actual public re
 | Beat | Action | Required statement |
 | --- | --- | --- |
 | Promise | Hold the landing proof boundary. | “The public web app is live, while settlement guarantees remain versioned.” |
-| Deploy truth | Show the dashboard warning. | “The deployed v0.1 root authorizes requests but does not control settlement funds.” |
-| Constrain | Show the settlement boundary. | “Source v0.2 limits the scheduler to `request_payment`; native funds remain in the contract.” |
+| Deploy truth | Show the dashboard and setup boundary. | “The root is live on v0.2.0; the separate legacy factory remains blocked for new children.” |
+| Constrain | Show the settlement boundary. | “The live scheduler is limited to `request_payment`; native funds remain in the contract.” |
 | Enforce | Show Security evidence. | “Callback success commits approval; failure rolls policy and schedule state back.” |
 | Reconcile | Hold the audit/source evidence. | “Signed private-plan changes become active only after final-chain reconciliation.” |
 | Disclose | Show audit privacy and rejection evidence. | “History is employer-wide, minimized rather than confidential, and explorer links never guess.” |
-| Close | Return to Security evidence and the end card. | “132 tests verify source v0.2; segregated root and factory signers still gate deployment.” |
+| Close | Return to Security evidence and the end card. | “156 checks verify this release; root settlement is live, while the exact factory signer still gates new child deployment.” |
 
 ## 6. Validate the finished render
 

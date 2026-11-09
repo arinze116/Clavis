@@ -4,7 +4,7 @@
 
 Clavis is testnet software. During normal contract execution, source contract v0.2 is the final authority for policy and native NEAR settlement. The scheduler decides when to request a payment but has only a contract-scoped Function Call key. The owner wallet controls policy and emergency administration; code deployment requires separate Full Access contract-account authority that sits outside contract enforcement.
 
-The current public root and factory are legacy v0.1 deployments until explicitly upgraded. A deployment receives the v0.2 guarantees only when `contract_version` reports v0.2.0 or newer.
+The current public root reports v0.2.0 and has completed contract-controlled native settlements. The factory remains legacy and setup blocks new child deployment. Any other payroll deployment receives the v0.2 guarantees only when its own `contract_version` reports v0.2.0 or newer.
 
 ## Adversaries
 
@@ -49,17 +49,19 @@ node scripts/security/generate-security-report.mjs \
 
 The generator resolves every mapped test marker, records current source hashes and line numbers, counts the successful Rust and agent suites, and fails if a mapped test disappears. The generated report is the authoritative case count.
 
+Live Testnet acceptance additionally verified two successful 0.01 NEAR settlements, failed-transfer rollback, unauthorized caller, invalid recipient, duplicate-payment, insufficient-treasury, and restricted-agent-key rejection paths. Transaction hashes are recorded in [`SUBMISSION.md`](../SUBMISSION.md) and the full execution report.
+
 ## Known limitations
 
 - No independent third-party audit has been completed.
 - Testnet only; do not custody mainnet funds.
-- The live root and factory are legacy until upgraded.
+- The live root is v0.2.0; the factory remains legacy and cannot create verified v0.2 children until its separate signer is available.
 - Factory-created v0.1 children lack an in-place owner upgrade path and may require replacement.
 - Cross-chain execution is disabled.
 - Standard NEAR transaction inputs and metadata remain public.
 - Unsalted hashes of predictable account IDs are weak anonymity.
 - Agent-host compromise can expose private plans and notification contacts, although the restricted agent credential cannot bypass v0.2 contract-controlled native settlement.
-- A Full Access payroll-account key can bypass contract logic, redeploy code, or transfer account funds. The legacy root deployment key must be isolated from the scheduler; factory-created v0.2 children are created without access keys.
+- A Full Access payroll-account key can bypass contract logic, redeploy code, or transfer account funds. The root deployment key is isolated from the scheduler process in a manually unlocked keychain, but compromise of the VPS remains a custody risk. Factory-created v0.2 children are created without access keys.
 - A stale-callback recovery depends on the owner correctly reading the referenced final receipt. A false failed-delivery attestation can enable a duplicate retry; the delay and public recovery event provide guardrails and accountability, not cryptographic receipt verification.
 - Malicious wallets, RPC providers, indexers, and browser extensions require operational controls beyond repository tests.
 - Audit events omit recipient identity, so worker-specific history cannot be reconstructed from them.

@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-09
 
+Implementation status: the owner and both worker signers are verified in this keychain. The owner signer was later used for the authorized root migration; the distinct factory signer is still unavailable.
+
 ## Context
 
 Clavis needs three existing NEAR Testnet Full Access signers on a headless Ubuntu VPS. The installed NEAR CLI v0.31.1 supports the freedesktop Secret Service keychain and a legacy plaintext JSON credential directory. Plaintext credentials are not acceptable.

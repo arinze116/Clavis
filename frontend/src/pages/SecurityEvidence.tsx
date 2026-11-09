@@ -62,9 +62,9 @@ export default function SecurityEvidence() {
                 Tests first. Claims second.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-white/58">
-                Every case below links a concrete threat to the deterministic Rust or agent
-                test that enforces it. GitHub Actions runs those suites before publishing a
-                commit-specific evidence artifact.
+                Every case below links a concrete threat to the deterministic contract or agent
+                test that enforces it. The release gate also runs signer, API, and browser suites
+                before generating a commit-specific evidence artifact.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
@@ -90,10 +90,12 @@ export default function SecurityEvidence() {
             <div className="grid grid-cols-2 gap-3">
               <EvidenceMetric label="Mapped threats" value={securityEvidence.summary.mapped_threats} />
               <EvidenceMetric label="Categories" value={securityEvidence.summary.categories} />
-              <EvidenceMetric label="Rust tests" value={securityEvidence.summary.repository_tests.rust} />
+              <EvidenceMetric label="Contract tests" value={securityEvidence.summary.repository_tests.rust} />
+              <EvidenceMetric label="Signer tests" value={securityEvidence.summary.repository_tests.signer} />
               <EvidenceMetric label="Agent tests" value={securityEvidence.summary.repository_tests.agent} />
               <EvidenceMetric label="API tests" value={securityEvidence.summary.repository_tests.api} />
               <EvidenceMetric label="Browser paths" value={securityEvidence.summary.repository_tests.browser} />
+              <EvidenceMetric label="Total checks" value={securityEvidence.summary.repository_tests.total} />
             </div>
           </div>
         </section>

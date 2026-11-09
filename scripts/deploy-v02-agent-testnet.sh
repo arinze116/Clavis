@@ -193,7 +193,7 @@ run_once() {
 
 start_agent() {
   verify_root_version
-  pm2 restart clavis-agent --update-env
+  pm2 startOrRestart "$DEPLOY_DIR/ecosystem.config.cjs" --only clavis-agent --update-env
   pm2 save >/dev/null
   for _ in $(seq 1 15); do
     if [[ "$(pm2 pid clavis-agent | tr -d '[:space:]')" != "0" ]] \

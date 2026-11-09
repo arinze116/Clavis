@@ -515,7 +515,7 @@ export const developerGuide: RoleGuide = {
           <BulletList>
             <li>Clone the repository and install workspace dependencies.</li>
             <li>Run the typechecks, deterministic tests, contract builds, and production build before relying on a local change.</li>
-            <li>The frontend can inspect the current legacy public contracts, but it labels them authorization-only.</li>
+            <li>The frontend reads the live v0.2 root and the legacy factory independently, showing contract-controlled settlement only where the deployed version supports it.</li>
             <li>Start the scheduler only after targeting a deployed v0.2 payroll contract, creating a <code className="font-mono text-xs">request_payment</code>-only key, and preparing permission-restricted credential and payroll files.</li>
           </BulletList>
           <CodeBlock>{`git clone https://github.com/arinze116/Clavis.git
@@ -532,18 +532,20 @@ npm run dev:frontend`}</CodeBlock>
           <Note>
             Never commit private keys, AI credentials, payroll plans, notification secrets, or
             generated agent state. The browser should call AI services through the serverless proxy.
-            The current public root is v0.1.0 and is rejected by the v0.2 scheduler. Contract
-            deployment and migration sign testnet transactions; review the account IDs and obtain
-            explicit owner approval before running deployment scripts.
+            The current public root is v0.2.0 and the production scheduler uses a
+            <code className="font-mono text-xs">request_payment</code>-only key. The factory remains
+            legacy and setup stays blocked. Contract deployment and migration sign testnet
+            transactions; review account IDs and obtain explicit owner approval before running them.
           </Note>
         </div>
       ),
       visual: {
         label: "Local stack",
         title: "Source checks before runtime",
-        caption: "The frontend can read legacy testnet state; the scheduler admits only v0.2.0-or-newer payroll contracts.",
+        caption: "The live root is v0.2.0; the scheduler rejects legacy payroll contracts and setup rejects the legacy factory.",
         rows: [
-          { label: "Public root", value: "Legacy v0.1.0", state: "warning" },
+          { label: "Public root", value: "Live v0.2.0", state: "active" },
+          { label: "Factory", value: "Legacy · setup blocked", state: "warning" },
           { label: "Agent target", value: "v0.2.0+ required" },
           { label: "Frontend", value: "Vite · localhost:5173" },
           { label: "Verification", value: "Tests + both WASM builds", state: "active" },

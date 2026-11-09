@@ -25,7 +25,7 @@ Cross-chain execution is disabled in this release. There is no confidential-exec
 
 ## Deployment caveat
 
-The current public root and factory are legacy v0.1 deployments. Do not present v0.2 as live until both are upgraded and verified.
+The public root is live on v0.2.0 and the backend agent has settled both designated workers on Testnet. The factory remains legacy because its distinct Full Access signer is unavailable, so do not claim that new v0.2 child deployment is live. Cross-chain execution also remains disabled.
 
 ## Builder
 

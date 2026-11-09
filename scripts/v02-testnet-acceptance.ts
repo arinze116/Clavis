@@ -290,7 +290,7 @@ switch (phase) {
       chain: "near",
       token: "NEAR",
     });
-    assertRejected(result, "Payment not due yet");
+    assertRejected(result, "Payment is not due");
     const after = await waitForFinalState({
       describe: "Duplicate-payment rejection state",
       load: () => scenarioState(workerOneHash, workerOneId),

@@ -26,11 +26,11 @@ Recipient management wrote public contract state and private plan state in diffe
 ## Consequences
 
 - A compromised agent host can request only payments allowed by contract policy and cannot redirect native funds without breaking the recipient commitment check.
-- A contract-account Full Access deployment key remains outside this enforcement boundary. The legacy root key must be segregated from the agent; factory-created v0.2 children from this source have no access keys.
+- A contract-account Full Access deployment key remains outside this enforcement boundary. The upgraded root key is isolated from the agent runtime in a manually unlocked Secret Service keychain; factory-created v0.2 children from this source have no access keys.
 - Approval cannot be stranded between contract authorization and agent persistence.
 - Native throughput is serialized to one in-flight transfer per payroll contract.
 - Callback uncertainty fails closed during the finality window. Recovery restores availability but depends on correct owner verification of the referenced receipt; a false failure attestation can enable a duplicate retry.
 - Cross-chain routes are unavailable in this release.
-- The root v0.1 contract requires an explicitly approved deployment-key upgrade plus stored-owner-checked migration; the factory must be upgraded before creating v0.2 children.
+- The root v0.1 contract required, and has now completed, an explicitly approved deployment-key upgrade plus stored-owner-checked migration; the factory must still be upgraded before creating v0.2 children.
 - Factory-created v0.1 children have no deployment key or legacy self-upgrade entry point, so their policy owner cannot migrate them in place through this repository and may need to replace them.
 - Private-plan changes may remain visibly pending while RPC or service reconciliation is unavailable, but the previous active plan stays consistent.

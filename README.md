@@ -1,6 +1,6 @@
 # Clavis — Contract-Controlled Payroll on NEAR
 
-> Source release v0.2 moves normal native NEAR settlement into the payroll contract; a restricted scheduler can only request it.
+> The live Testnet root runs v0.2.0: native NEAR settlement stays in the payroll contract, while a restricted scheduler can only request it.
 
 Clavis is a testnet payroll control plane for remote teams. Owners define recipients, caps, schedules, routes, pause state, and treasury limits. A TypeScript scheduler may call only `request_payment`; it cannot change policy or transfer funds independently.
 
@@ -8,8 +8,8 @@ Public release links:
 
 - Web app: <https://clavisapp.vercel.app>
 - Repository: <https://github.com/arinze116/Clavis>
-- Source-and-test demo: <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4>
-- Release evidence: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
+- Historical pre-deployment source demo: <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4>
+- Historical source-release evidence: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
 
 ## Deployment status
 
@@ -17,11 +17,12 @@ Source behavior and deployed behavior are deliberately separated.
 
 | Target | Verified status on 2026-11-09 |
 | --- | --- |
-| Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. PR [#13](https://github.com/arinze116/Clavis/pull/13) is merged. |
-| Public web app | Deployed at <https://clavisapp.vercel.app> from the merged source release. It reads live final-block state and labels legacy contracts rather than claiming v0.2 is live. |
-| `clavis.testnet` | Reports `contract_version = 0.1.0`; code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`. This live deployment authorizes requests but does not provide the v0.2 settlement guarantee. |
+| Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. The current branch also adds archival transaction lookup and preserves delayed explorer-link enrichment across dashboard polling. |
+| Public web app | Deployed at <https://clavisapp.vercel.app>. Its dashboard reads final Testnet state and correctly reports contract-controlled native settlement on the upgraded root. The static guide and explorer-reliability fixes on this branch still require a separately approved publication. |
+| `clavis.testnet` | Reports `contract_version = 0.2.0`; code hash `QzVUeXbKBPLMM14dDoLWCY8AKdSqJqeGxhGL3raM6bk`. Upgrade and stored-owner-checked migration succeeded in transaction [`7DAC…KqWA`](https://testnet.nearblocks.io/txns/7DACvFhKgtGrrGENKAoZk23uHjMmRtP6wXotRFHTKqWA). |
 | `factory.clavis.testnet` | `contract_version` returns `MethodNotFound`; code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW`. The web setup treats it as legacy and blocks new deployments at the signed deployment step. |
-| v0.2 contract and agent deployment | Not performed. The required root and factory Full Access signers are not available on this host or in GitHub Actions; the restricted agent key cannot deploy code. Starting the v0.2 agent against the legacy root would fail closed. |
+| `clavis-agent` | PM2 reports v0.2.0 online and `/health` returns `{"ok":true}`. Its only access key is restricted to `request_payment` on `clavis.testnet`; it cannot mutate policy or deploy code. |
+| Remaining deployment gap | The factory's sole Full Access key is not one of the three securely imported owner/worker signers. The factory therefore remains legacy and no factory upgrade was attempted with a guessed identity. |
 
 The dashboard reads `contract_version` and labels each contract honestly:
 
@@ -44,7 +45,7 @@ For a native NEAR payment:
 
 There is no agent-held Full Access settlement wallet. The restricted agent key can only ask its assigned contract to execute `request_payment`, and the runtime rejects the removed `SETTLEMENT_ACCOUNT_ID` and `SETTLEMENT_PRIVATE_KEY` configuration.
 
-Contract-account deployment authority remains a separate privileged trust boundary. Factory-created v0.2 child accounts are created without access keys, but the legacy root account requires a Full Access deployment key for upgrades. Compromise of that root key could redeploy code or move root-account funds outside contract policy, so it must never be stored on the agent host.
+Contract-account deployment authority remains a separate privileged trust boundary. Factory-created v0.2 child accounts are created without access keys, but the root account retains a Full Access deployment key. Compromise of that key could redeploy code or move root-account funds outside contract policy. On this VPS it is isolated in a manually unlocked Secret Service keychain that the backend process cannot access; host compromise remains a custody risk.
 
 Cross-chain execution is disabled in this release. Ethereum, BNB Chain, split, and external-relay submissions fail closed because custody is not yet contract-controlled end to end. They do not advance the schedule or consume daily policy capacity.
 
@@ -106,7 +107,7 @@ flowchart LR
 Authorities are separate:
 
 - **Owner wallet:** changes policy, requests factory deployment, and authorizes private-plan staging.
-- **Contract-account deployment key:** performs an explicitly approved root code upgrade; `migrate` then verifies the stored owner before converting v0.1 state. This Full Access key is outside contract enforcement and must be segregated from the agent.
+- **Contract-account deployment key:** performed the root code upgrade; `migrate` verified the stored owner before converting v0.1 state. This Full Access key remains outside contract enforcement and is segregated from the agent runtime.
 - **Payroll contract:** controls native funds, makes the final policy decision, transfers NEAR, and records audit evidence.
 - **Agent:** schedules due work, stores private amounts, submits restricted requests, and sends notifications.
 - **AI service:** drafts or explains bounded choices; it has no key and cannot create operational evidence.
@@ -146,7 +147,7 @@ Requirements:
 - Node.js 20+
 - Rust stable
 - `wasm32-unknown-unknown` target
-- NEAR CLI RS v0.31.1 or newer for deployment work (not installed on this verification host)
+- NEAR CLI RS v0.31.1 or newer for deployment work; this VPS uses the checksum-pinned v0.31.1 aarch64 binary
 - testnet-only accounts and credentials
 
 ```bash
@@ -159,7 +160,7 @@ cargo test --manifest-path contract/Cargo.toml
 npm run build
 ```
 
-Running the scheduler additionally requires a deployed v0.2 payroll contract, one `request_payment`-only Function Call key for that contract, and a matching private payroll plan. The current public `clavis.testnet` contract is v0.1.0, so the v0.2 agent deliberately refuses it.
+Running the scheduler additionally requires a deployed v0.2 payroll contract, one `request_payment`-only Function Call key for that contract, and a matching private payroll plan. The production agent satisfies those conditions for `clavis.testnet`; other discovered contracts still fail closed unless they independently satisfy them.
 
 Prepare local agent files only for a verified v0.2 target:
 
@@ -197,29 +198,21 @@ Verified locally on the current working tree:
 | --- | --- |
 | Payroll contract | 31 passed |
 | Factory contract | 3 passed |
+| Secure signer importer | 7 passed |
 | Agent Vitest | 66 passed |
-| API/utility Node tests | 30 passed |
+| API/utility Node tests | 44 passed |
 | Playwright browser paths | 5 passed |
-| Repository total | 135 passed |
+| Complete repository gate | 156 passed |
 
 The complete release gate is:
 
 ```bash
-cargo fmt --check --manifest-path contract/Cargo.toml
-cargo test --manifest-path contract/Cargo.toml
-bash scripts/build-contracts.sh
-cargo test --manifest-path contract/Cargo.toml --package clavis-factory
-npm run typecheck
-npm run test:api
-npm run test:agent
-npm run build
-npm run demo:typecheck
-npm run test:e2e:built
-npm audit --omit=dev --audit-level=moderate
-git diff --check
+bash scripts/verify.sh
 ```
 
-The merged source release passed [CI](https://github.com/arinze116/Clavis/actions/runs/42602465954) and [security-evidence verification](https://github.com/arinze116/Clavis/actions/runs/42602465956). The public origin then passed two uninterrupted six-route rehearsals and deployed visual checks at 390, 768, and 1440 pixels with one `main`, one `h1`, no horizontal overflow, and no application errors. Screenshots are attached to the source-verified release.
+The script runs contract and factory formatting/tests/builds, the seven-test signer-importer suite and release build, all TypeScript checks, 66 agent tests, 44 API/utility tests, the production build and demo typecheck, five Playwright paths, generated-evidence freshness, the production dependency audit, deployment-script syntax checks, and `git diff --check`.
+
+The merged source release passed [CI](https://github.com/arinze116/Clavis/actions/runs/42602465954) and [security-evidence verification](https://github.com/arinze116/Clavis/actions/runs/42602465956). After the live root upgrade, the production dashboard passed responsive checks at 320, 375, 768, 1024, and 1440 pixels with one `main`, one `h1`, no horizontal overflow, a stable mobile menu, and no page or console errors. The local verification gate covers the later Testnet-resume and explorer-reliability fixes.
 
 Generated security evidence is refreshed with:
 
@@ -238,17 +231,17 @@ node scripts/security/generate-security-report.mjs \
 
 ## Upgrade notes
 
-The root v0.1 payroll contract must be upgraded with the v0.2 WASM by its contract-account deployment key and call `migrate` in the approved deployment operation. `migrate` verifies that the call predecessor matches the owner stored in v0.1 state. The deployment command shape in `scripts/deploy-factory.sh` was checked against the official NEAR CLI RS v0.31.1 source. It was not executed here because this host has no `near` binary and deployment requires explicit owner approval.
+The root v0.1 payroll contract was upgraded with the verified v0.2 WASM and migrated in one transaction. `migrate` verified that the call predecessor matched the owner stored in v0.1 state. Owner, agent, limits, existing recipients, audit entries, and anomalies were preserved; subsequent acceptance transactions added the two designated workers and exercised success and failure paths.
 
-The factory must then be upgraded so newly created child contracts embed v0.2. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement. Do not imply otherwise in the UI or submission.
+The factory must still be upgraded so newly created child contracts embed v0.2. Its sole Full Access signer is a separate identity that is unavailable in the secure keychain, so the upgrade is blocked without guessing or replacing credentials. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement.
 
-The production frontend is published, but no contract upgrade or agent restart is performed automatically. Contract deployment still requires the segregated root and factory signers plus an owner-reviewed transaction preview.
+Contract and frontend deployment are never automatic. Future root or factory changes still require the correct segregated signer, an owner-reviewed transaction preview, and explicit publication authority.
 
 ## Known limitations
 
 - Testnet only; do not use mainnet funds.
-- The live root and factory remain legacy until explicitly upgraded.
-- The root contract's Full Access deployment key is outside contract enforcement; compromise can redeploy code or move root-account funds. It must be segregated from the scheduler host. Factory-created v0.2 children from this source are created without access keys.
+- The live root is v0.2.0; the factory remains legacy and blocks new child deployment.
+- The root contract's Full Access deployment key is outside contract enforcement; compromise can redeploy code or move root-account funds. It is isolated from the scheduler process in a manually unlocked keychain, but VPS compromise remains a custody risk. Factory-created v0.2 children from this source are created without access keys.
 - Factory-created legacy child contracts may require replacement because v0.1 has no in-place owner upgrade path.
 - Cross-chain and split execution are disabled.
 - Only one native settlement may be pending per contract at a time.

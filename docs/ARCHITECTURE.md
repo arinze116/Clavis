@@ -2,14 +2,14 @@
 
 ## Release boundary
 
-Repository contract v0.2.0 controls native NEAR settlement. The current `clavis.testnet` deployment reports v0.1.0 and the current factory has no `contract_version` method, so both are treated as legacy until explicitly upgraded.
+Repository contract v0.2.0 controls native NEAR settlement. The current `clavis.testnet` deployment reports v0.2.0 and has settled native NEAR on Testnet. The current factory has no `contract_version` method and remains legacy, so setup blocks new child deployments.
 
-The frontend reads this distinction and never applies the v0.2 settlement claim to a legacy contract.
+The frontend reads this distinction independently for each contract: it applies the v0.2 settlement claim to the upgraded root and never applies it to the legacy factory or legacy child contracts.
 
 ## Components
 
 - **Owner wallet:** signs policy changes, factory deployment requests, emergency administration, and private-plan staging.
-- **Contract-account deployment key:** performs an explicitly approved root code deployment before the stored-owner-checked migration runs. It is a Full Access authority outside contract enforcement and must not be colocated with the scheduler.
+- **Contract-account deployment key:** performed the explicitly approved root code deployment before the stored-owner-checked migration ran. It is a Full Access authority outside contract enforcement and is isolated from the scheduler process in a manually unlocked Secret Service keychain.
 - **Payroll contract:** enforces policy, holds native payout funds, transfers NEAR, commits or rolls back policy state, and emits minimized audit events.
 - **Restricted agent:** admits only contracts reporting v0.2.0 or newer, discovers due work, reads the private plan, performs native-route preflight, and calls only `request_payment`.
 - **Private-plan service:** stores owner-authorized sensitive fields and reconciles staged operations against final on-chain recipient policy.
@@ -17,7 +17,7 @@ The frontend reads this distinction and never applies the v0.2 settlement claim 
 - **RPC proxy:** accepts only bounded read/status methods, limits request and response sizes, and fails over across configured HTTPS testnet providers so browser CORS behavior cannot break contract reads.
 - **AI proxy:** extracts or explains bounded choices; it has no signing authority and does not create factual evidence.
 
-Factory-created payroll children are created without access keys. The legacy root account is different: its deployment key can redeploy code or transfer account funds regardless of contract policy, so v0.2 removes the agent settlement-key risk but does not eliminate deployment-key custody risk.
+Factory-created payroll children are created without access keys. The root account is different: its deployment key can redeploy code or transfer account funds regardless of contract policy, so v0.2 removes the agent settlement-key risk but does not eliminate deployment-key custody or host-compromise risk.
 
 ## Native payment sequence
 
@@ -76,6 +76,6 @@ See [PRIVACY.md](PRIVACY.md), [THREAT-MODEL.md](THREAT-MODEL.md), and [ADR 0001]
 
 ## Upgrade boundary
 
-The root v0.1 account can be upgraded only by an account key authorized to deploy code to that account; the migration function also requires the predecessor to equal the owner stored in legacy state. The factory can be upgraded through its own deployment authority because its v0.2 change is state-compatible.
+The root v0.1 account was upgraded by its authorized Full Access key. The migration function also required the predecessor to equal the owner stored in legacy state, and the resulting deployment reports v0.2.0. The factory can be upgraded through its own deployment authority because its v0.2 change is state-compatible, but that distinct signer is currently unavailable.
 
 Factory-created v0.1 payroll children were created without an access key and the legacy code has no self-upgrade method. Their policy owner therefore cannot migrate them in place through the current repository. Such a child needs an account-specific upgrade mechanism or replacement. New factory deployments must remain blocked until the factory itself reports v0.2.0 or newer.

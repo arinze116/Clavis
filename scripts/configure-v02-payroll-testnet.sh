@@ -7,6 +7,7 @@ umask 077
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
+readonly NEAR_CONNECTION="${CLAVIS_NEAR_NETWORK_CONNECTION:-testnet}"
 readonly CONTRACT_ID="clavis.testnet"
 readonly OWNER_ID="clavis.testnet"
 readonly OWNER_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
@@ -39,6 +40,10 @@ done
 case "${RPC_URL%/}" in
   https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
+esac
+case "$NEAR_CONNECTION" in
+  testnet | testnet-drpc) ;;
+  *) echo "Refusing unrecognised NEAR Testnet connection: $NEAR_CONNECTION" >&2; exit 2 ;;
 esac
 mkdir -p "$EVIDENCE_DIRECTORY"
 chmod 0700 "$EVIDENCE_DIRECTORY"
@@ -110,7 +115,7 @@ verify_keychain_public_key() {
   local output
   output="$(
     "$NEAR_BINARY" account get-public-key from-keychain "$account_id" \
-      network-config testnet 2>&1
+      network-config "$NEAR_CONNECTION" 2>&1
   )" || { echo "Secure-keychain signer unavailable for $account_id" >&2; exit 1; }
   [[ "$output" == *"$expected_public_key"* ]] || {
     echo "Unexpected secure-keychain identity for $account_id" >&2
@@ -130,7 +135,7 @@ call_as() {
     prepaid-gas "100 TeraGas" \
     attached-deposit "0 NEAR" \
     sign-as "$signer_id" \
-    network-config testnet \
+    network-config "$NEAR_CONNECTION" \
     sign-with-keychain --signer-public-key "$signer_public_key" \
     send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/$log_name.log"

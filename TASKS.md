@@ -20,35 +20,25 @@ This file tracks the current release truth. Historical v0.1 test counts and impl
 The authoritative commands and latest recorded counts are maintained in [`README.md`](README.md) and [`SUBMISSION.md`](SUBMISSION.md). Before any commit or deployment, all of these must pass on the final working tree:
 
 ```bash
-cargo fmt --check --manifest-path contract/Cargo.toml
-cargo test --manifest-path contract/Cargo.toml
-bash scripts/build-contracts.sh
-cargo test --manifest-path contract/Cargo.toml --package clavis-factory
-npm run typecheck
-npm run test:api
-npm run test:agent
-npm run build
-npm run demo:typecheck
-npm run test:e2e:built
-npm audit --omit=dev --audit-level=moderate
-git diff --check
+bash scripts/verify.sh
 ```
 
 Regenerate the source-linked security report after the final test run and verify that its source hashes, line numbers, threat mappings, and total test count match the same working tree.
 
 ## Approval-gated release work
 
-- [ ] Upgrade `clavis.testnet` and call owner-authorized `migrate`.
+- [x] Upgrade `clavis.testnet` and call owner-authorized `migrate`.
 - [ ] Upgrade `factory.clavis.testnet`.
 - [x] Deploy and verify the production frontend at <https://clavisapp.vercel.app>.
-- [ ] Deploy the verified agent revision after the contracts report v0.2.0 or newer.
-- [x] Verify the current legacy code hashes and contract-version boundary.
-- [ ] Verify upgraded v0.2 code hashes and contract versions.
-- [ ] Execute and verify native settlement and rollback evidence on testnet.
+- [x] Deploy the verified v0.2 agent revision against the upgraded root.
+- [x] Verify the v0.2 root and legacy factory code hashes and contract-version boundary.
+- [x] Verify the upgraded root v0.2 code hash and contract version.
+- [x] Execute and verify two native settlements plus rollback and rejection evidence on testnet.
 - [x] Run two uninterrupted deployed browser rehearsals.
 - [x] Capture and inspect deployed desktop, tablet, and mobile screenshots.
-- [x] Record, render, inspect, and publish a truthful source-and-test demo.
+- [x] Record, render, inspect, and publish the historical pre-deployment source-and-test demo.
+- [ ] Publish a new live-v0.2 demo and the final guide/explorer fixes after explicit owner approval.
 - [x] Add final public app, repository, CI, contract, release, and demo URLs to the submission documents.
 - [x] Push and publish only after explicit owner approval.
 
-The remaining unchecked items require root and factory Full Access signers that are not present on this host or in GitHub Actions. The available agent key is restricted to `request_payment` and cannot deploy code. Until signer-connected upgrades and transactions are evidenced, the public root and factory remain legacy and v0.2 must be described as verified source behavior, not deployed behavior.
+The factory upgrade requires its distinct Full Access signer, which is not present in the secure Clavis keychain and does not match the imported owner or worker identities. Publication of the remaining frontend/demo changes is separately approval-gated. The available agent key remains restricted to `request_payment` and cannot deploy code.
