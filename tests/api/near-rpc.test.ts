@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
-import nearRpcHandler from "../../frontend/api/near-rpc.js";
+import nearRpcHandler from "../../api/near-rpc.js";
 
 const originalFetch = globalThis.fetch;
 const originalEnvironment = {
