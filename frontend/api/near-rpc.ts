@@ -23,6 +23,7 @@ const MAX_REQUEST_BYTES = 32 * 1_024;
 const MAX_RESPONSE_BYTES = 2 * 1_024 * 1_024;
 const UPSTREAM_TIMEOUT_MS = 5_500;
 const ALLOWED_METHODS = new Set(["block", "query", "tx"]);
+const DEPRECATED_TESTNET_RPC_HOSTS = new Set(["rpc.testnet.near.org"]);
 
 export default async function handler(
   request: ApiRequest,
@@ -61,6 +62,10 @@ export default async function handler(
       }
 
       const encodedResponse = await boundedResponseBody(upstream);
+      if (isDeprecatedRpcResponse(encodedResponse)) {
+        lastError = new Error("NEAR RPC endpoint is deprecated");
+        continue;
+      }
       response.status(upstream.status);
       response.setHeader(
         "content-type",
@@ -140,8 +145,8 @@ function upstreamEndpoints(): URL[] {
   const configured = [
     process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
     process.env.NEAR_RPC_URL?.trim(),
-    "https://rpc.testnet.near.org",
-    "https://rpc.testnet.fastnear.com",
+    "https://test.rpc.fastnear.com",
+    "https://near-testnet.drpc.org",
   ];
   const endpoints: URL[] = [];
   const seen = new Set<string>();
@@ -149,7 +154,13 @@ function upstreamEndpoints(): URL[] {
     if (!value) continue;
     try {
       const endpoint = new URL(value);
-      if (endpoint.protocol !== "https:" || seen.has(endpoint.href)) continue;
+      if (
+        endpoint.protocol !== "https:" ||
+        DEPRECATED_TESTNET_RPC_HOSTS.has(endpoint.hostname) ||
+        seen.has(endpoint.href)
+      ) {
+        continue;
+      }
       seen.add(endpoint.href);
       endpoints.push(endpoint);
       if (endpoints.length === 3) break;
@@ -158,6 +169,18 @@ function upstreamEndpoints(): URL[] {
     }
   }
   return endpoints;
+}
+
+function isDeprecatedRpcResponse(encodedResponse: string): boolean {
+  try {
+    const value = JSON.parse(encodedResponse) as {
+      error?: { code?: unknown; message?: unknown };
+    };
+    const message = typeof value.error?.message === "string" ? value.error.message : "";
+    return value.error?.code === -429 || message.toLowerCase().includes("endpoint is deprecated");
+  } catch {
+    return false;
+  }
 }
 
 function isRetryableStatus(status: number): boolean {

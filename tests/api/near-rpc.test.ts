@@ -40,7 +40,7 @@ test("forwards an allowed read through the same-origin RPC boundary", async () =
   const response = await invoke(viewRequest());
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(requestedUrls, ["https://rpc.testnet.near.org/"]);
+  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
   assert.equal(
     (JSON.parse(String(response.body)) as { result: { block_height: number } }).result.block_height,
     42,
@@ -61,8 +61,50 @@ test("fails over when the configured RPC is rate limited", async () => {
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
     "https://primary-rpc.example/",
-    "https://rpc.testnet.near.org/",
+    "https://test.rpc.fastnear.com/",
   ]);
+});
+
+test("fails over when an RPC returns the endpoint-deprecated JSON error", async () => {
+  process.env.NEAR_RPC_URL = "https://configured-rpc.example";
+  const requestedUrls: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    if (requestedUrls.length === 1) {
+      return jsonResponse({
+        jsonrpc: "2.0",
+        id: "view",
+        error: { code: -429, message: "WARNING! THIS ENDPOINT IS DEPRECATED!" },
+      });
+    }
+    return jsonResponse({ jsonrpc: "2.0", id: "view", result: { block_height: 44 } });
+  };
+
+  const response = await invoke(viewRequest());
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(requestedUrls, [
+    "https://configured-rpc.example/",
+    "https://test.rpc.fastnear.com/",
+  ]);
+  assert.equal(
+    (JSON.parse(String(response.body)) as { result: { block_height: number } }).result.block_height,
+    44,
+  );
+});
+
+test("ignores the retired official Testnet RPC when configured", async () => {
+  process.env.NEAR_RPC_URL = "https://rpc.testnet.near.org";
+  const requestedUrls: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    return jsonResponse({ jsonrpc: "2.0", id: "view", result: { block_height: 45 } });
+  };
+
+  const response = await invoke(viewRequest());
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
 });
 
 function viewRequest() {

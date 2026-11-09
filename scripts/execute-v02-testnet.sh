@@ -8,7 +8,7 @@ readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly SIGNER_BINARY="/home/ubuntu/.local/lib/clavis-near/clavis-near-signer"
 readonly OWNER_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
 readonly EVIDENCE_DIRECTORY="${CLAVIS_BASELINE_DIRECTORY:-/home/ubuntu/.local/state/clavis-v02-20261109}/execution"
 readonly SIGNER_REPORT="$ROOT_DIR/docs/reports/clavis-near-signer-connection-20261109.md"
 
@@ -17,7 +17,7 @@ readonly SIGNER_REPORT="$ROOT_DIR/docs/reports/clavis-near-signer-connection-202
   exit 2
 }
 case "${RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
 esac
 mkdir -p "$EVIDENCE_DIRECTORY"

@@ -31,7 +31,7 @@ const schema = z.object({
   LEGACY_AGENT_CONTRACT_ID: z.string().min(2).optional(),
   AGENT_CREDENTIALS_PATH: z.string().trim().min(1).optional(),
   NEAR_NETWORK: z.string().default("testnet"),
-  NEAR_RPC_URL: z.string().url().default("https://rpc.testnet.near.org"),
+  NEAR_RPC_URL: z.string().url().default("https://test.rpc.fastnear.com"),
   FACTORY_CONTRACT_ID: z.string().default("factory.clavis.testnet"),
   SOLVER_RELAY_URL: z.string().url().default("https://solver-relay-v2.chaindefuser.com/rpc"),
   INTENTS_API_KEY: optionalSecret,

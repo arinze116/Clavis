@@ -8,7 +8,7 @@ ulimit -c 0
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly NEAR_BINARY_SHA256="3611418e3d062779f68308f6a0f2067c130af9b6bbc171cc1cdbbee28703a31a"
 readonly SIGNER_BINARY="/home/ubuntu/.local/lib/clavis-near/clavis-near-signer"
-readonly SIGNER_BINARY_SHA256="f10e0413e00e164a5238c909e721036ef91b4b5ef4bee4f7c52ca33a4f551a59"
+readonly SIGNER_BINARY_SHA256="c68ee164c0dfdff5f1d432574d871fcc7dd6c5b182a454cd4c3500871dae41bb"
 readonly KEYRING_DATA_HOME="/home/ubuntu/.local/share/clavis-near-keyring"
 readonly RUNTIME_PARENT="/run/user/$(id -u)"
 readonly AGENT_CREDENTIALS="/opt/clavis/agent/config/agent-credentials.local.json"

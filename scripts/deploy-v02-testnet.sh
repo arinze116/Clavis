@@ -10,7 +10,7 @@ readonly ROOT_ACCOUNT="clavis.testnet"
 readonly FACTORY_ACCOUNT="factory.clavis.testnet"
 readonly ROOT_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
 readonly FACTORY_PUBLIC_KEY="ed25519:6BhFt1XJrfAdFanjdxQvAbyPu8zVZjvRvZw6S85mQ9pD"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
 readonly BASELINE_DIRECTORY="${CLAVIS_BASELINE_DIRECTORY:-/home/ubuntu/.local/state/clavis-v02-20261109}"
 readonly BASELINE_PATH="$BASELINE_DIRECTORY/baseline.json"
 readonly EVIDENCE_DIRECTORY="$BASELINE_DIRECTORY/execution"
@@ -36,7 +36,7 @@ esac
 }
 
 case "${RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *)
     echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2
     exit 2
@@ -51,7 +51,7 @@ readonly CLI_RPC_URL="$(
   ' /home/ubuntu/.config/near-cli/config.toml
 )"
 case "${CLI_RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *)
     echo "Refusing unrecognised NEAR CLI Testnet RPC endpoint: $CLI_RPC_URL" >&2
     exit 2

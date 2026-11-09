@@ -6,7 +6,7 @@ umask 077
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly DEPLOY_DIR="/opt/clavis"
-readonly RPC_URL="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
 readonly CONTRACT_ID="clavis.testnet"
 readonly FACTORY_ID="factory.clavis.testnet"
 readonly CREDENTIAL_PATH="$DEPLOY_DIR/agent/config/agent-credentials.local.json"
@@ -25,7 +25,7 @@ for account_id in "$CONTRACT_ID" "$FACTORY_ID"; do
   [[ "$account_id" == *.testnet ]] || { echo "Refusing non-Testnet account: $account_id" >&2; exit 2; }
 done
 case "${RPC_URL%/}" in
-  https://rpc.testnet.near.org | https://rpc.testnet.fastnear.com | https://archival-rpc.testnet.fastnear.com) ;;
+  https://test.rpc.fastnear.com | https://near-testnet.drpc.org | https://testnet-rpc.intea.rs | https://archival-rpc.testnet.near.org) ;;
   *) echo "Refusing unrecognised Testnet RPC endpoint: $RPC_URL" >&2; exit 2 ;;
 esac
 [[ -d "$DEPLOY_DIR/.git" ]] || { echo "Clavis deployment checkout is missing." >&2; exit 2; }

@@ -6,7 +6,7 @@ const rpcProxyPath = "/api/near-rpc";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://rpc.testnet.near.org";
+  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://test.rpc.fastnear.com";
   const proxy = {
     [rpcProxyPath]: {
       target: rpcTarget,
