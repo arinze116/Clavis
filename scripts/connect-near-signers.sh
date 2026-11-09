@@ -9,6 +9,7 @@ readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly NEAR_BINARY_SHA256="3611418e3d062779f68308f6a0f2067c130af9b6bbc171cc1cdbbee28703a31a"
 readonly SIGNER_BINARY="/home/ubuntu/.local/lib/clavis-near/clavis-near-signer"
+readonly SIGNER_BINARY_SHA256="f10e0413e00e164a5238c909e721036ef91b4b5ef4bee4f7c52ca33a4f551a59"
 readonly KEYRING_DATA_HOME="/home/ubuntu/.local/share/clavis-near-keyring"
 readonly RUNTIME_PARENT="/run/user/$(id -u)"
 
@@ -45,6 +46,10 @@ if [[ ! -x "$NEAR_BINARY" || ! -x "$SIGNER_BINARY" ]]; then
 fi
 if [[ "$(sha256sum "$NEAR_BINARY" | awk '{print $1}')" != "$NEAR_BINARY_SHA256" ]]; then
   echo "The pinned NEAR CLI binary failed its checksum verification." >&2
+  exit 2
+fi
+if [[ "$(sha256sum "$SIGNER_BINARY" | awk '{print $1}')" != "$SIGNER_BINARY_SHA256" ]]; then
+  echo "The reviewed Clavis signer binary failed its checksum verification." >&2
   exit 2
 fi
 if [[ "$($NEAR_BINARY --version)" != "near-cli-rs 0.31.1" ]]; then
