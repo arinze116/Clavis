@@ -2,9 +2,9 @@
 
 ## Release boundary
 
-Repository contract v0.2.0 controls native NEAR settlement. The current `clavis.testnet` deployment reports v0.2.0 and has settled native NEAR on Testnet. The current factory has no `contract_version` method and remains legacy, so setup blocks new child deployments.
+Repository contract v0.2.0 controls native NEAR settlement. The current `clavis.testnet` deployment reports v0.2.0 and has settled native NEAR on Testnet. The current `factory.clavis.testnet` deployment also reports v0.2.0 and has created a verified v0.2 child.
 
-The frontend reads this distinction independently for each contract: it applies the v0.2 settlement claim to the upgraded root and never applies it to the legacy factory or legacy child contracts.
+The frontend reads versions independently for the root, factory, and payroll children. It applies the v0.2 settlement claim only to deployments that report v0.2.0 or newer and continues to label the two historical v0.1 children as legacy.
 
 ## Components
 
@@ -76,6 +76,8 @@ See [PRIVACY.md](PRIVACY.md), [THREAT-MODEL.md](THREAT-MODEL.md), and [ADR 0001]
 
 ## Upgrade boundary
 
-The root v0.1 account was upgraded by its authorized Full Access key. The migration function also required the predecessor to equal the owner stored in legacy state, and the resulting deployment reports v0.2.0. The factory can be upgraded through its own deployment authority because its v0.2 change is state-compatible, but that distinct signer is currently unavailable.
+The root v0.1 account was upgraded by its authorized Full Access key. The migration function also required the predecessor to equal the owner stored in legacy state, and the resulting deployment reports v0.2.0. The factory was then upgraded through its recovered, distinct deployment authority. The factory change was state-compatible, so no migration call was required; the existing registry remained intact.
 
 Factory-created v0.1 payroll children were created without an access key and the legacy code has no self-upgrade method. Their policy owner therefore cannot migrate them in place through the current repository. Such a child needs an account-specific upgrade mechanism or replacement. New factory deployments must remain blocked until the factory itself reports v0.2.0 or newer.
+
+The dedicated acceptance child `clavis-v02-e2e-20261110.clavis.testnet` proves the upgraded path: its code hash matches the reviewed root v0.2 artifact, its owner and agent match the creation request, and its access-key list is empty.

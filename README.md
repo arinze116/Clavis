@@ -1,6 +1,6 @@
 # Clavis — Contract-Controlled Payroll on NEAR
 
-> The live Testnet root runs v0.2.0: native NEAR settlement stays in the payroll contract, while a restricted scheduler can only request it.
+> The live Testnet root and factory run v0.2.0: native NEAR settlement stays in each payroll contract, while a restricted scheduler can only request it.
 
 Clavis is a testnet payroll control plane for remote teams. Owners define recipients, caps, schedules, routes, pause state, and treasury limits. A TypeScript scheduler may call only `request_payment`; it cannot change policy or transfer funds independently.
 
@@ -15,20 +15,21 @@ Public release links:
 
 Source behavior and deployed behavior are deliberately separated.
 
-| Target | Verified status on 2026-11-09 |
+| Target | Verified status on 2026-11-10 |
 | --- | --- |
 | Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. The current branch also adds archival transaction lookup and preserves delayed explorer-link enrichment across dashboard polling. |
 | Public web app | Deployed at <https://clavisapp.vercel.app>. Its dashboard reads final Testnet state and correctly reports contract-controlled native settlement on the upgraded root. The static guide and explorer-reliability fixes on this branch still require a separately approved publication. |
 | `clavis.testnet` | Reports `contract_version = 0.2.0`; code hash `QzVUeXbKBPLMM14dDoLWCY8AKdSqJqeGxhGL3raM6bk`. Upgrade and stored-owner-checked migration succeeded in transaction [`7DAC…KqWA`](https://testnet.nearblocks.io/txns/7DACvFhKgtGrrGENKAoZk23uHjMmRtP6wXotRFHTKqWA). |
-| `factory.clavis.testnet` | `contract_version` returns `MethodNotFound`; code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW`. The web setup treats it as legacy and blocks new deployments at the signed deployment step. |
+| `factory.clavis.testnet` | Reports `contract_version = 0.2.0`; code hash `HaSfbupBYJ77gJ1Dw3JXdztTBUZ7Du1xw2kMU6upmG1E`. The state-compatible code upgrade succeeded in transaction [`9RjG…Kdce`](https://testnet.nearblocks.io/txns/9RjGMTzWMCbPzndsSZQVw935UQRe8qGZYATCzEH9Kdce). |
+| `clavis-v02-e2e-20261110.clavis.testnet` | Factory-created v0.2.0 acceptance child with root artifact hash `QzVUeXbKBPLMM14dDoLWCY8AKdSqJqeGxhGL3raM6bk`, owner `arinze-worker2.testnet`, agent `arinze-worker1.testnet`, and no access keys. |
 | `clavis-agent` | PM2 reports v0.2.0 online and `/health` returns `{"ok":true}`. Its only access key is restricted to `request_payment` on `clavis.testnet`; it cannot mutate policy or deploy code. |
-| Remaining deployment gap | The factory's sole Full Access key is not one of the three securely imported owner/worker signers. The factory therefore remains legacy and no factory upgrade was attempted with a guessed identity. |
+| Publication gap | The completed repository, frontend, and refreshed release evidence remain local until the separate publication approval gate is satisfied. |
 
 The dashboard reads `contract_version` and labels each contract honestly:
 
 - v0.2.0 or newer: native NEAR is paid from the contract treasury;
 - missing method or pre-v0.2: legacy authorization-only warning;
-- setup is disabled while the deployed factory is pre-v0.2.
+- setup is enabled for the live v0.2 factory and remains disabled for any pre-v0.2 or malformed factory deployment.
 
 ## What v0.2 enforces
 
@@ -233,7 +234,7 @@ node scripts/security/generate-security-report.mjs \
 
 The root v0.1 payroll contract was upgraded with the verified v0.2 WASM and migrated in one transaction. `migrate` verified that the call predecessor matched the owner stored in v0.1 state. Owner, agent, limits, existing recipients, audit entries, and anomalies were preserved; subsequent acceptance transactions added the two designated workers and exercised success and failure paths.
 
-The factory must still be upgraded so newly created child contracts embed v0.2. Its sole Full Access signer is a separate identity with fingerprint `11ced76408bc820a`; it is unavailable in the secure keychain and does not match the verified owner or worker signers. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement.
+The factory was upgraded with its recovered, exact Full Access signer, fingerprint `11ced76408bc820a`. Its registry state was preserved and a dedicated acceptance child proved that new accounts embed the reviewed v0.2 payroll artifact, initialize the requested owner, agent, and limits, and contain no access keys. Factory-created v0.1 children still have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement.
 
 The factory credential can be connected only from a trusted SSH terminal. Preflight is non-interactive and never requests a key:
 
@@ -242,14 +243,14 @@ bash scripts/connect-factory-signer.sh --preflight
 bash scripts/connect-factory-signer.sh
 ```
 
-The interactive command accepts one credential through hidden terminal input, requires it to derive the exact on-chain FullAccess key, stores it in the dedicated Secret Service keychain, and performs a non-mutating NEP-413 challenge. It does not deploy the factory; the deployment phase remains a separate reviewed command.
+The interactive recovery command accepts one credential through protected local input, requires it to derive the exact on-chain FullAccess key, stores it in the dedicated Secret Service keychain, and performs a non-mutating NEP-413 challenge. Factory deployment remains a separate reviewed command even though the current v0.2 upgrade has now completed.
 
 Contract and frontend deployment are never automatic. Future root or factory changes still require the correct segregated signer, an owner-reviewed transaction preview, and explicit publication authority.
 
 ## Known limitations
 
 - Testnet only; do not use mainnet funds.
-- The live root is v0.2.0; the factory remains legacy and blocks new child deployment.
+- The live root and factory are v0.2.0; the verified acceptance child is also v0.2.0 and has no access keys.
 - The root contract's Full Access deployment key is outside contract enforcement; compromise can redeploy code or move root-account funds. It is isolated from the scheduler process in a manually unlocked keychain, but VPS compromise remains a custody risk. Factory-created v0.2 children from this source are created without access keys.
 - Factory-created legacy child contracts may require replacement because v0.1 has no in-place owner upgrade path.
 - Cross-chain and split execution are disabled.

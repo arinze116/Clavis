@@ -118,7 +118,7 @@ async function main(): Promise<void> {
       page,
       "/setup",
       /Launch your payroll contract/i,
-      /New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.2\.0/i,
+      /Factory v0\.2\.0 creates contracts with contract-controlled native NEAR settlement/i,
     );
 
     const constrain = paragraphById(timing, "constrain");

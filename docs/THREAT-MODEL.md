@@ -4,7 +4,7 @@
 
 Clavis is testnet software. During normal contract execution, source contract v0.2 is the final authority for policy and native NEAR settlement. The scheduler decides when to request a payment but has only a contract-scoped Function Call key. The owner wallet controls policy and emergency administration; code deployment requires separate Full Access contract-account authority that sits outside contract enforcement.
 
-The current public root reports v0.2.0 and has completed contract-controlled native settlements. The factory remains legacy and setup blocks new child deployment. Any other payroll deployment receives the v0.2 guarantees only when its own `contract_version` reports v0.2.0 or newer.
+The current public root and factory report v0.2.0. The root and a factory-created acceptance child have completed contract-controlled native settlements. Any payroll deployment receives the v0.2 guarantees only when its own `contract_version` reports v0.2.0 or newer.
 
 ## Adversaries
 
@@ -55,7 +55,7 @@ Live Testnet acceptance additionally verified two successful 0.01 NEAR settlemen
 
 - No independent third-party audit has been completed.
 - Testnet only; do not custody mainnet funds.
-- The live root is v0.2.0; the factory remains legacy and cannot create verified v0.2 children until its separate signer is available.
+- The live root and factory are v0.2.0; legacy v0.1 children remain readable but cannot be upgraded in place through the current owner interface.
 - Factory-created v0.1 children lack an in-place owner upgrade path and may require replacement.
 - Cross-chain execution is disabled.
 - Standard NEAR transaction inputs and metadata remain public.

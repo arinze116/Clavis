@@ -16,12 +16,12 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function mockPublicContractReads(page: Page, delayMs = 0) {
+async function mockPublicContractReads(page: Page, delayMs = 0, factoryVersion = "0.2.0") {
   const blockHeight = 276_900_000;
   const blockHash = "11111111111111111111111111111111";
   const blockTimestampNanoseconds = "1793845410551148443";
   const values: Record<string, unknown> = {
-    contract_version: "0.1.0",
+    contract_version: "0.2.0",
     get_owner: "clavis.testnet",
     get_agent: "clavis-agent.testnet",
     get_daily_limit: "100000000000000000000000000",
@@ -43,7 +43,7 @@ async function mockPublicContractReads(page: Page, delayMs = 0) {
     const request = route.request().postDataJSON() as {
       id: string | number;
       method: string;
-      params?: { method_name?: string };
+      params?: { account_id?: string; method_name?: string };
     };
     if (request.method === "block") {
       await route.fulfill({
@@ -66,7 +66,11 @@ async function mockPublicContractReads(page: Page, delayMs = 0) {
     if (request.method !== "query" || !methodName || !(methodName in values)) {
       throw new Error(`Unexpected mocked NEAR RPC request: ${request.method}.${methodName ?? ""}`);
     }
-    const encoded = [...new TextEncoder().encode(JSON.stringify(values[methodName]))];
+    const value =
+      methodName === "contract_version" && request.params?.account_id === "factory.clavis.testnet"
+        ? factoryVersion
+        : values[methodName];
+    const encoded = [...new TextEncoder().encode(JSON.stringify(value))];
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -179,13 +183,27 @@ test("security page keeps limitations beside the test evidence", async ({ page }
   expect(errors).toEqual([]);
 });
 
-test("setup discloses the legacy factory before wallet connection", async ({ page }) => {
+test("setup reports the live v0.2 factory before wallet connection", async ({ page }) => {
   const errors = collectPageErrors(page);
   await mockPublicContractReads(page);
 
   await page.goto("/setup");
 
   await expect(page.getByRole("heading", { name: "Launch your payroll contract." })).toBeVisible();
+  await expect(
+    page.getByText(/Factory v0\.2\.0 creates contracts with contract-controlled native NEAR settlement/i),
+  ).toBeVisible();
+  await expect(page.getByText(/New payroll deployment is blocked/i)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+  expect(errors).toEqual([]);
+});
+
+test("setup still fails closed for a legacy factory", async ({ page }) => {
+  const errors = collectPageErrors(page);
+  await mockPublicContractReads(page, 0, "0.1.0");
+
+  await page.goto("/setup");
+
   await expect(
     page.getByText(/New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.2\.0/i),
   ).toBeVisible();

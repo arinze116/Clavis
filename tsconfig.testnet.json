@@ -10,5 +10,12 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["scripts/v02-testnet-acceptance.ts", "scripts/lib/v02-acceptance.ts"]
+  "include": [
+    "scripts/v02-testnet-acceptance.ts",
+    "scripts/factory-v02-testnet-acceptance.ts",
+    "scripts/capture-live-factory-acceptance.ts",
+    "scripts/lib/v02-acceptance.ts",
+    "scripts/lib/factory-v02-acceptance.ts",
+    "scripts/lib/factory-v02-live.ts"
+  ]
 }
