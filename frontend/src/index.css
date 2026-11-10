@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "ClavisWordmark";
+  src: url("/fonts/clavis-wordmark-newsreader-600.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600;
+}
+
 :root {
   color: #11130f;
   background: #f3f0e8;

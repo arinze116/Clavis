@@ -15,6 +15,7 @@ export default {
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        brand: ["ClavisWordmark", "Georgia", "serif"],
         display: ["Georgia", "Times New Roman", "serif"],
         mono: ["SFMono-Regular", "Consolas", "monospace"],
       },

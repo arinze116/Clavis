@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=@clavis/agent && npm run build --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
+    "brand:generate": "node scripts/generate-brand-assets.mjs && node scripts/generate-og-banner.mjs",
     "typecheck": "npm run typecheck --workspace=@clavis/agent && npm run typecheck --workspace=@clavis/frontend && tsc -p tsconfig.api.json --pretty false",
     "test": "npm run test:api && npm run test:agent && npm run test:contract",
     "test:api": "node --import tsx --test tests/api/*.test.ts",
