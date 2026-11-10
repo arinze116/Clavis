@@ -1,17 +1,25 @@
 import { chromium } from "playwright";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(repositoryRoot, "frontend", "public", "og-banner.png");
+const markPath = path.join(repositoryRoot, "frontend", "public", "clavis-mark.svg");
+const wordmarkFontPath = path.join(repositoryRoot, "frontend", "public", "fonts", "clavis-wordmark-newsreader-600.woff2");
+const [markSvg, wordmarkFont] = await Promise.all([readFile(markPath, "utf8"), readFile(wordmarkFontPath)]);
+const markDataUrl = `data:image/svg+xml;base64,${Buffer.from(markSvg).toString("base64")}`;
+const wordmarkFontDataUrl = `data:font/woff2;base64,${wordmarkFont.toString("base64")}`;
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
 
-await page.setContent(`<!doctype html>
+try {
+  await page.setContent(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <style>
+    @font-face { font-family: ClavisWordmark; src: url(${wordmarkFontDataUrl}) format("woff2"); font-style: normal; font-weight: 600; }
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
     body {
@@ -38,13 +46,8 @@ await page.setContent(`<!doctype html>
       pointer-events: none;
     }
     .brand { display: flex; align-items: center; gap: 14px; }
-    .mark {
-      width: 48px; height: 48px; border-radius: 14px;
-      display: grid; place-items: center; background: #c8ff62; color: #11130f;
-    }
-    .key { width: 26px; height: 14px; border: 3px solid currentColor; border-radius: 999px; position: relative; }
-    .key::after { content: ""; position: absolute; left: 20px; top: 3px; width: 18px; height: 3px; background: currentColor; box-shadow: 10px 5px 0 -1px currentColor; }
-    .wordmark { font-family: Georgia, serif; font-size: 32px; font-weight: 600; }
+    .mark { width: 48px; height: 48px; display: block; }
+    .wordmark { font-family: ClavisWordmark, Georgia, serif; font-size: 32px; font-weight: 600; }
     .eyebrow { margin-top: 64px; color: #c8ff62; font: 600 14px/1.2 Consolas, monospace; }
     h1 { margin: 18px 0 0; font-family: Georgia, serif; font-size: 67px; line-height: .96; letter-spacing: -2.2px; font-weight: 500; }
     .sub { margin: 24px 0 0; max-width: 520px; color: rgba(247,244,238,.62); font-size: 20px; line-height: 1.45; }
@@ -71,7 +74,7 @@ await page.setContent(`<!doctype html>
 <body>
   <main class="frame">
     <section>
-      <div class="brand"><div class="mark"><div class="key"></div></div><div class="wordmark">Clavis</div></div>
+      <div class="brand"><img class="mark" src="${markDataUrl}" alt=""><div class="wordmark">Clavis</div></div>
       <div class="eyebrow">VERSIONED PAYROLL · PUBLIC EVIDENCE</div>
       <h1>Payroll that keeps its promises</h1>
       <p class="sub">Source v0.2 keeps native NEAR settlement inside the contract and labels legacy deployments honestly.</p>
@@ -91,6 +94,9 @@ await page.setContent(`<!doctype html>
 </body>
 </html>`);
 
-await page.screenshot({ path: outputPath, type: "png" });
-await browser.close();
-console.log(outputPath);
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: outputPath, type: "png" });
+  console.log(outputPath);
+} finally {
+  await browser.close();
+}

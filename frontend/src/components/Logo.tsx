@@ -4,7 +4,7 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link to="/" className="inline-flex min-h-11 items-center gap-3" aria-label="Clavis home">
       <img
-        src="/clavis-mark.svg"
+        src="/clavis-mark.svg?v=3"
         alt=""
         aria-hidden="true"
         width={40}
@@ -13,7 +13,7 @@ export function Logo({ inverse = false }: { inverse?: boolean }) {
           inverse ? "ring-white/10" : "ring-ink/10"
         }`}
       />
-      <span className={`font-display text-2xl font-semibold tracking-tight ${inverse ? "text-white" : "text-ink"}`}>
+      <span className={`font-brand text-2xl font-semibold tracking-tight ${inverse ? "text-white" : "text-ink"}`}>
         Clavis
       </span>
     </Link>
