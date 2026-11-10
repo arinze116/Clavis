@@ -98,6 +98,59 @@ test("landing page states the public proof boundary", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("footer preserves grouped navigation, resources, and legal destinations", async ({ page }) => {
+  const errors = collectPageErrors(page);
+
+  await page.goto("/");
+
+  const footer = page.locator("footer");
+  await expect(footer.getByRole("heading", { name: "Platform", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Transparency" })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Documentation" })).toBeVisible();
+  await expect(footer.getByText("Private payroll. Verifiable execution.", { exact: true })).toBeVisible();
+
+  const internalLinks = [
+    ["Home", "/"],
+    ["Dashboard", "/dashboard"],
+    ["Worker Portal", "/worker"],
+    ["Audit Log", "/audit"],
+    ["Security Evidence", "/security"],
+    ["Setup", "/setup"],
+    ["Guide", "/guide"],
+    ["Privacy", "/privacy"],
+    ["Terms", "/terms"],
+  ] as const;
+
+  for (const [label, destination] of internalLinks) {
+    await expect(footer.getByRole("link", { name: label, exact: true })).toHaveAttribute(
+      "href",
+      destination,
+    );
+  }
+
+  const resourceLinks = [
+    ["Source code", "https://github.com/arinze116/Clavis"],
+    ["Contract on testnet", "https://testnet.nearblocks.io/address/clavis.testnet"],
+    ["Follow on X", "https://x.com/useClavis_"],
+    ["NEAR Hackathon", "https://nearhackathon.com"],
+  ] as const;
+
+  for (const [label, destination] of resourceLinks) {
+    const link = footer.getByRole("link", { name: new RegExp(`^${label}`) });
+    await expect(link).toHaveAttribute("href", destination);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
+
+  const homeLink = footer.getByRole("link", { name: "Home", exact: true });
+  await homeLink.focus();
+  await expect(homeLink).toBeFocused();
+  const outlineStyle = await homeLink.evaluate((element) => getComputedStyle(element).outlineStyle);
+  expect(outlineStyle).not.toBe("none");
+  await expectNoHorizontalOverflow(page);
+  expect(errors).toEqual([]);
+});
+
 test("public dashboard distinguishes native and cross-chain evidence", async ({ page }) => {
   const errors = collectPageErrors(page);
   await mockPublicContractReads(page);
