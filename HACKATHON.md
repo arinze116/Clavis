@@ -23,9 +23,9 @@ Cross-chain execution is disabled in this release. There is no confidential-exec
 6. The public audit opens the transaction that emitted the exact payment ID.
 7. The worker portal states that history is employer-wide because entries omit recipient identity.
 
-## Deployment caveat
+## Deployment status
 
-The public root is live on v0.2.0 and the backend agent has settled both designated workers on Testnet. The factory remains legacy because its distinct Full Access signer is unavailable, so do not claim that new v0.2 child deployment is live. Cross-chain execution also remains disabled.
+The public root and factory are live on v0.2.0. The backend agent settled both designated workers on the root, and the factory created `clavis-v02-e2e-20261110.clavis.testnet` with reviewed v0.2 code. Factory registration, ownership, permissions, settlement, rollback, duplicate, insufficient-funds, and unauthorized paths are verified on Testnet. Cross-chain execution remains disabled.
 
 ## Builder
 

@@ -2,7 +2,7 @@
 
 ## Current demo boundary
 
-The current root contract reports v0.2.0 and has completed real native settlements. The factory remains legacy and must be shown as a blocked setup boundary. The existing published video predates the root upgrade, so it remains historical source-and-test evidence and must not be presented as the current live-settlement demo.
+The current root and factory both report v0.2.0. The root completed real native settlements, and the factory created and registered `clavis-v02-e2e-20261110.clavis.testnet` with the reviewed v0.2 payroll code. The existing published video predates the root upgrade, and the local live-v0.2 candidate predates the factory upgrade, so neither should be presented as the final factory-complete demo.
 
 - Public app: <https://clavisapp.vercel.app>
 - Historical video: <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4>
@@ -17,12 +17,12 @@ Before recording or presenting a live v0.2 settlement story, all of these gates 
 - [x] dashboard shows contract-controlled settlement for the v0.2 root;
 - [x] full repository gate passes;
 - [x] successful settlements for both workers, one rollback, and event-derived transaction hashes are verified;
-- [x] the legacy factory is disclosed and setup remains blocked;
+- [x] factory v0.2 upgrade and dedicated child creation are verified;
 - [ ] the final archival-RPC, polling-race, and public factory-disclosure fixes are published;
-- [x] a new live-v0.2 video is captured, rendered, and inspected;
-- [ ] the new live-v0.2 video is published with explicit owner approval.
+- [x] the pre-factory live-v0.2 video is captured, rendered, and inspected as historical evidence;
+- [ ] a factory-complete video is updated, rendered, inspected, and published with explicit owner approval.
 
-Until the two publication items are complete, a live presentation may use the verified Testnet transactions, current dashboard, and local release candidate. It must say that the factory is still legacy and that the public video URL still points to the older pre-deployment walkthrough.
+Until the publication items are complete, a live presentation may use the verified Testnet transactions and current local frontend. It must say that the public video is historical and the unpublished local video does not include the completed factory upgrade or child-creation evidence.
 
 ## Four-minute v0.2 walkthrough
 
@@ -31,7 +31,7 @@ Use this only after the deployment gates above pass.
 | Time | Browser action | Accurate narration |
 | --- | --- | --- |
 | 0:00–0:30 | Open the landing page and dashboard. | “The agent can request payroll, but source v0.2 keeps native funds in the payroll contract. This dashboard reads the deployed contract version before making that claim.” |
-| 0:30–1:10 | Show the live root version, then setup factory-version status. | “The root is live on v0.2.0. Setup still refuses to create another legacy child until the separate factory is upgraded.” |
+| 0:30–1:10 | Show the live root version, setup factory status, and acceptance child. | “The root and factory are live on v0.2.0. The factory preserved its registry and created this isolated v0.2 child with the requested owner, agent, limits, and no account access keys.” |
 | 1:10–1:50 | Add or edit a native recipient. | “The private change is staged first. It becomes active only after the signed contract state exactly matches, so wallet cancellation leaves the old plan intact.” |
 | 1:50–2:30 | Show treasury and a native payment transaction. | “The contract checks policy, verifies the account commitment, transfers its own NEAR, and records approval only after the callback succeeds.” |
 | 2:30–3:05 | Open public audit and an explorer link. | “The UI maps the emitted payment ID to this exact transaction. It no longer guesses by block order.” |
@@ -81,7 +81,7 @@ Use this only after the deployment gates above pass.
 
 ## Live-v0.2 release candidate inspection
 
-This candidate is complete locally but is not published:
+This candidate is complete and inspected, but it predates the completed factory upgrade and must now be treated as historical, unpublished evidence:
 
 `artifacts/publication/clavis-v02-20261109/video/clavis-live-v02-1080p.mp4`
 
@@ -94,13 +94,13 @@ This candidate is complete locally but is not published:
 | Black-frame scan | Zero segments at the 0.2-second release threshold; three 0.1-second transition dips at a stricter threshold |
 | SHA-256 | `eeae517ae861458aa18f938e64e6cba86941b01693b99fd7c48ec19a63f91acb` |
 | Visual inspection | Exact first and last frames, opening, root/factory disclosure, restricted key, callback, reconciliation, audit, security evidence, and end card inspected |
-| Claim boundary | Live root v0.2.0, two settled workers, employer-wide audit history, 159 local checks, and the unavailable factory signer are stated explicitly |
+| Claim boundary | Live root v0.2.0, two settled workers, employer-wide audit history, 159 local checks, and the then-unavailable factory signer are stated explicitly; those factory claims are now superseded |
 
 ## Capture checklist
 
 - [x] Frontend revision and production deployment verified
-- [x] Root and factory `contract_version` responses recorded
-- [x] Current v0.2 root and legacy factory code hashes recorded
+- [x] Root and factory v0.2 `contract_version` responses recorded
+- [x] Current root, factory, and acceptance-child code hashes recorded
 - [x] Native settlement transactions with callback approval events
 - [x] Failed-transfer rollback evidence
 - [x] Recipient cancellation/reconciliation source-and-test explanation
@@ -108,7 +108,7 @@ This candidate is complete locally but is not published:
 - [x] Worker employer-history wording
 - [x] Desktop, tablet, and mobile screenshots
 - [x] Source-and-test demo URL and inspected render metadata
-- [x] New live-v0.2 demo captured, rendered, and inspected
-- [ ] New live-v0.2 demo publication
+- [x] Pre-factory live-v0.2 demo captured, rendered, and inspected
+- [ ] Factory-complete demo update, inspection, and publication
 
-The remaining unchecked demo work is publication, not engineering or settlement evidence. It requires the separately approval-gated frontend/video release. The factory upgrade remains independently blocked by its unavailable exact Full Access signer.
+The remaining unchecked demo work is a factory-complete video update and approval-gated publication. Contract, settlement, factory, child, frontend, and repository acceptance evidence is complete.

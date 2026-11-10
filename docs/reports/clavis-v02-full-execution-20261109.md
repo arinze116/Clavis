@@ -1,18 +1,34 @@
 # Clavis v0.2 full execution report
 
-Execution date: 2026-11-09
+Initial execution date: 2026-11-09
+
+Factory completion date: 2026-11-10
 
 Workspace: `/home/ubuntu/Clavis1`
 
 Network: NEAR Testnet only
 
-## Verdict
+## Final verdict
 
-**BLOCKED — EXTERNAL REQUIREMENT PREVENTS COMPLETION**
+**COMPLETE — CLAVIS V0.2 END-TO-END TESTNET VERIFIED**
 
-The deployed root payroll system is end-to-end verified on Testnet: `clavis.testnet` runs v0.2.0, the restricted backend agent is healthy, both designated workers received contract-controlled native NEAR, and live failure cases proved rollback, duplicate protection, access control, and insufficient-treasury handling. The frontend and a truthful live-v0.2 video release candidate are complete locally.
+The 2026-11-09 blocker described in the historical record below is resolved. The original factory signer was recovered into the dedicated Clavis keyring and verified against the sole `factory.clavis.testnet` FullAccess key with fingerprint `11ced76408bc820a`.
 
-The only deployment blocker is the unavailable existing Full Access credential for `factory.clavis.testnet`. The factory has no contract-level upgrade method, and its sole Full Access key does not match the verified owner or worker signers. No factory transaction was attempted. Frontend, repository, and video publication are also waiting for the separate external publication approval gate.
+The factory is now v0.2.0. Upgrade transaction [`9RjGMTzWMCbPzndsSZQVw935UQRe8qGZYATCzEH9Kdce`](https://testnet.nearblocks.io/txns/9RjGMTzWMCbPzndsSZQVw935UQRe8qGZYATCzEH9Kdce) deployed the reviewed factory artifact with SHA-256 `f64c2d7a8b9ce47c5922c6beb65ac8c579110f6286f2b7aa4b26559b72f7bf39`. Live code hash is `HaSfbupBYJ77gJ1Dw3JXdztTBUZ7Du1xw2kMU6upmG1E`; the two legacy registry records and sole FullAccess key were preserved.
+
+The dedicated acceptance child is `clavis-v02-e2e-20261110.clavis.testnet`, created by transaction [`DnchBkKvWex7VWwmz5qE2aXDdDoYSzcq9BaoXC9kq1qr`](https://testnet.nearblocks.io/txns/DnchBkKvWex7VWwmz5qE2aXDdDoYSzcq9BaoXC9kq1qr). It runs root v0.2.0 code, is owned by `arinze-worker2.testnet`, uses `arinze-worker1.testnet` as the acceptance agent, has no account access keys, and is registered through the expected `clavis_factory/payroll_created` event.
+
+The child completed a 0.001 NEAR native settlement in transaction [`2YidaCUj1NGSbpF1HH3nmE6FJzSB8YN63Yzd8XQoALHw`](https://testnet.nearblocks.io/txns/2YidaCUj1NGSbpF1HH3nmE6FJzSB8YN63Yzd8XQoALHw). Exact captured recipient balance change was +0.001 NEAR. Invalid name, low deposit, unauthorised creation, owner-only mutation, duplicate settlement, failed transfer rollback, and insufficient-treasury paths were verified at finality. Existing children and the root remained unchanged.
+
+The full gate now passes 170 tests and browser paths. Fresh frontend captures at 320, 375, 768, 1024, and 1440 pixels display the live factory v0.2 status with no overflow, browser errors, missing accessibility names, or sub-44-pixel visible targets. The backend agent remains online and healthy with its restricted `request_payment` key for `clavis.testnet`.
+
+Complete current evidence, transaction tables, test totals, commit hashes, and publication status are recorded in `docs/reports/clavis-v02-final-acceptance-20261110.md`.
+
+External publication remains gated: no branch push, pull request, frontend publication, video publication, or Mainnet action occurred.
+
+# Historical 2026-11-09 execution record — superseded
+
+The sections below preserve the exact pre-recovery audit trail. Statements that the factory signer, factory upgrade, or new-child test were blocked are historical and superseded by the final evidence above.
 
 ## Verified environment and identities
 

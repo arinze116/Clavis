@@ -14,7 +14,7 @@ Clavis is unaudited NEAR testnet software and must not custody mainnet funds.
 - Private recipient changes stay staged until exact final-chain reconciliation.
 - Secret-bearing private files, runtime state, and credentials are ignored by Git and permission-restricted. Published reports contain evidence only and exclude credentials.
 
-The current live root reports v0.2.0 and has completed contract-controlled native settlements. The factory remains legacy; the web app checks each version independently and blocks new child deployment through that factory.
+The current live root and factory report v0.2.0. The root has completed contract-controlled native settlements, and the factory has created a reviewed v0.2 child without account access keys. The web app still checks each deployed version independently and fails closed for legacy contracts.
 
 ## Evidence
 
