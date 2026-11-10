@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-09
 
-Implementation status: the owner and both worker signers are verified in this keychain. The owner signer was later used for the authorized root migration. A factory-only importer is pinned to the sole FullAccess key on `factory.clavis.testnet`, but that distinct credential has not been supplied and the factory remains unchanged.
+Implementation status: the owner, both worker signers, and the sole authorised `factory.clavis.testnet` signer are verified in this keychain. The owner signer performed the authorized root migration. The recovered factory signer then performed the authorized state-compatible factory v0.2 code deployment on 2026-11-10. Owner and worker signers performed the dedicated child acceptance transactions. No key or permission was added, deleted, replaced, or broadened.
 
 ## Context
 
@@ -19,11 +19,11 @@ The Rust importer owns identity validation, zeroized hidden input, on-chain Full
 
 The importer reads a dedicated keyring password from `/dev/tty` with echo disabled, starts the isolated daemon in its supported startup-unlock mode, verifies that the persistent login collection is the unlocked default, and zeroizes the in-process password buffer. Later uses require the same hidden unlock prompt. The shared VPS keyring, legacy NEAR credential directory, backend agent credential, contracts, and services remain untouched.
 
-The separate factory launcher processes only `factory.clavis.testnet`, compares the derived key with the exact live FullAccess authority, and refuses every mismatch before persistence. Importing that credential remains independent from the reviewed factory deployment phase.
+The separate factory launcher processes only `factory.clavis.testnet`, compares the derived key with the exact live FullAccess authority, and refuses every mismatch before persistence. Its one-time recovery mode opens only `/home/ubuntu/factory-signer-recovery.json` as a single-link, owner-owned mode-0600 regular file with `O_NOFOLLOW`; Rust parses and zeroizes the complete JSON buffer and all sensitive string fields, derives the public key in memory, and imports only the private/public key pair. The wrapper performs a second fresh keyring unlock, verifies all four signers, then overwrites and unlinks the temporary recovery file. Importing that credential remains independent from the reviewed factory deployment phase.
 
 ## Consequences
 
-- Private keys are encrypted at rest and never passed in arguments, environment variables, source files, or plaintext credential files.
+- Private keys are encrypted in the dedicated keyring and never passed in arguments, environment variables, source files, Git output, or reports. The explicitly supplied one-time recovery file remains plaintext only until successful fresh-session verification, then is overwritten and unlinked by the recovery wrapper.
 - NEAR CLI can resolve each signer by Testnet account identity inside an explicitly unlocked session.
-- Deployment commands must later use the same isolated-keyring wrapper pattern and still require separate owner authorization.
+- Deployment and owner/worker acceptance commands use the same isolated-keyring wrapper pattern and still require separate owner authorization.
 - Losing the dedicated keyring password makes the stored signers unavailable; it does not alter any on-chain access key.

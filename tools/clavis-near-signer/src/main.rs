@@ -1,6 +1,7 @@
 mod keychain;
 mod model;
 mod near;
+mod recovery;
 mod report;
 mod system;
 
@@ -18,6 +19,7 @@ const OWNER_ACCOUNT: &str = "clavis.testnet";
 const WORKER_ONE_ACCOUNT: &str = "arinze-worker1.testnet";
 const FACTORY_ACCOUNT: &str = "factory.clavis.testnet";
 const FACTORY_PUBLIC_KEY: &str = "ed25519:6BhFt1XJrfAdFanjdxQvAbyPu8zVZjvRvZw6S85mQ9pD";
+const FACTORY_FINGERPRINT: &str = "11ced76408bc820a";
 const LIVE_ENV: &str = "/opt/clavis/agent/.env";
 const AGENT_CREDENTIALS: &str = "/opt/clavis/agent/config/agent-credentials.local.json";
 const NEAR_CONFIG: &str = "/home/ubuntu/.config/near-cli/config.toml";
@@ -72,12 +74,45 @@ fn run() -> Result<(), String> {
             let _keyring_daemon = system::start_keyring_daemon(true)?;
             factory_interactive(&near_binary, Path::new(&report_path))
         }
+        "factory-recovery-inspect" => {
+            let credential_path = system::argument_value(&arguments, "--credential-file")?;
+            let identity = inspect_factory_recovery(Path::new(&credential_path))?;
+            println!(
+                "Factory recovery credential parsed and authorised: fingerprint {}",
+                near::fingerprint(&identity.public_key)
+            );
+            Ok(())
+        }
+        "factory-recovery-import" => {
+            require_terminal()?;
+            let near_binary = system::argument_value(&arguments, "--near-binary")?;
+            let report_path = system::argument_value(&arguments, "--report")?;
+            let credential_path = system::argument_value(&arguments, "--credential-file")?;
+            let identity = inspect_factory_recovery(Path::new(&credential_path))?;
+            println!(
+                "Factory recovery credential parsed and authorised: fingerprint {}",
+                near::fingerprint(&identity.public_key)
+            );
+            let _keyring_daemon = system::start_keyring_daemon(true)?;
+            factory_recovery_import(
+                &near_binary,
+                Path::new(&report_path),
+                Path::new(&credential_path),
+                &identity.public_key,
+            )
+        }
         "factory-verify-existing" => {
             require_terminal()?;
             let near_binary = system::argument_value(&arguments, "--near-binary")?;
             let report_path = system::argument_value(&arguments, "--report")?;
             let _keyring_daemon = system::start_keyring_daemon(true)?;
             factory_verify_existing(&near_binary, Path::new(&report_path))
+        }
+        "verify-all-existing" => {
+            require_terminal()?;
+            let near_binary = system::argument_value(&arguments, "--near-binary")?;
+            let _keyring_daemon = system::start_keyring_daemon(true)?;
+            verify_all_existing(&near_binary)
         }
         "run" => {
             require_terminal()?;
@@ -93,7 +128,7 @@ fn run() -> Result<(), String> {
             run_with_keychain(command)
         }
         _ => Err(
-            "Usage: clavis-near-signer <preflight|interactive|verify-existing|factory-preflight|factory-interactive|factory-verify-existing|keychain-smoke|run> [OPTIONS] [-- COMMAND ...]".into(),
+            "Usage: clavis-near-signer <preflight|interactive|verify-existing|factory-preflight|factory-interactive|factory-recovery-inspect|factory-recovery-import|factory-verify-existing|verify-all-existing|keychain-smoke|run> [OPTIONS] [-- COMMAND ...]".into(),
         ),
     }
 }
@@ -275,6 +310,59 @@ fn factory_interactive(near_binary: &str, report_path: &Path) -> Result<(), Stri
     }
 }
 
+fn factory_recovery_import(
+    near_binary: &str,
+    report_path: &Path,
+    credential_path: &Path,
+    expected_public_key: &str,
+) -> Result<(), String> {
+    system::ensure_persistent_keychain()?;
+    keychain::smoke_test()?;
+    let targets = account_targets()?;
+    let before = verify_stored_targets(&targets, near_binary);
+    let before_identities = verified_identities(&before)?;
+    let credential = recovery::load(credential_path, current_user_id()?)?;
+    if credential.public_key() != expected_public_key {
+        return Err("Factory recovery file changed after local verification".to_string());
+    }
+    let mut result =
+        import_account_with_secret(&factory_target(), near_binary, credential.into_secret_key());
+    if result.succeeded() {
+        let after = verify_stored_targets(&targets, near_binary);
+        if let Err(error) = confirm_unchanged(&before_identities, &after) {
+            result.error = Some(error);
+        }
+    }
+    finish_factory_import_report(near_binary, report_path, &result)
+}
+
+fn finish_factory_import_report(
+    near_binary: &str,
+    report_path: &Path,
+    result: &AccountResult,
+) -> Result<(), String> {
+    let verdict = select_verdict(std::slice::from_ref(result), 1, false);
+    let summary = "Dedicated GNOME Secret Service login collection, encrypted at rest and manually unlocked; NEAR CLI keychain format";
+    let incomplete = (verdict != Verdict::Ready)
+        .then_some("The exact existing factory signer did not complete recovery verification.");
+    write_factory_status_report(
+        report_path,
+        near_binary,
+        std::slice::from_ref(result),
+        verdict,
+        summary,
+        incomplete,
+    )?;
+    println!("{}", verdict.text(SignerScope::Factory));
+    println!("Report: {}", report_path.display());
+    if verdict == Verdict::Ready {
+        println!("The three existing owner and worker signer identities are unchanged.");
+        Ok(())
+    } else {
+        Err("The factory signer did not complete recovery verification".to_string())
+    }
+}
+
 fn factory_verify_existing(near_binary: &str, report_path: &Path) -> Result<(), String> {
     system::ensure_persistent_keychain()?;
     keychain::smoke_test()?;
@@ -298,6 +386,30 @@ fn factory_verify_existing(near_binary: &str, report_path: &Path) -> Result<(), 
     } else {
         Err("No verified factory signer is stored in the dedicated keychain".to_string())
     }
+}
+
+fn verify_all_existing(near_binary: &str) -> Result<(), String> {
+    system::ensure_persistent_keychain()?;
+    keychain::smoke_test()?;
+    let targets = account_targets()?;
+    let primary_results = verify_stored_targets(&targets, near_binary);
+    let identities = verified_identities(&primary_results)?;
+    let factory_result = verify_existing_account(&factory_target(), near_binary);
+    if !factory_result.succeeded() {
+        return Err("The stored factory signer failed fresh-session verification".to_string());
+    }
+    for (account_id, fingerprint) in identities {
+        println!("Fresh-session signer verification passed: {account_id} ({fingerprint})");
+    }
+    println!(
+        "Fresh-session signer verification passed: {} ({})",
+        factory_result.account_id,
+        factory_result
+            .fingerprint
+            .as_deref()
+            .unwrap_or("not verified")
+    );
+    Ok(())
 }
 
 fn verify_existing_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
@@ -351,7 +463,7 @@ fn verify_existing_account(target: &AccountTarget, near_binary: &str) -> Account
 }
 
 fn import_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
-    let mut result = empty_result(target);
+    let result = empty_result(target);
     let access_keys = match near::fetch_access_keys(&target.account_id) {
         Ok(keys) => keys,
         Err(error) => return failed(result, error),
@@ -360,6 +472,28 @@ fn import_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
         Ok(secret) => secret,
         Err(error) => return failed(result, error),
     };
+    import_account_with_access_keys(target, near_binary, &access_keys, secret)
+}
+
+fn import_account_with_secret(
+    target: &AccountTarget,
+    near_binary: &str,
+    secret: SecretKey,
+) -> AccountResult {
+    let access_keys = match near::fetch_access_keys(&target.account_id) {
+        Ok(keys) => keys,
+        Err(error) => return failed(empty_result(target), error),
+    };
+    import_account_with_access_keys(target, near_binary, &access_keys, secret)
+}
+
+fn import_account_with_access_keys(
+    target: &AccountTarget,
+    near_binary: &str,
+    access_keys: &[near::AccessKeyRecord],
+    secret: SecretKey,
+) -> AccountResult {
+    let mut result = empty_result(target);
     let public_key = secret.public_key().to_string();
     result.fingerprint = Some(near::fingerprint(&public_key));
     if !matches_expected_key(target, &public_key) {
@@ -368,7 +502,7 @@ fn import_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
             "Derived public key does not match the pinned factory authority".into(),
         );
     }
-    if !has_full_access(&access_keys, &public_key) {
+    if !has_full_access(access_keys, &public_key) {
         return failed(
             result,
             "Derived public key is not an authorised FullAccess key".into(),
@@ -395,6 +529,67 @@ fn import_account(target: &AccountTarget, near_binary: &str) -> AccountResult {
         result.fingerprint.as_deref().unwrap_or("")
     );
     result
+}
+
+fn inspect_factory_recovery(path: &Path) -> Result<recovery::RecoveryIdentity, String> {
+    let identity = recovery::inspect(path, current_user_id()?)?;
+    let fingerprint = near::fingerprint(&identity.public_key);
+    if identity.public_key != FACTORY_PUBLIC_KEY || fingerprint != FACTORY_FINGERPRINT {
+        return Err(format!(
+            "Factory recovery credential fingerprint {fingerprint} does not match the pinned authority"
+        ));
+    }
+    let access_keys = near::fetch_access_keys(FACTORY_ACCOUNT)?;
+    if !has_full_access(&access_keys, &identity.public_key) {
+        return Err("Factory recovery key is not authorised with FullAccess".to_string());
+    }
+    Ok(identity)
+}
+
+fn current_user_id() -> Result<u32, String> {
+    system::command_stdout("id", &["-u"])?
+        .trim()
+        .parse()
+        .map_err(|_| "Unable to parse the current user ID".to_string())
+}
+
+fn verify_stored_targets(targets: &[AccountTarget], near_binary: &str) -> Vec<AccountResult> {
+    targets
+        .iter()
+        .map(|target| verify_existing_account(target, near_binary))
+        .collect()
+}
+
+fn verified_identities(results: &[AccountResult]) -> Result<Vec<(String, String)>, String> {
+    results
+        .iter()
+        .map(|result| {
+            if !result.succeeded() {
+                let reason = result
+                    .error
+                    .as_deref()
+                    .unwrap_or("verification ended without a recorded reason");
+                return Err(format!(
+                    "Stored signer verification failed for {}: {}",
+                    result.account_id, reason
+                ));
+            }
+            let fingerprint = result
+                .fingerprint
+                .clone()
+                .ok_or_else(|| "Verified signer fingerprint was missing".to_string())?;
+            Ok((result.account_id.clone(), fingerprint))
+        })
+        .collect()
+}
+
+fn confirm_unchanged(before: &[(String, String)], after: &[AccountResult]) -> Result<(), String> {
+    let after = verified_identities(after)?;
+    if before == after {
+        Ok(())
+    } else {
+        Err("An existing owner or worker signer identity changed during recovery".to_string())
+    }
 }
 
 fn existing_or_prompt(
