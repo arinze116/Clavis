@@ -85,7 +85,7 @@ Verified postconditions:
 - owner is `arinze-worker2.testnet`;
 - agent is `arinze-worker1.testnet`;
 - child contract account has no access keys;
-- version is `0.2.0`, code hash matches the reviewed root, and limits are restored to 1,000 NEAR daily / 100 NEAR per payment;
+- version is `0.2.0`, code hash matches the reviewed root, and limits are restored to 1 NEAR daily / 0.1 NEAR per payment;
 - one active Weekly recipient remains after cleanup;
 - no pending payment recovery remains.
 
@@ -191,7 +191,7 @@ Non-blocking warnings remain unchanged: 17 low-severity transitive `elliptic` ad
 
 ## Repository audit and local commits
 
-All repository changes since `ca237ba` were reviewed through the rebased feature history, full verification gate, generated-evidence check, and a tracked/untracked credential-pattern scan. The scan covered 82 changed files and found zero private keys, seed phrases, PEM private keys, passwords, API-token assignments, or common hosted-service token formats.
+All repository changes since `ca237ba` were reviewed through the rebased feature history, full verification gate, generated-evidence check, and a tracked/untracked credential-pattern scan. The scan covered 85 changed files and found zero private keys, seed phrases, PEM private keys, passwords, API-token assignments, or common hosted-service token formats.
 
 The signer recovery and connection reports contain only public account IDs, public keys/fingerprints, file metadata, hashes, and verification outcomes. They are safe to commit.
 
@@ -205,6 +205,7 @@ Relevant local commits after rebasing onto `origin/main`:
 | `df7b70c` | Historical full-execution report finalization |
 | `09ba1d5` | Factory signer recovery and verification |
 | `16291eb` | Factory v0.2 upgrade/child acceptance workflow and evidence checks |
+| `499a668` | Final acceptance report, active documentation alignment, and regenerated security evidence |
 
 No commit was pushed and no pull request, frontend publication, or video publication was created.
 
