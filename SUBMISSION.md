@@ -79,29 +79,3 @@ The audit entry omits amount and recipient identity, but standard NEAR function 
 | Live exact-link enrichment | Production verification found no v0.2 `payment_decision` event mapping for the legacy audit, so the UI correctly fell back to block links. Deterministic event-mapping tests passed; a live exact transaction link requires the signer-gated v0.2 settlement transaction. |
 | Live contract hashes | Root `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`; factory `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` |
 | Deployment scripts | `bash -n` syntax checks and NEAR CLI RS v0.31.1 source comparison passed; not executed because the CLI and required Full Access signers are absent |
-
-## Submission checklist
-
-- [x] Native funds originate from the v0.2 payroll contract in source.
-- [x] Transfer success commits approval; failure rolls policy state back.
-- [x] Cross-chain execution fails closed.
-- [x] External settlement credentials are removed and rejected.
-- [x] Private recipient changes use persisted two-phase reconciliation.
-- [x] Dashboard and setup distinguish legacy deployments from v0.2.
-- [x] Worker history wording matches employer-wide audit data.
-- [x] Explorer links use emitted payment IDs.
-- [x] README, architecture, privacy, threat-model, and demo claims are aligned with source behavior.
-- [x] Complete the local release gate with final recorded counts.
-- [x] Deploy and verify the production frontend and same-origin RPC proxy.
-- [x] Run two uninterrupted production browser rehearsals.
-- [x] Capture and inspect production desktop, tablet, and mobile screenshots.
-- [x] Render and inspect a truthful source-and-test demo without presenting v0.2 as live.
-- [x] Add final app, repository, release, contract, CI, and demo URLs.
-- [ ] Upgrade `clavis.testnet` with owner-authorized `migrate`.
-- [ ] Upgrade `factory.clavis.testnet` so new children embed v0.2.
-- [ ] Deploy and restart the updated agent after both contracts report v0.2.0 or newer.
-- [ ] Confirm the upgraded v0.2 code hashes and `contract_version` responses.
-- [ ] Execute and link one successful native settlement and one failed-transfer rollback transaction.
-- [ ] Verify a live event-derived transaction link from a v0.2 `payment_decision` event.
-
-The unchecked items all require the segregated root/factory signers. The available `clavis-agent.testnet` key is Function Call restricted to `request_payment` on `clavis.testnet`; it cannot deploy or upgrade code. Do not mark an unchecked item complete without signed testnet evidence.
