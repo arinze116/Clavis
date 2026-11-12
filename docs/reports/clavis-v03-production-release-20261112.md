@@ -67,7 +67,7 @@ Unrecognized and Mainnet RPC overrides are ignored or rejected. dRPC, Intea, and
 
 ## Backend agent
 
-The agent deployment script fast-forwarded `/opt/clavis` to exact merge commit `0fd129610f2729cb0f56f31a10adbef18fa027ca`, then independently ran type checks, 75 agent tests, and production builds before restarting PM2.
+The code-bearing agent release fast-forwarded `/opt/clavis` to merge commit `0fd129610f2729cb0f56f31a10adbef18fa027ca`, then independently ran type checks, 75 agent tests, and production builds before restarting PM2. The same guarded process redeployed the final documentation-only default-branch merge; the protected `agent-source-head.txt` evidence matched the current `origin/main` SHA at acceptance.
 
 - PM2 service: `clavis-agent`, online, package version `0.3.0`.
 - Health endpoint: `{"ok":true}`.
@@ -81,10 +81,12 @@ The agent deployment script fast-forwarded `/opt/clavis` to exact merge commit `
 
 Production URL: <https://clavisapp.vercel.app>
 
-Both Vercel projects reported successful deployments for exact merge commit `0fd1296`:
+Both Vercel projects reported successful code-bearing deployments for exact merge commit `0fd1296`:
 
 - [Clavis deployment status](https://vercel.com/0xmaxizs-projects/clavis/746NAmzodcU9aRjkwrXbytUeFVcz)
 - [Clavis frontend deployment status](https://vercel.com/0xmaxizs-projects/clavis-frontend/HB4TM8EPuosks4Rh7vktz93nqzjK)
+
+Both projects also passed the final documentation-only default-branch deployment. A fresh production smoke test covered all nine public routes, and the same-origin NEAR RPC boundary returned a final Testnet block.
 
 Post-deployment browser verification captured 27 route/viewport combinations: nine public routes at 1440×1100, 768×1024, and 390×844. Every case returned HTTP 200 with:
 
