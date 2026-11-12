@@ -351,7 +351,7 @@ function buildPrompt(body: AiRequestBody): {
   if (body.task === "route") {
     return {
       json: true,
-      system: `${dataRule} You select one route supported by Clavis source v0.2. Recommend only a route marked code-supported in settlement_capabilities. Source support does not prove the deployed contract version, agent uptime, or completed delivery. An EVM preference is unavailable unless a live solver quote has been verified, and an unsupported route must never be selected. RPC latency is not settlement time, gas-unit prices are not total fees, and atomic units must never be compared across chains. Clavis renders the explanation and measurements deterministically. Return only JSON with this exact shape: {"route_code":"near"|"ethereum"|"bnb"}. Never add prose, measurements, regional claims, runtime-health claims, or cross-chain proof.`,
+      system: `${dataRule} You select one route supported by Clavis source v0.3. Recommend only a route marked code-supported in settlement_capabilities. Source support does not prove the deployed contract version, agent uptime, or completed delivery. An EVM preference is unavailable unless a live solver quote has been verified, and an unsupported route must never be selected. RPC latency is not settlement time, gas-unit prices are not total fees, and atomic units must never be compared across chains. Clavis renders the explanation and measurements deterministically. Return only JSON with this exact shape: {"route_code":"near"|"ethereum"|"bnb"}. Never add prose, measurements, regional claims, runtime-health claims, or cross-chain proof.`,
       user: JSON.stringify(body.input),
     };
   }
@@ -1045,7 +1045,7 @@ function normalizeRoute(
   return {
     chain,
     token: pairs[chain as keyof typeof pairs],
-    reason: `Testnet guidance: ${chain}/${pairs[chain as keyof typeof pairs]} is the only route supported by Clavis source v0.2. This does not prove the deployed contract version, agent uptime, or completed delivery.`,
+    reason: `Testnet guidance: ${chain}/${pairs[chain as keyof typeof pairs]} is the only route supported by Clavis source v0.3. This does not prove the deployed contract version, agent uptime, or completed delivery.`,
     region_rationale:
       !region || region === "Not provided"
         ? "No worker region was supplied. The recommendation uses verified settlement support and live public RPC observations only."

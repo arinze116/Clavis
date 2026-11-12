@@ -51,10 +51,10 @@ const cases = [
   {
     id: "VERSION-001",
     category: "Access control",
-    threat: "The v0.2 scheduler submits to a legacy authorization-only payroll contract and advances policy without contract-controlled settlement.",
-    protection: "Scheduler admission rejects every contract version older than v0.2.0 before a payment request can be sent.",
+    threat: "The v0.3 scheduler submits to a contract without on-chain milestone idempotency.",
+    protection: "Scheduler admission rejects every contract version older than v0.3.0 before a payment request can be sent.",
     source: "agent/src/near.test.ts",
-    test: "rejects legacy authorization-only version",
+    test: "rejects scheduler-incompatible version",
   },
   {
     id: "POLICY-001",
@@ -177,6 +177,14 @@ const cases = [
     test: "triggers a milestone once per stable milestone ID",
   },
   {
+    id: "SCHEDULE-003",
+    category: "Schedule and replay",
+    threat: "The agent process exits after a milestone transfer finalizes but before local completion state is saved.",
+    protection: "The contract stores the completed recipient/reference pair and rejects a second transfer for the same milestone reference.",
+    source: "contract/src/tests.rs",
+    test: "milestone_reference_prevents_duplicate_settlement_after_agent_state_loss",
+  },
+  {
     id: "REPLAY-001",
     category: "Schedule and replay",
     threat: "A legacy filled cross-chain intent persisted from v0.1 is submitted a second time after restart or polling.",
@@ -191,6 +199,14 @@ const cases = [
     protection: "Processed events are deduplicated in persistent state.",
     source: "agent/src/notification-preferences.test.ts",
     test: "deduplicates processed transaction and authorization events",
+  },
+  {
+    id: "REPLAY-003",
+    category: "Schedule and replay",
+    threat: "A notification event is marked handled before any configured delivery channel succeeds.",
+    protection: "The event store persists completion only after successful delivery and retries events left incomplete across restarts.",
+    source: "agent/src/notification-event-store.test.ts",
+    test: "retries an event after a restart when delivery was never completed",
   },
   {
     id: "DATA-001",
@@ -247,8 +263,8 @@ const limitations = [
   "The product is testnet-only and must not custody mainnet funds.",
   "Standard NEAR function-call arguments and chain metadata remain public even when public audit entries omit salary and recipient fields.",
   "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
-  "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
-  "A Full Access key on a payroll contract account is outside contract enforcement. The root deployment key is isolated from the agent process in a manually unlocked keychain, but VPS compromise remains a custody risk; factory-created v0.2 children are created without access keys.",
+  "Source v0.3 implements contract-controlled native settlement and on-chain milestone-reference idempotency. Native settlement exists in v0.2, but the production scheduler requires contract_version v0.3.0 or newer.",
+  "A Full Access key on a payroll contract account is outside contract enforcement. The root deployment key is isolated from the agent process in a manually unlocked keychain, but VPS compromise remains a custody risk; factory-created children are created without access keys.",
   "Callback uncertainty remains locked for ten minutes. Owner recovery then requires a public transaction hash and explicit delivery attestation; the contract cannot cryptographically verify that off-chain receipt interpretation.",
   "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence.",
 ];

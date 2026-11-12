@@ -30,17 +30,22 @@ import type { RecipientDraft } from "../types";
 import {
   addRecipients,
   assertFactorySupportsContractControlledSettlement,
-  controlsNativeSettlement,
   createPayroll,
   getFactoryContractVersion,
+  getPayrollContractVersion,
   isBusinessNameAvailable,
+  supportsMilestoneIdempotency,
   storeContractId,
   waitForPayrollDeployment,
 } from "../utils/contract";
+import { configureExistingBusiness } from "../utils/businessSetup";
 import { nearToYocto } from "../utils/format";
 import { generatePolicy, type AiPolicyResult } from "../utils/nearAi";
 import {
+  expectedRecipientPolicyFromDraft,
+  reconcilePayrollOperation,
   syncPayrollPlan,
+  upsertPayrollRecipient,
   validateAgentRecipientDraft,
 } from "../utils/payrollPlans";
 
@@ -53,8 +58,10 @@ const emptyRecipient: RecipientDraft = {
   preferredChain: "near",
   preferredToken: "NEAR",
   schedule: "Weekly",
+  milestoneReady: false,
+  milestoneId: "",
 };
-const steps = ["Wallet", "Business", "Limits", "Recipients", "Agent", "Deploy", "Success"];
+const deploymentSteps = ["Wallet", "Business", "Limits", "Recipients", "Agent", "Deploy", "Success"];
 const nearAccountPattern = /^(?=.{2,64}$)[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 const maxU128 = (1n << 128n) - 1n;
 
@@ -73,6 +80,11 @@ function SetupWizardContent() {
   // Prefer the canonical root deployment when this wallet owns both the root
   // contract and a factory-created child account.
   const ownerContract = useOwnerContract(accountId);
+  const existingContract = ownerContract.contract;
+  const existingBusiness = Boolean(existingContract);
+  const steps = existingBusiness
+    ? ["Wallet", "Business", "Limits", "Workers", "Agent", "Review", "Ready"]
+    : deploymentSteps;
   const [step, setStep] = useState(0);
   const [businessName, setBusinessName] = useState("");
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
@@ -92,6 +104,9 @@ function SetupWizardContent() {
   const [deployedContractId, setDeployedContractId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [factoryVersion, setFactoryVersion] = useState<string | null | undefined>(undefined);
+  const [existingContractVersion, setExistingContractVersion] = useState<
+    string | null | undefined
+  >(undefined);
 
   const normalizedName = businessName.trim().toLowerCase();
   const dailyLimitYocto = parsePositiveYocto(dailyLimit);
@@ -117,6 +132,35 @@ function SetupWizardContent() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    if (!existingContract) {
+      setExistingContractVersion(undefined);
+      return () => {
+        active = false;
+      };
+    }
+    void getPayrollContractVersion(existingContract.contract_id).then((version) => {
+      if (active) setExistingContractVersion(version);
+    });
+    return () => {
+      active = false;
+    };
+  }, [existingContract]);
+
+  useEffect(() => {
+    if (!existingContract || businessName) return;
+    setBusinessName(
+      existingContract.name === existingContract.contract_id ? "Clavis" : existingContract.name,
+    );
+  }, [businessName, existingContract]);
+
+  useEffect(() => {
+    if (existingBusiness) {
+      setNameAvailable(true);
+      setNameError(null);
+      setCheckingName(false);
+      return;
+    }
     setNameAvailable(null);
     setNameError(null);
     if (!/^(?!-)[a-z0-9-]{2,32}(?<!-)$/.test(normalizedName)) return;
@@ -145,7 +189,7 @@ function SetupWizardContent() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [normalizedName]);
+  }, [existingBusiness, normalizedName]);
 
   useEffect(() => {
     if (step !== 6 || !deployedContractId) return;
@@ -266,36 +310,62 @@ function SetupWizardContent() {
     if (step === 0) {
       return Boolean(ownerContract.contract || (accountId && wallet));
     }
-    if (step === 1) return nameAvailable === true && !checkingName;
+    if (step === 1) return existingBusiness || (nameAvailable === true && !checkingName);
     if (step === 2) return limitsValid;
     if (step === 4) return nearAccountPattern.test(agent.trim().toLowerCase());
     return true;
   }
 
-  async function deploy() {
-    if (!wallet || !accountId || nameAvailable !== true || !limitsValid) return;
+  async function finishSetup() {
+    if (
+      !wallet ||
+      !accountId ||
+      (!existingBusiness && nameAvailable !== true) ||
+      !limitsValid
+    ) return;
     setDeploying(true);
     setError(null);
-    const contractId = `${normalizedName}.clavis.testnet`;
+    const contractId = existingContract?.contract_id ?? `${normalizedName}.clavis.testnet`;
     let activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
     try {
-      await assertFactorySupportsContractControlledSettlement();
-      const deployment = await createPayroll({
-        wallet,
-        accountId,
-        name: normalizedName,
-        agent,
-        dailyLimitNear: dailyLimit,
-        perPaymentLimitNear: perPaymentLimit,
-      });
-      const record = await waitForPayrollDeployment(accountId, contractId);
-      storeContractId(record.contract_id);
-      updateToast(activeToastId, {
-        status: "success",
-        message: "Transaction confirmed ✅ — Payroll contract deployed",
-        explorerHref: deployment.explorerHref,
-      });
-      if (recipients.length > 0) {
+      if (existingContract) {
+        const submissions = await configureExistingBusiness({
+          wallet,
+          accountId,
+          contractId,
+          agent,
+          dailyLimitNear: dailyLimit,
+          perPaymentLimitNear: perPaymentLimit,
+          recipients,
+        });
+        storeContractId(contractId);
+        updateToast(activeToastId, {
+          status: "success",
+          message:
+            submissions.length > 0
+              ? "Owner-approved policy saved on NEAR testnet ✅"
+              : "Existing on-chain policy already matches this setup ✅",
+          explorerHref: submissions.at(-1)?.explorerHref,
+        });
+      } else {
+        await assertFactorySupportsContractControlledSettlement();
+        const deployment = await createPayroll({
+          wallet,
+          accountId,
+          name: normalizedName,
+          agent,
+          dailyLimitNear: dailyLimit,
+          perPaymentLimitNear: perPaymentLimit,
+        });
+        const record = await waitForPayrollDeployment(accountId, contractId);
+        storeContractId(record.contract_id);
+        updateToast(activeToastId, {
+          status: "success",
+          message: "Transaction confirmed ✅ — Payroll contract deployed",
+          explorerHref: deployment.explorerHref,
+        });
+      }
+      if (!existingContract && recipients.length > 0) {
         activeToastId = showToast({ status: "pending", message: "Transaction submitted" });
         const recipientTransactions = await addRecipients(
           wallet,
@@ -311,19 +381,43 @@ function SetupWizardContent() {
       }
       activeToastId = showToast({
         status: "pending",
-        message: "Verifying and saving the private payroll plan",
+        message: existingContract
+          ? "Authorising the selected private payroll entries"
+          : "Verifying and saving the private payroll plan",
       });
-      await syncPayrollPlan({
-        wallet,
-        accountId,
-        contractId,
-        recipients,
-      });
+      if (existingContract) {
+        for (const recipient of recipients) {
+          let operation = await upsertPayrollRecipient({
+            wallet,
+            accountId,
+            contractId,
+            recipient,
+            expectedPolicy: expectedRecipientPolicyFromDraft(recipient),
+          });
+          for (let attempt = 0; operation.reconciliationStatus !== "committed" && attempt < 5; attempt += 1) {
+            await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+            operation = await reconcilePayrollOperation({
+              accountId,
+              operationId: operation.operationId,
+            });
+          }
+          if (operation.reconciliationStatus !== "committed") {
+            throw new Error(`${recipient.name}'s private payroll entry is still reconciling.`);
+          }
+        }
+      } else {
+        await syncPayrollPlan({
+          wallet,
+          accountId,
+          contractId,
+          recipients,
+        });
+      }
       updateToast(activeToastId, {
         status: "success",
         message: "Payroll agent configured from matching on-chain policy ✅",
       });
-      setDeployedContractId(record.contract_id);
+      setDeployedContractId(contractId);
       setStep(6);
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : "Deployment failed";
@@ -342,16 +436,33 @@ function SetupWizardContent() {
         <div className="text-center">
           <p className="eyebrow">Owner onboarding</p>
           <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-            Launch your payroll contract.
+            {existingBusiness ? "Set up your Clavis business." : "Launch your payroll contract."}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-ink/50">
-            The factory creates an isolated contract under clavis.testnet with your wallet as
-            owner. Deployment uses testnet funds only.
+            {existingBusiness
+              ? "Connect the owner, review the existing contract, and save a complete payroll plan using testnet funds only."
+              : "The factory creates an isolated contract under clavis.testnet with your wallet as owner. Deployment uses testnet funds only."}
           </p>
         </div>
 
         <div className="mx-auto mt-6 max-w-2xl">
-          <FactoryVersionStatus version={factoryVersion} />
+          {existingContract ? (
+            supportsMilestoneIdempotency(existingContractVersion ?? null) ? (
+              <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800" role="status">
+                Existing owner contract detected:{" "}
+                <span className="font-mono">{existingContract.contract_id}</span> v
+                {existingContractVersion}. Clavis will initialise this business instead of
+                creating a duplicate factory account.
+              </p>
+            ) : (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
+                Existing contract setup is blocked until {existingContract.contract_id} reports
+                v0.3.0 or newer. Older contracts remain readable from the dashboard.
+              </p>
+            )
+          ) : (
+            <FactoryVersionStatus version={factoryVersion} />
+          )}
         </div>
 
         <div className="mx-auto mt-8 max-w-3xl sm:hidden">
@@ -405,7 +516,7 @@ function SetupWizardContent() {
                 Connect the owner wallet
               </h2>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink/50">
-                This account owns policy, recipients, and emergency controls for the new
+                This account owns policy, recipients, and emergency controls for the payroll
                 contract.
               </p>
               <div className="mt-7 flex justify-center">
@@ -417,11 +528,7 @@ function SetupWizardContent() {
                   <span className="font-mono text-xs">
                     {ownerContract.contract.contract_id}
                   </span>
-                  .{" "}
-                  <Link to="/dashboard" className="font-semibold underline">
-                    Open its dashboard
-                  </Link>
-                  .
+                  . Continue to review and initialise it for this payroll run.
                 </div>
               )}
             </div>
@@ -431,44 +538,65 @@ function SetupWizardContent() {
             <div>
               <Building2 className="h-8 w-8 text-moss" />
               <h2 className="mt-5 font-display text-3xl font-semibold">
-                Choose your business name
+                {existingBusiness ? "Confirm the business" : "Choose your business name"}
               </h2>
-              <p className="mt-2 text-sm text-ink/50">
-                Lowercase letters, numbers, and hyphens only. This becomes your permanent
-                testnet account.
-              </p>
-              <label className="mt-7 block text-xs font-semibold text-ink/50">
-                Business name
-                <div className="mt-2 flex items-center rounded-2xl border border-line bg-white">
-                  <input
-                    className="min-w-0 flex-1 rounded-2xl bg-transparent px-4 py-3 text-sm outline-none"
-                    value={businessName}
-                    onChange={(event) => setBusinessName(event.target.value)}
-                    placeholder="acmecorp"
-                    autoComplete="organization"
-                  />
-                  <span className="pr-4 font-mono text-xs text-ink/40">.clavis.testnet</span>
+              {existingContract ? (
+                <div className="mt-7 divide-y divide-line rounded-2xl border border-line">
+                  {[
+                    ["Business", businessName || "Clavis"],
+                    ["Contract", existingContract.contract_id],
+                    ["Owner", existingContract.owner],
+                    ["Network", "NEAR Testnet"],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between gap-6 px-4 py-3 text-sm"
+                    >
+                      <span className="text-ink/45">{label}</span>
+                      <span className="truncate text-right font-medium">{value}</span>
+                    </div>
+                  ))}
                 </div>
-              </label>
-              <p
-                className={`mt-3 text-xs ${
-                  nameAvailable === true
-                    ? "text-emerald-700"
-                    : nameAvailable === false
-                      ? "text-red-700"
-                      : "text-ink/40"
-                }`}
-              >
-                {checkingName
-                  ? "Checking availability…"
-                  : nameError
-                    ? nameError
-                  : nameAvailable === true
-                    ? "Available — this name is ready to deploy."
-                    : nameAvailable === false
-                      ? "Unavailable or invalid. Try another name."
-                      : "Enter 2–32 valid characters."}
-              </p>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm text-ink/50">
+                    Lowercase letters, numbers, and hyphens only. This becomes your permanent
+                    testnet account.
+                  </p>
+                  <label className="mt-7 block text-xs font-semibold text-ink/50">
+                    Business name
+                    <div className="mt-2 flex items-center rounded-2xl border border-line bg-white">
+                      <input
+                        className="min-w-0 flex-1 rounded-2xl bg-transparent px-4 py-3 text-sm outline-none"
+                        value={businessName}
+                        onChange={(event) => setBusinessName(event.target.value)}
+                        placeholder="acmecorp"
+                        autoComplete="organization"
+                      />
+                      <span className="pr-4 font-mono text-xs text-ink/40">.clavis.testnet</span>
+                    </div>
+                  </label>
+                  <p
+                    className={`mt-3 text-xs ${
+                      nameAvailable === true
+                        ? "text-emerald-700"
+                        : nameAvailable === false
+                          ? "text-red-700"
+                          : "text-ink/40"
+                    }`}
+                  >
+                    {checkingName
+                      ? "Checking availability…"
+                      : nameError
+                        ? nameError
+                        : nameAvailable === true
+                          ? "Available — this name is ready to deploy."
+                          : nameAvailable === false
+                            ? "Unavailable or invalid. Try another name."
+                            : "Enter 2–32 valid characters."}
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -764,17 +892,20 @@ function SetupWizardContent() {
             <div>
               <Rocket className="h-8 w-8 text-moss" />
               <h2 className="mt-5 font-display text-3xl font-semibold">
-                Deploy on NEAR testnet
+                {existingBusiness ? "Review and initialise" : "Deploy on NEAR testnet"}
               </h2>
               <div className="mt-7 divide-y divide-line rounded-2xl border border-line">
                 {[
-                  ["Contract", `${normalizedName}.clavis.testnet`],
+                  ["Contract", existingContract?.contract_id ?? `${normalizedName}.clavis.testnet`],
                   ["Owner", accountId ?? "Not connected"],
                   ["Daily limit", `${dailyLimit} NEAR`],
                   ["Per-payment limit", `${perPaymentLimit} NEAR`],
                   ["Recipients", String(recipients.length)],
                   ["Agent", agent],
-                  ["Deployment balance", "6 NEAR testnet"],
+                  [
+                    existingBusiness ? "Run type" : "Deployment balance",
+                    existingBusiness ? "One-time milestone plan" : "6 NEAR testnet",
+                  ],
                 ].map(([label, value]) => (
                   <div
                     key={label}
@@ -785,20 +916,39 @@ function SetupWizardContent() {
                   </div>
                 ))}
               </div>
-              <FactoryVersionStatus className="mt-4" version={factoryVersion} />
+              {existingBusiness ? (
+                <p className="mt-4 rounded-xl bg-canvas p-3 text-xs leading-5 text-ink/55">
+                  Meteor signs owner policy changes. A separate signed private-plan approval
+                  authorises the restricted agent to request only the reviewed milestone payments.
+                </p>
+              ) : (
+                <FactoryVersionStatus className="mt-4" version={factoryVersion} />
+              )}
               <button
                 type="button"
                 className="button-primary mt-6 w-full"
                 disabled={
-                  deploying || !wallet || !controlsNativeSettlement(factoryVersion ?? null)
+                  deploying ||
+                  !wallet ||
+                  (existingBusiness
+                    ? !supportsMilestoneIdempotency(existingContractVersion ?? null)
+                    : !supportsMilestoneIdempotency(factoryVersion ?? null))
                 }
-                onClick={() => void deploy()}
+                onClick={() => void finishSetup()}
               >
-                {deploying ? "Deploying and configuring…" : "Deploy payroll contract"}
+                {deploying
+                  ? existingBusiness
+                    ? "Saving owner policy and private plan…"
+                    : "Deploying and configuring…"
+                  : existingBusiness
+                    ? "Approve and save payroll setup"
+                    : "Deploy payroll contract"}
                 <ArrowRight className="h-4 w-4" />
               </button>
               <p className="mt-3 text-center text-xs text-ink/40">
-                Your wallet may request additional signatures to add the initial roster.
+                {existingBusiness
+                  ? "No payment is submitted until the restricted agent evaluates this owner-approved plan."
+                  : "Your wallet may request additional signatures to add the initial roster."}
               </p>
             </div>
           )}
@@ -808,12 +958,13 @@ function SetupWizardContent() {
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-acid">
                 <Check className="h-6 w-6" />
               </span>
-              <h2 className="mt-5 font-display text-4xl font-semibold">Your contract is live.</h2>
+              <h2 className="mt-5 font-display text-4xl font-semibold">
+                {existingBusiness ? "Your business is ready." : "Your contract is live."}
+              </h2>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink/50">
-                Clavis created the contract and reconciled its private plan with the final
-                on-chain roster. Fund the treasury, provision the configured agent with a
-                contract-scoped request_payment key, and keep that agent online.
-                You will be redirected to the business dashboard in a few seconds.
+                {existingBusiness
+                  ? "Clavis reconciled the owner-approved on-chain policy with the signed private plan. The restricted agent can now evaluate the prepared one-time milestone run. You will be redirected to the business dashboard in a few seconds."
+                  : "Clavis created the contract and reconciled its private plan with the final on-chain roster. Fund the treasury, provision the configured agent with a contract-scoped request_payment key, and keep that agent online. You will be redirected to the business dashboard in a few seconds."}
               </p>
               <div className="mt-6 rounded-2xl bg-canvas p-4 font-mono text-sm">
                 {deployedContractId}
@@ -880,7 +1031,7 @@ function FactoryVersionStatus({
       </p>
     );
   }
-  if (controlsNativeSettlement(version)) {
+  if (supportsMilestoneIdempotency(version)) {
     return (
       <p className={`${className} rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800`} role="status">
         Factory v{version} creates contracts with contract-controlled native NEAR settlement.
@@ -892,8 +1043,8 @@ function FactoryVersionStatus({
       className={`${className} rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900`}
       role="alert"
     >
-      New payroll deployment is blocked because factory.clavis.testnet does not report v0.2.0.
-      The existing v0.2 root payroll remains available.
+      New payroll deployment is blocked because factory.clavis.testnet does not report v0.3.0.
+      Existing v0.2 payrolls remain readable, but the production scheduler requires v0.3.
     </p>
   );
 }

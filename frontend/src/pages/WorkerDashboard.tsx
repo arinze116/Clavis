@@ -99,25 +99,9 @@ function WorkerDashboardContent() {
 
       const results = await Promise.all(
         [...candidateIds].map(async (contractId) => {
-          const [registered, directRecipient] = await Promise.all([
-            view<boolean>(contractId, "is_registered", { account_id: accountId }).catch(
-              () => false,
-            ),
-            view<Recipient | null>(contractId, "get_recipient", {
-              recipient_hash: recipientHash,
-            }).catch(() => null),
-          ]);
-          let recipient = directRecipient;
-          if (!recipient && registered) {
-            const recipients = await view<Recipient[]>(contractId, "get_recipients", {
-              from: 0,
-              limit: 100,
-            }).catch(() => []);
-            recipient =
-              recipients.find((item) =>
-                item.name.toLowerCase().includes(accountId.toLowerCase()),
-              ) ?? null;
-          }
+          const recipient = await view<Recipient | null>(contractId, "get_recipient", {
+            recipient_hash: recipientHash,
+          }).catch(() => null);
           if (!recipient) return null;
           const auditLog = await view<AuditEntry[]>(
             contractId,

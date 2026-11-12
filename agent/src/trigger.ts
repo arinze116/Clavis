@@ -47,6 +47,7 @@ export async function triggerDuePayments(options: {
   recipients: RecipientView[];
   notifications: NotificationManager;
   claimDecisionNotification?: (paymentId: number) => Promise<boolean>;
+  completeDecisionNotification?: (paymentId: number, delivered: boolean) => Promise<void>;
   intentRetryDelayMs: number;
   now?: Date;
 }): Promise<void> {
@@ -74,6 +75,26 @@ export async function triggerDuePayments(options: {
     if (!primaryRoute) continue;
 
     try {
+      const milestoneReference =
+        recipient.schedule === "Milestone" ? plan.milestoneId : undefined;
+      if (
+        milestoneReference &&
+        (await options.near.isPaymentReferenceCompleted(
+          plan.recipientHash,
+          milestoneReference,
+        ))
+      ) {
+        await options.state.markMilestoneCompleted(
+          plan.recipientHash,
+          milestoneReference,
+        );
+        logger.info("payment.milestone_reconciled", {
+          contractId: options.contractId,
+          recipient: maskHash(plan.recipientHash),
+          milestoneId: milestoneReference,
+        });
+        continue;
+      }
       const preparedEnvelopes = buildIntentEnvelopes(
         options.contractId,
         0,
@@ -98,10 +119,17 @@ export async function triggerDuePayments(options: {
         amountYocto: plan.amountYocto,
         chain: primaryRoute.chain,
         token: primaryRoute.token,
+        ...(milestoneReference ? { paymentReference: milestoneReference } : {}),
       });
 
       if (!result.approved) {
         const reason = result.reason ?? "Policy rejected the request";
+        if (reason === "Payment reference already settled" && milestoneReference) {
+          await options.state.markMilestoneCompleted(
+            plan.recipientHash,
+            milestoneReference,
+          );
+        }
         logger.warn("payment.rejected", {
           contractId: options.contractId,
           paymentId: result.payment_id,
@@ -111,15 +139,21 @@ export async function triggerDuePayments(options: {
           !options.claimDecisionNotification ||
           (await options.claimDecisionNotification(result.payment_id))
         ) {
-          await options.notifications.paymentRejected({
-            business: options.business,
-            paymentId: result.payment_id,
-            reason,
-            ...(options.ownerAccountId
-              ? { ownerAccountId: options.ownerAccountId }
-              : {}),
-            workerAccountId: plan.nearAddress,
-          });
+          let delivered = false;
+          try {
+            const notification = await options.notifications.paymentRejected({
+              business: options.business,
+              paymentId: result.payment_id,
+              reason,
+              ...(options.ownerAccountId
+                ? { ownerAccountId: options.ownerAccountId }
+                : {}),
+              workerAccountId: plan.nearAddress,
+            });
+            delivered = notification.delivered;
+          } finally {
+            await options.completeDecisionNotification?.(result.payment_id, delivered);
+          }
         }
         continue;
       }
@@ -128,8 +162,8 @@ export async function triggerDuePayments(options: {
       }
 
       const milestone =
-        recipient.schedule === "Milestone" && plan.milestoneId
-          ? { recipientHash: plan.recipientHash, milestoneId: plan.milestoneId }
+        recipient.schedule === "Milestone" && milestoneReference
+          ? { recipientHash: plan.recipientHash, milestoneId: milestoneReference }
           : undefined;
       await options.state.recordPayment(
         {
@@ -152,15 +186,21 @@ export async function triggerDuePayments(options: {
         !options.claimDecisionNotification ||
         (await options.claimDecisionNotification(result.payment_id))
       ) {
-        await options.notifications.paymentApproved({
-          business: options.business,
-          paymentId: result.payment_id,
-          workerName: plan.name,
-          ...(options.ownerAccountId
-            ? { ownerAccountId: options.ownerAccountId }
-            : {}),
-          workerAccountId: plan.nearAddress,
-        });
+        let delivered = false;
+        try {
+          const notification = await options.notifications.paymentApproved({
+            business: options.business,
+            paymentId: result.payment_id,
+            workerName: plan.name,
+            ...(options.ownerAccountId
+              ? { ownerAccountId: options.ownerAccountId }
+              : {}),
+            workerAccountId: plan.nearAddress,
+          });
+          delivered = notification.delivered;
+        } finally {
+          await options.completeDecisionNotification?.(result.payment_id, delivered);
+        }
       }
       await options.notifications.deliveryFilled({
         business: options.business,

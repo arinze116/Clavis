@@ -119,7 +119,10 @@ describe("triggerDuePayments", () => {
 
     await triggerDuePayments({
       contractId: "acme.clavis.testnet",
-      near: { requestPayment } as unknown as NearClient,
+      near: {
+        requestPayment,
+        isPaymentReferenceCompleted: vi.fn(async () => false),
+      } as unknown as NearClient,
       intents: { preflight: vi.fn(async () => undefined) } as unknown as IntentClient,
       intentStore: {
         ensurePending: vi.fn(async () => record),
@@ -157,13 +160,22 @@ describe("triggerDuePayments", () => {
     }));
     const recordRequest = vi.fn(async () => undefined);
     const recordPayment = vi.fn(async () => undefined);
-    const paymentApproved = vi.fn(async () => undefined);
+    const paymentApproved = vi.fn(async () => ({
+      delivered: true,
+      attempted: 1,
+      succeeded: 1,
+      skipped: 0,
+      failed: 0,
+    }));
     const deliveryFilled = vi.fn(async () => undefined);
     const preflight = vi.fn(async () => undefined);
 
     await triggerDuePayments({
       contractId: "acme.clavis.testnet",
-      near: { requestPayment } as unknown as NearClient,
+      near: {
+        requestPayment,
+        isPaymentReferenceCompleted: vi.fn(async () => false),
+      } as unknown as NearClient,
       intents: { preflight } as unknown as IntentClient,
       intentStore: {
         ensurePending: vi.fn(async () => ({ status: "PENDING" })),
@@ -202,6 +214,41 @@ describe("triggerDuePayments", () => {
     expect(deliveryFilled).toHaveBeenCalledWith(
       expect.objectContaining({ transactionHash: "contract-settlement-transaction" }),
     );
+    expect(requestPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentReference: "delivery-1" }),
+    );
+  });
+
+  it("reconciles a settled milestone from contract state without paying it again", async () => {
+    const requestPayment = vi.fn();
+    const markMilestoneCompleted = vi.fn(async () => undefined);
+
+    await triggerDuePayments({
+      contractId: "acme.clavis.testnet",
+      near: {
+        requestPayment,
+        isPaymentReferenceCompleted: vi.fn(async () => true),
+      } as unknown as NearClient,
+      intents: { preflight: vi.fn(async () => undefined) } as unknown as IntentClient,
+      intentStore: {} as IntentStore,
+      state: {
+        value: state(),
+        markMilestoneCompleted,
+      } as unknown as StateStore,
+      business: {
+        contract_id: "acme.clavis.testnet",
+        owner_email: "owner@example.com",
+        telegram_chat_id: undefined,
+        recipients: [plan("delivery-1")],
+      },
+      recipients: [milestoneRecipient],
+      notifications: {} as NotificationManager,
+      intentRetryDelayMs: 30_000,
+      now: new Date("2026-11-03T06:00:00.000Z"),
+    });
+
+    expect(markMilestoneCompleted).toHaveBeenCalledWith(recipientHash, "delivery-1");
+    expect(requestPayment).not.toHaveBeenCalled();
   });
 
   it("does not consume authorization when settlement preflight fails", async () => {
@@ -211,7 +258,10 @@ describe("triggerDuePayments", () => {
 
     await triggerDuePayments({
       contractId: "acme.clavis.testnet",
-      near: { requestPayment } as unknown as NearClient,
+      near: {
+        requestPayment,
+        isPaymentReferenceCompleted: vi.fn(async () => false),
+      } as unknown as NearClient,
       intents: {
         preflight: vi.fn(async () => {
           throw new Error("No solver quote is available");

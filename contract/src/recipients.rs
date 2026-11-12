@@ -222,15 +222,7 @@ impl Clavis {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>();
-        if self.recipients.get(&account_hash).is_some() {
-            return true;
-        }
-
-        // Compatibility fallback for early records that included a NEAR
-        // account in the display label.
-        self.recipients.iter().any(|(_, config)| {
-            config.preferred_chain == "near" && config.name.to_lowercase().contains(&account)
-        })
+        self.recipients.get(&account_hash).is_some()
     }
 }
 

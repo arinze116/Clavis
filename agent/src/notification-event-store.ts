@@ -18,6 +18,8 @@ export class NotificationEventStore {
   readonly #path: string;
   #state: NotificationEventState = { version: 1, contracts: {} };
   #saveQueue: Promise<void> = Promise.resolve();
+  readonly #inFlightDecisions = new Set<string>();
+  readonly #inFlightAnomalies = new Set<string>();
 
   constructor(statePath: string) {
     this.#path = statePath;
@@ -52,27 +54,75 @@ export class NotificationEventStore {
   }
 
   async claimDecision(contractId: string, paymentId: number): Promise<boolean> {
-    return this.#claim(contractId, "decisionIds", paymentId);
+    return this.#claim(contractId, "decisionIds", paymentId, this.#inFlightDecisions);
   }
 
   async claimAnomaly(contractId: string, anomalyId: number): Promise<boolean> {
-    return this.#claim(contractId, "anomalyIds", anomalyId);
+    return this.#claim(contractId, "anomalyIds", anomalyId, this.#inFlightAnomalies);
+  }
+
+  async completeDecision(
+    contractId: string,
+    paymentId: number,
+    delivered: boolean,
+  ): Promise<void> {
+    await this.#complete(
+      contractId,
+      "decisionIds",
+      paymentId,
+      delivered,
+      this.#inFlightDecisions,
+    );
+  }
+
+  async completeAnomaly(
+    contractId: string,
+    anomalyId: number,
+    delivered: boolean,
+  ): Promise<void> {
+    await this.#complete(
+      contractId,
+      "anomalyIds",
+      anomalyId,
+      delivered,
+      this.#inFlightAnomalies,
+    );
   }
 
   async #claim(
     contractId: string,
     key: "decisionIds" | "anomalyIds",
     eventId: number,
+    inFlight: Set<string>,
   ): Promise<boolean> {
     const events = (this.#state.contracts[contractId] ??= {
       baselined: false,
       decisionIds: [],
       anomalyIds: [],
     });
-    if (events[key].includes(eventId)) return false;
+    const flightKey = eventKey(contractId, eventId);
+    if (events[key].includes(eventId) || inFlight.has(flightKey)) return false;
+    inFlight.add(flightKey);
+    return true;
+  }
+
+  async #complete(
+    contractId: string,
+    key: "decisionIds" | "anomalyIds",
+    eventId: number,
+    delivered: boolean,
+    inFlight: Set<string>,
+  ): Promise<void> {
+    inFlight.delete(eventKey(contractId, eventId));
+    if (!delivered) return;
+    const events = (this.#state.contracts[contractId] ??= {
+      baselined: false,
+      decisionIds: [],
+      anomalyIds: [],
+    });
+    if (events[key].includes(eventId)) return;
     events[key] = uniqueRecent([...events[key], eventId]);
     await this.#queueSave();
-    return true;
   }
 
   #queueSave(): Promise<void> {
@@ -87,6 +137,10 @@ export class NotificationEventStore {
     });
     return this.#saveQueue;
   }
+}
+
+function eventKey(contractId: string, eventId: number): string {
+  return `${contractId}:${eventId}`;
 }
 
 function uniqueRecent(values: number[]): number[] {

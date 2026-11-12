@@ -16,12 +16,12 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function mockPublicContractReads(page: Page, delayMs = 0, factoryVersion = "0.2.0") {
+async function mockPublicContractReads(page: Page, delayMs = 0, factoryVersion = "0.3.0") {
   const blockHeight = 276_900_000;
   const blockHash = "11111111111111111111111111111111";
   const blockTimestampNanoseconds = "1793845410551148443";
   const values: Record<string, unknown> = {
-    contract_version: "0.2.0",
+    contract_version: "0.3.0",
     get_owner: "clavis.testnet",
     get_agent: "clavis-agent.testnet",
     get_daily_limit: "100000000000000000000000000",
@@ -164,7 +164,7 @@ test("public dashboard distinguishes native and cross-chain evidence", async ({ 
   await expect(page.getByText("Live contract evidence", { exact: true })).toBeVisible();
   await expect(page.getByText(/Final block \d+ · block time/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Settlement boundary" })).toBeVisible();
-  await expect(page.getByText(/contract.*v0\.2\.0|Reading the deployed contract version/i)).toBeVisible();
+  await expect(page.getByText(/contract.*v0\.3\.0|Reading the deployed contract version/i)).toBeVisible();
   await expect(page.getByText(/Cross-chain execution is disabled in this release/i)).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);
@@ -183,7 +183,7 @@ test("security page keeps limitations beside the test evidence", async ({ page }
   expect(errors).toEqual([]);
 });
 
-test("setup reports the live v0.2 factory before wallet connection", async ({ page }) => {
+test("setup reports the live v0.3 factory before wallet connection", async ({ page }) => {
   const errors = collectPageErrors(page);
   await mockPublicContractReads(page);
 
@@ -191,7 +191,7 @@ test("setup reports the live v0.2 factory before wallet connection", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Launch your payroll contract." })).toBeVisible();
   await expect(
-    page.getByText(/Factory v0\.2\.0 creates contracts with contract-controlled native NEAR settlement/i),
+    page.getByText(/Factory v0\.3\.0 creates contracts with contract-controlled native NEAR settlement/i),
   ).toBeVisible();
   await expect(page.getByText(/New payroll deployment is blocked/i)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
@@ -205,7 +205,7 @@ test("setup still fails closed for a legacy factory", async ({ page }) => {
   await page.goto("/setup");
 
   await expect(
-    page.getByText(/New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.2\.0/i),
+    page.getByText(/New payroll deployment is blocked because factory\.clavis\.testnet does not report v0\.3\.0/i),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);

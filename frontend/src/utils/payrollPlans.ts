@@ -84,6 +84,18 @@ export function validateAgentRecipientDraft(
     }
     return "Cross-chain execution is disabled in this release; select native NEAR so settlement remains contract-controlled.";
   }
+  if (draft.milestoneReady && draft.schedule !== "Milestone") {
+    return "A one-time milestone run can only be prepared for a Milestone schedule.";
+  }
+  if (draft.milestoneReady && !draft.milestoneId?.trim()) {
+    return "Enter a milestone reference before preparing the one-time payment.";
+  }
+  if (
+    draft.milestoneReady &&
+    !/^[A-Za-z0-9._:-]{1,128}$/.test(draft.milestoneId?.trim() ?? "")
+  ) {
+    return "Use 1–128 letters, numbers, dots, colons, hyphens, or underscores for the milestone reference.";
+  }
   return null;
 }
 
@@ -97,7 +109,7 @@ export async function syncPayrollPlan(options: {
     contractId: options.contractId,
     entries: await Promise.all(
       options.recipients.map(async (recipient) => ({
-        recipient: await recipientPlanFromDraft(recipient),
+        recipient: await payrollRecipientFromDraft(recipient),
         expectedPolicy: expectedRecipientPolicyFromDraft(recipient),
       })),
     ),
@@ -118,7 +130,7 @@ export async function upsertPayrollRecipient(options: {
   expectedPolicy: ExpectedRecipientPolicy;
   expectedRecipientHash?: string;
 }): Promise<StagedPayrollOperation> {
-  const recipient = await recipientPlanFromDraft(options.recipient);
+  const recipient = await payrollRecipientFromDraft(options.recipient);
   if (
     options.expectedRecipientHash &&
     recipient.recipientHash !== options.expectedRecipientHash
@@ -188,7 +200,7 @@ export function expectedRecipientPolicyFromDraft(
   };
 }
 
-async function recipientPlanFromDraft(
+export async function payrollRecipientFromDraft(
   draft: RecipientDraft,
 ): Promise<PrivatePayrollRecipient> {
   const validationError = validateAgentRecipientDraft(draft);
@@ -199,7 +211,10 @@ async function recipientPlanFromDraft(
     name: draft.name.trim(),
     nearAddress,
     amountYocto: nearToYocto(draft.paymentAmountNear),
-    milestoneReady: false,
+    milestoneReady: draft.schedule === "Milestone" && Boolean(draft.milestoneReady),
+    ...(draft.schedule === "Milestone" && draft.milestoneReady
+      ? { milestoneId: draft.milestoneId?.trim() }
+      : {}),
     destinations: [
       {
         chain: draft.preferredChain,

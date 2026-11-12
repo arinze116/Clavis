@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 cargo fmt --check --manifest-path contract/Cargo.toml
+cargo clippy --manifest-path contract/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path contract/Cargo.toml
 "$ROOT_DIR/scripts/build-contracts.sh"
 cargo test --manifest-path contract/Cargo.toml --package clavis-factory
@@ -37,6 +38,8 @@ bash -n \
   scripts/deploy-v02-testnet.sh \
   scripts/configure-v02-payroll-testnet.sh \
   scripts/deploy-v02-agent-testnet.sh \
+  scripts/deploy-v03-testnet.sh \
+  scripts/deploy-v03-agent-testnet.sh \
   scripts/execute-v02-testnet.sh
 git diff --check
 echo "Clavis verification complete."

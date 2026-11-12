@@ -101,7 +101,51 @@ fn migrates_legacy_state_without_changing_policy_data() {
         .get_recipient(recipient_hash(WORKER_ACCOUNT))
         .is_some());
     assert!(migrated.pending_native_payment.is_none());
-    assert_eq!(migrated.contract_version(), "0.2.0");
+    assert_eq!(migrated.contract_version(), "0.3.0");
+}
+
+#[test]
+fn migrates_v02_state_and_initializes_payment_reference_storage() {
+    testing_env!(context("owner.testnet", DAY_NS).build());
+    let mut current = Clavis::new(
+        account("owner.testnet"),
+        account("agent.testnet"),
+        U128(1_000),
+        U128(500),
+    );
+    current.add_recipient(
+        recipient_hash(WORKER_ACCOUNT),
+        recipient(400, PaymentSchedule::Milestone),
+    );
+    let legacy = crate::LegacyClavisV2 {
+        owner: current.owner,
+        agent: current.agent,
+        daily_limit: current.daily_limit,
+        per_payment_limit: current.per_payment_limit,
+        daily_spent: current.daily_spent,
+        last_reset_timestamp: current.last_reset_timestamp,
+        recipients: current.recipients,
+        recipient_count: current.recipient_count,
+        audit_log: current.audit_log,
+        log_counter: current.log_counter,
+        anomaly_log: current.anomaly_log,
+        anomaly_counter: current.anomaly_counter,
+        recipient_last_request: current.recipient_last_request,
+        anomaly_last_logged: current.anomaly_last_logged,
+        paused: current.paused,
+        pending_native_payment: None,
+    };
+    near_sdk::env::state_write(&legacy);
+
+    let migrated = Clavis::migrate();
+
+    assert_eq!(migrated.contract_version(), "0.3.0");
+    assert!(
+        !migrated.is_payment_reference_completed(
+            recipient_hash(WORKER_ACCOUNT),
+            "milestone-1".to_string(),
+        )
+    );
 }
 
 fn request(
@@ -115,6 +159,7 @@ fn request(
         "near".to_string(),
         "NEAR".to_string(),
         Some(account(WORKER_ACCOUNT)),
+        Some(format!("test-{}", near_sdk::env::block_timestamp())),
     )
 }
 
@@ -267,6 +312,62 @@ fn stale_successful_callback_can_be_finalized_without_repaying() {
 }
 
 #[test]
+fn milestone_reference_prevents_duplicate_settlement_after_agent_state_loss() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    let requested_at = DAY_NS + BUSINESS_HOUR_NS;
+    let hash = recipient_hash(WORKER_ACCOUNT);
+    testing_env!(context("agent.testnet", requested_at).build());
+    expect_transfer(contract.request_payment(
+        hash.clone(),
+        U128(300),
+        "near".to_string(),
+        "NEAR".to_string(),
+        Some(account(WORKER_ACCOUNT)),
+        Some("milestone-42".to_string()),
+    ));
+    assert!(settle(&mut contract, requested_at + 1, true).approved);
+    assert!(contract.is_payment_reference_completed(hash.clone(), "milestone-42".to_string()));
+
+    testing_env!(context("agent.testnet", requested_at + 2 * crate::MINUTE_NS).build());
+    let replay = value(contract.request_payment(
+        hash,
+        U128(300),
+        "near".to_string(),
+        "NEAR".to_string(),
+        Some(account(WORKER_ACCOUNT)),
+        Some("milestone-42".to_string()),
+    ));
+
+    assert!(!replay.approved);
+    assert_eq!(
+        replay.reason.as_deref(),
+        Some("Payment reference already settled")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(300));
+}
+
+#[test]
+fn milestone_payment_requires_a_stable_reference() {
+    let mut contract = configured_contract(PaymentSchedule::Milestone);
+    testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
+
+    let result = value(contract.request_payment(
+        recipient_hash(WORKER_ACCOUNT),
+        U128(300),
+        "near".to_string(),
+        "NEAR".to_string(),
+        Some(account(WORKER_ACCOUNT)),
+        None,
+    ));
+
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Milestone payment reference is required")
+    );
+    assert_eq!(contract.get_daily_spent(), U128(0));
+}
+
+#[test]
 fn rejects_another_request_while_native_transfer_is_pending() {
     let mut contract = configured_contract(PaymentSchedule::Milestone);
     testing_env!(context("agent.testnet", DAY_NS + BUSINESS_HOUR_NS).build());
@@ -292,6 +393,7 @@ fn rejects_native_destination_that_does_not_match_commitment() {
         "near".to_string(),
         "NEAR".to_string(),
         Some(account("attacker.testnet")),
+        None,
     ));
 
     assert_eq!(
@@ -322,6 +424,7 @@ fn cross_chain_authorization_fails_closed_before_policy_is_consumed() {
         "ethereum".to_string(),
         "USDC".to_string(),
         Some(account(WORKER_ACCOUNT)),
+        None,
     ));
 
     assert_eq!(
@@ -530,6 +633,7 @@ fn rejects_unregistered_destination_route() {
         "bnb".to_string(),
         "BUSD".to_string(),
         Some(account(WORKER_ACCOUNT)),
+        None,
     ));
     assert_eq!(result.reason.unwrap(), "Destination route not approved");
 }
@@ -561,7 +665,7 @@ fn validates_payment_splits() {
 }
 
 #[test]
-fn reports_near_worker_registration_from_plaintext_name() {
+fn does_not_infer_registration_from_a_display_name() {
     testing_env!(context("owner.testnet", DAY_NS).build());
     let mut contract = Clavis::new(
         account("owner.testnet"),
@@ -575,7 +679,7 @@ fn reports_near_worker_registration_from_plaintext_name() {
     config.preferred_token = "NEAR".to_string();
     contract.add_recipient(UNKNOWN_HASH.to_string(), config);
 
-    assert!(contract.is_registered(account("ada-worker.testnet")));
+    assert!(!contract.is_registered(account("ada-worker.testnet")));
     assert!(!contract.is_registered(account("unknown.testnet")));
 }
 

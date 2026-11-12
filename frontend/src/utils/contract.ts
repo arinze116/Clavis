@@ -249,6 +249,18 @@ export async function getContractByOwner(
   // it for its actual owner even if that owner later created a factory child,
   // so the canonical demo contract remains reachable and upgradeable.
   if (fallbackToRootContract) {
+    // The singleton account is self-owned in the deployed Clavis topology.
+    // Resolve that invariant locally so a transient root RPC failure cannot
+    // silently switch the connected owner to an older factory child.
+    if (owner === rootContractId) {
+      return {
+        name: rootContractId,
+        contract_id: rootContractId,
+        owner,
+        created_at: 0,
+      };
+    }
+
     try {
       const rootOwner = await view<string>(rootContractId, "get_owner");
       if (rootOwner === owner) {
@@ -318,6 +330,14 @@ export async function getFactoryContractVersion(): Promise<string | null> {
   }
 }
 
+export async function getPayrollContractVersion(contractId: string): Promise<string | null> {
+  try {
+    return await view<string>(contractId, "contract_version");
+  } catch {
+    return null;
+  }
+}
+
 export function controlsNativeSettlement(contractVersion: string | null): boolean {
   if (!contractVersion) return false;
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(contractVersion.trim());
@@ -327,11 +347,20 @@ export function controlsNativeSettlement(contractVersion: string | null): boolea
   return major > 0 || minor >= 2;
 }
 
+export function supportsMilestoneIdempotency(contractVersion: string | null): boolean {
+  if (!contractVersion) return false;
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(contractVersion.trim());
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 0 || minor >= 3;
+}
+
 export async function assertFactorySupportsContractControlledSettlement(): Promise<void> {
   const version = await getFactoryContractVersion();
-  if (!controlsNativeSettlement(version)) {
+  if (!supportsMilestoneIdempotency(version)) {
     throw new Error(
-      "The deployed factory is still on the legacy authorization-only release. Upgrade it to v0.2.0 before creating another payroll contract.",
+      "The deployed factory does not support on-chain milestone idempotency. Upgrade it to v0.3.0 before creating another payroll contract.",
     );
   }
 }

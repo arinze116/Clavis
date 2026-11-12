@@ -23,6 +23,14 @@ interface Destination {
   allowDefaultTelegram: boolean;
 }
 
+export interface NotificationDeliveryResult {
+  delivered: boolean;
+  attempted: number;
+  succeeded: number;
+  skipped: number;
+  failed: number;
+}
+
 export class NotificationManager {
   readonly #email: EmailNotifier;
   readonly #telegram: TelegramNotifier;
@@ -52,9 +60,9 @@ export class NotificationManager {
     workerAccountId?: string;
     paymentId: number;
     workerName: string;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const payment = formatPaymentId(options.paymentId);
-    await this.sendNotification({
+    return this.sendNotification({
       contractId: options.business.contract_id,
       audience: ownerAndWorkerAudience(options),
       subject: `Payment #${payment} approved for ${options.workerName}`,
@@ -72,9 +80,9 @@ export class NotificationManager {
     workerAccountId?: string;
     paymentId: number;
     reason: string;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const payment = formatPaymentId(options.paymentId);
-    await this.sendNotification({
+    return this.sendNotification({
       contractId: options.business.contract_id,
       audience: ownerAndWorkerAudience(options),
       subject: `Payment #${payment} rejected: ${options.reason}`,
@@ -92,11 +100,11 @@ export class NotificationManager {
     paymentId: number;
     approved: boolean;
     reason?: string;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const payment = formatPaymentId(options.paymentId);
     const status = options.approved ? "approved" : "rejected";
     const reason = options.reason ? ` Reason: ${options.reason}` : "";
-    await this.sendNotification({
+    return this.sendNotification({
       contractId: options.business.contract_id,
       audience: [ownerAudience(options.business, options.ownerAccountId)],
       subject: `Payment #${payment} ${status} on ${options.business.contract_id}`,
@@ -112,10 +120,10 @@ export class NotificationManager {
     business: BusinessPayroll;
     ownerAccountId?: string;
     anomaly: ContractAnomalyEntry;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const milliseconds = BigInt(String(options.anomaly.timestamp)) / 1_000_000n;
     const time = new Date(Number(milliseconds)).toISOString().slice(11, 16);
-    await this.sendNotification({
+    return this.sendNotification({
       contractId: options.business.contract_id,
       audience: [ownerAudience(options.business, options.ownerAccountId)],
       subject: `Anomaly alert: ${options.anomaly.anomaly_type}`,
@@ -132,8 +140,8 @@ export class NotificationManager {
     contractId: string;
     workerAccountId: string;
     workerName: string;
-  }): Promise<void> {
-    await this.sendNotification({
+  }): Promise<NotificationDeliveryResult> {
+    return this.sendNotification({
       contractId: options.contractId,
       audience: [{ accountId: options.workerAccountId }],
       subject: `You were added to ${options.contractId} payroll`,
@@ -150,9 +158,9 @@ export class NotificationManager {
     business: BusinessPayroll;
     ownerAccountId?: string;
     anomaly: Anomaly;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const time = new Date(options.anomaly.timestamp).toISOString().slice(11, 16);
-    await this.sendNotification({
+    return this.sendNotification({
       contractId: options.business.contract_id,
       audience: [ownerAudience(options.business, options.ownerAccountId)],
       subject: `Anomaly alert: ${options.anomaly.type} — ${options.anomaly.description}`,
@@ -287,11 +295,11 @@ export class NotificationManager {
     subject: string;
     emailText: string;
     telegramText: string;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const destinations = dedupeDestinations(
       options.audience.map((audience) => this.resolveDestination(audience)),
     );
-    await Promise.all(
+    const results = await Promise.all(
       destinations.map((destination) =>
         this.sendBoth({
           contractId: options.contractId,
@@ -302,6 +310,7 @@ export class NotificationManager {
         }),
       ),
     );
+    return results.reduce(mergeDeliveryResults, emptyDeliveryResult());
   }
 
   private resolveDestination(audience: Audience): Destination {
@@ -332,7 +341,7 @@ export class NotificationManager {
     subject: string;
     emailText: string;
     telegramText: string;
-  }): Promise<void> {
+  }): Promise<NotificationDeliveryResult> {
     const [email, telegram] = await Promise.allSettled([
       this.#email.send({
         to: options.destination.emailTo,
@@ -365,6 +374,20 @@ export class NotificationManager {
         });
       }
     }
+    const succeeded = [email, telegram].filter(
+      (result) => result.status === "fulfilled" && result.value === "sent",
+    ).length;
+    const skipped = [email, telegram].filter(
+      (result) => result.status === "fulfilled" && result.value === "skipped",
+    ).length;
+    const failed = [email, telegram].filter((result) => result.status === "rejected").length;
+    return {
+      delivered: succeeded > 0,
+      attempted: succeeded + failed,
+      succeeded,
+      skipped,
+      failed,
+    };
   }
 }
 
@@ -428,4 +451,22 @@ function dedupeDestinations(destinations: Destination[]): Destination[] {
 
 function formatPaymentId(paymentId: number): string {
   return String(paymentId).padStart(3, "0");
+}
+
+function emptyDeliveryResult(): NotificationDeliveryResult {
+  return { delivered: false, attempted: 0, succeeded: 0, skipped: 0, failed: 0 };
+}
+
+function mergeDeliveryResults(
+  total: NotificationDeliveryResult,
+  next: NotificationDeliveryResult,
+): NotificationDeliveryResult {
+  const succeeded = total.succeeded + next.succeeded;
+  return {
+    delivered: succeeded > 0,
+    attempted: total.attempted + next.attempted,
+    succeeded,
+    skipped: total.skipped + next.skipped,
+    failed: total.failed + next.failed,
+  };
 }

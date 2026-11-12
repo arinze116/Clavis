@@ -24,14 +24,19 @@ async function createStore(): Promise<{ store: NotificationEventStore; statePath
 }
 
 describe("NotificationEventStore", () => {
-  it("baselines historical events and claims each new event only once", async () => {
+  it("baselines historical events and only completes successfully delivered events", async () => {
     const { store } = await createStore();
     await store.baseline("acme.clavis.testnet", [1, 2], [7]);
 
     await expect(store.claimDecision("acme.clavis.testnet", 2)).resolves.toBe(false);
     await expect(store.claimDecision("acme.clavis.testnet", 3)).resolves.toBe(true);
     await expect(store.claimDecision("acme.clavis.testnet", 3)).resolves.toBe(false);
+    await store.completeDecision("acme.clavis.testnet", 3, false);
+    await expect(store.claimDecision("acme.clavis.testnet", 3)).resolves.toBe(true);
+    await store.completeDecision("acme.clavis.testnet", 3, true);
+    await expect(store.claimDecision("acme.clavis.testnet", 3)).resolves.toBe(false);
     await expect(store.claimAnomaly("acme.clavis.testnet", 8)).resolves.toBe(true);
+    await store.completeAnomaly("acme.clavis.testnet", 8, true);
     await expect(store.claimAnomaly("acme.clavis.testnet", 8)).resolves.toBe(false);
   });
 
@@ -39,9 +44,21 @@ describe("NotificationEventStore", () => {
     const { store, statePath } = await createStore();
     await store.baseline("acme.clavis.testnet", [], []);
     await expect(store.claimDecision("acme.clavis.testnet", 12)).resolves.toBe(true);
+    await store.completeDecision("acme.clavis.testnet", 12, true);
 
     const restarted = new NotificationEventStore(statePath);
     await restarted.load();
     await expect(restarted.claimDecision("acme.clavis.testnet", 12)).resolves.toBe(false);
+  });
+
+  it("retries an event after a restart when delivery was never completed", async () => {
+    const { store, statePath } = await createStore();
+    await store.baseline("acme.clavis.testnet", [], []);
+    await expect(store.claimDecision("acme.clavis.testnet", 14)).resolves.toBe(true);
+
+    const restarted = new NotificationEventStore(statePath);
+    await restarted.load();
+
+    await expect(restarted.claimDecision("acme.clavis.testnet", 14)).resolves.toBe(true);
   });
 });

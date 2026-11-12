@@ -6,21 +6,24 @@ import {
 } from "./near.js";
 
 describe("assertContractControlledSettlementVersion", () => {
-  it.each(["0.2.0", "0.3.0", "1.0.0"])("accepts settlement-capable version %s", (version) => {
+  it.each(["0.3.0", "0.4.0", "1.0.0"])("accepts scheduler-compatible version %s", (version) => {
     expect(() => assertContractControlledSettlementVersion(version)).not.toThrow();
   });
 
-  it.each(["0.1.0", "0.0.9"])("rejects legacy authorization-only version %s", (version) => {
+  it.each(["0.2.0", "0.1.0", "0.0.9"])("rejects scheduler-incompatible version %s", (version) => {
     expect(() => assertContractControlledSettlementVersion(version)).toThrow(
-      "v0.2.0 or newer is required",
+      "v0.3.0 or newer is required",
     );
   });
 
-  it.each(["", "v0.2.0", "0.2", "0.2.0-beta"])("rejects invalid version %j", (version) => {
-    expect(() => assertContractControlledSettlementVersion(version)).toThrow(
-      "returned an invalid version",
-    );
-  });
+  it.each(["", "v0.2.0", "v0.3.0", "0.3", "0.3.0-beta"])(
+    "rejects incompatible or invalid version %j",
+    (version) => {
+      expect(() => assertContractControlledSettlementVersion(version)).toThrow(
+        "returned an invalid version",
+      );
+    },
+  );
 });
 
 describe("assertRestrictedAgentAccessKey", () => {

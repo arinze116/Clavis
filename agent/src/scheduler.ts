@@ -134,11 +134,14 @@ export class Scheduler {
       });
       const fingerprint = `${anomaly.type}:${anomaly.description}`;
       if (await state.shouldNotifyAnomaly(fingerprint, anomaly.timestamp)) {
-        await this.#notifications.anomalyDetected({
+        const delivery = await this.#notifications.anomalyDetected({
           business,
           anomaly,
           ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
         });
+        if (delivery.delivered) {
+          await state.markAnomalyNotified(fingerprint, anomaly.timestamp);
+        }
       }
     }
     await state.setRouteFingerprints(anomalyResult.routeFingerprints);
@@ -154,6 +157,8 @@ export class Scheduler {
       notifications: this.#notifications,
       claimDecisionNotification: (paymentId) =>
         this.#notificationEvents.claimDecision(contractId, paymentId),
+      completeDecisionNotification: (paymentId, delivered) =>
+        this.#notificationEvents.completeDecision(contractId, paymentId, delivered),
       ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
       intentRetryDelayMs: this.#config.intentRetryDelayMs,
       now,
@@ -221,7 +226,7 @@ function mergeContracts(
     factoryContracts.map((contract) => [contract.contract_id, contract]),
   );
   // Include explicitly configured contracts that are not indexed by the factory.
-  // The per-contract v0.2 admission check still decides whether the scheduler may use them.
+  // The per-contract v0.3 admission check still decides whether the scheduler may use them.
   for (const business of catalog.businesses) {
     if (!contracts.has(business.contract_id)) {
       contracts.set(business.contract_id, {
