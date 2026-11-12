@@ -1,7 +1,7 @@
 # Clavis complete feature inventory
 
 Audit date: 2026-11-12
-Application: React/TypeScript frontend, source v0.3 Rust contracts and scheduler, serverless AI/notification APIs, and a currently deployed v0.2 Testnet root/factory/agent.
+Application: React/TypeScript frontend, deployed v0.3 Rust root/factory contracts and scheduler, and serverless AI/notification APIs on NEAR Testnet.
 
 Status labels: **Working** means supported by source and exercised by build/tests or live application evidence. **Conditional** means the feature requires the stated account, service or contract state. **Disabled by design** means the UI intentionally prevents an unsupported operation.
 
@@ -14,7 +14,7 @@ Status labels: **Working** means supported by source and exercised by build/test
 | `/worker` | Worker | Connect wallet; discover hashed roster membership; register local preferences; share/copy wallet card; view active/suspended status, cap, schedule, route, next eligibility and employer-wide audit; request route-update UI | NEAR wallet and employer registration for full status | Registration, roster status, preferences, QR/share card, loading/error/unregistered states | Working; route request disabled by design until owner approval flow | Essential; scene 8 |
 | `/audit` | Public | Poll final contract decisions; filter approved/rejected; paginate; open a decision in the Testnet explorer | Contract ID | Privacy-minimized decision list, refresh, loading/error/empty state | Working | Essential; scene 8 |
 | `/security` | Public | Versioned threat matrix, deterministic test references, deployment boundaries and explicit non-claims | None | Source-linked security evidence and generated verification metadata | Working | Essential; scenes 5 and 9 |
-| `/setup` | Owner | Seven-step wallet/business/limits/workers/agent/review/success wizard; existing-business initialization; factory compatibility check; AI policy extraction; isolated child deployment | Owner wallet; v0.3 contract for existing-business writes or v0.3 factory and Testnet funds for new deployment | Validated configuration, wallet approval, reconciled private plan, child record, success/error/retry states | Working in source; v0.3 writes blocked against the live v0.2 deployment | Essential; scenes 3–4 |
+| `/setup` | Owner | Seven-step wallet/business/limits/workers/agent/review/success wizard; existing-business initialization; factory compatibility check; AI policy extraction; isolated child deployment | Owner wallet; v0.3 contract for existing-business writes or v0.3 factory and Testnet funds for new deployment | Validated configuration, wallet approval, reconciled private plan, child record, success/error/retry states | Working; owner writes remain wallet- and funding-dependent | Essential; scenes 3–4 |
 | `/guide` | Public | Chooses business, worker or developer learning path | None | Guide navigation | Working | Supporting; scene 3/9 montage |
 | `/guide/business` | Owner/operator | Deployment, funding, configuration, scheduler, notifications, console and security-probe instructions | None | Step-by-step operational guide | Working | Supporting montage |
 | `/guide/worker` | Worker | Wallet sharing, registration, status, preferences and audit instructions | None | Worker onboarding guide | Working | Supporting montage |
@@ -45,10 +45,10 @@ Status labels: **Working** means supported by source and exercised by build/test
 | Suspend/reinstate recipient | Roster quick action | Owner | Active toggle | Owner-signed status update | Working | Important |
 | Remove recipient | Roster destructive confirmation | Owner | Selected recipient | Explicit irreversible removal transaction | Working; not executed for demo safety | Important |
 | Restricted agent assignment | Rules panel/setup | Owner | Agent account ID | Owner-signed agent update; backend receives no policy-write authority | Working | Essential |
-| Scheduled payroll agent | Backend scheduler | Operator | Off-chain plans and due times | Calls only `request_payment`, reconciles completed milestone references, settlement, and reports | Working in source; production v0.3 admission awaits deployment | Essential |
-| Contract policy checks | v0.3 source / v0.2 live | System | Payment request | Pause, recipient, commitment, cap, schedule, daily limit, reserve and route checks | Working; real v0.2 payments passed | Essential |
-| Native NEAR settlement | v0.3 source / v0.2 live | System | Approved request | Contract-controlled transfer and callback-backed approval/rollback | Working; payments 20 and 21 settled on v0.2 | Essential |
-| Milestone replay protection | v0.3 contract and scheduler | System | Recipient hash and stable milestone reference | Successful reference stored on-chain; restart reconciliation prevents a second transfer | Implemented and regression-tested; not yet deployed | Essential security control |
+| Scheduled payroll agent | Backend scheduler | Operator | Off-chain plans and due times | Calls only `request_payment`, reconciles completed milestone references, settlement, and reports | Working; production v0.3 service healthy | Essential |
+| Contract policy checks | v0.3 deployed root | System | Payment request | Pause, recipient, commitment, cap, schedule, daily limit, reserve and route checks | Working; v0.2 settlements remain historical evidence | Essential |
+| Native NEAR settlement | v0.3 deployed root | System | Approved request | Contract-controlled transfer and callback-backed approval/rollback | Working; payments 20 and 21 remain verified historical settlements | Essential |
+| Milestone replay protection | v0.3 deployed root and scheduler | System | Recipient hash and stable milestone reference | Successful reference stored on-chain; restart reconciliation prevents a second transfer | Deployed and regression-tested | Essential security control |
 | Cross-chain preferences | Worker/owner UI | Worker/owner | Non-NEAR route preference | Preference may be recorded, but execution fails closed | Disabled by design for settlement | Important |
 | Payment audit | Dashboard and `/audit` | Public/owner/worker | Decision filter/page | Approved/rejected decisions and block reference without recipient/amount fields | Working | Essential |
 | Explorer link | Payment audit | Public | Decision block | Opens external Testnet explorer | Working; explorer capture blocked by Cloudflare, RPC proof used in film | Supporting |

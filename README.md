@@ -9,13 +9,13 @@ Source and deployment status are intentionally separate.
 | Target | Verified status |
 | --- | --- |
 | Repository source | v0.3.0. Adds on-chain milestone-reference idempotency, restart reconciliation, Testnet-only configuration validation, and retryable notification delivery. |
-| Public root | `clavis.testnet`, currently v0.2.0 on NEAR Testnet. |
-| Public factory | `factory.clavis.testnet`, currently v0.2.0 on NEAR Testnet. |
-| Backend agent | Healthy on the VPS, currently v0.2.0. Its key is restricted to `request_payment` on `clavis.testnet`. |
+| Public root | `clavis.testnet`, v0.3.0 on NEAR Testnet. Upgrade: [`Brhda…FfPY`](https://testnet.nearblocks.io/txns/BrhdaCBXiYCMEAwtBRPQoCr7bDbFc645sEMGa64zFfPY). |
+| Public factory | `factory.clavis.testnet`, v0.3.0 on NEAR Testnet. Upgrade: [`C4TR…nEKP`](https://testnet.nearblocks.io/txns/C4TRcKwXwwQmBpfGrbXgMgGrDF2AKh2ZZ99JNpufnEKP). |
+| Backend agent | Healthy on the VPS at v0.3.0. Its key is restricted to `request_payment` on `clavis.testnet`. |
 | Web app | <https://clavisapp.vercel.app> |
 | Mainnet | Not deployed or supported. |
 
-The v0.2 deployment already provides contract-controlled native NEAR settlement. The v0.3 source adds durable one-time milestone replay protection. The v0.3 scheduler therefore refuses contracts older than v0.3.0.
+The deployed v0.3 release provides contract-controlled native NEAR settlement and durable one-time milestone replay protection. The scheduler refuses contracts older than v0.3.0.
 
 ## What is implemented
 
@@ -151,7 +151,7 @@ The current end-to-end Testnet tutorial is stored locally at `artifacts/video-pr
 - Size: 13,394,060 bytes
 - SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`
 
-It was captured against the v0.2 Testnet deployment and is historical product evidence, not proof that v0.3 is already deployed.
+It was captured against the v0.2 Testnet deployment and remains historical product evidence, not evidence of the later v0.3 upgrade.
 
 ## Documentation
 
@@ -165,6 +165,7 @@ It was captured against the v0.2 Testnet deployment and is historical product ev
 - [Demo boundary](DEMO.md)
 - [Contract settlement ADR](docs/adr/0001-contract-controlled-settlement.md)
 - [Milestone idempotency ADR](docs/adr/0005-on-chain-milestone-idempotency.md)
+- [v0.3 production release evidence](docs/reports/clavis-v03-production-release-20261112.md)
 
 ## License
 

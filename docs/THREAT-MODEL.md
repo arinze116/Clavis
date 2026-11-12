@@ -2,7 +2,7 @@
 
 ## Scope
 
-Clavis is Testnet software. Source v0.3 makes the payroll contract the final policy and native-settlement authority and adds on-chain milestone-reference replay protection. The current public root and factory remain v0.2.0 until release deployment.
+Clavis is Testnet software. The deployed v0.3 payroll contract is the final policy and native-settlement authority and stores successful milestone references on-chain for replay protection.
 
 ## Adversaries
 

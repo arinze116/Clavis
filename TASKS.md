@@ -13,19 +13,19 @@ This file records current release work. Dated evidence reports remain historical
 - [x] Remove unsafe worker identity inference from display names.
 - [x] Add v0.3 root, factory, and agent deployment verification scripts.
 - [x] Add regression tests and refresh generated security evidence.
-- [x] Align active documentation with source v0.3 and deployed v0.2 status.
+- [x] Align active documentation with source and deployed v0.3 status.
 
 ## Release sequence
 
-- [ ] Pass the complete local release gate.
-- [ ] Push the feature branch and open the production-readiness pull request.
-- [ ] Pass GitHub CI and security-evidence checks.
-- [ ] Merge without bypassing branch protection.
-- [ ] Deploy the exact merged commit to `clavis.testnet` and `factory.clavis.testnet` on Testnet.
-- [ ] Deploy the exact merged commit to the VPS agent.
-- [ ] Verify the production frontend deployment for the merged commit.
-- [ ] Run post-deployment contract, agent, browser, responsive, and log checks.
-- [ ] Update live deployment evidence and final release documentation.
+- [x] Pass the complete local release gate.
+- [x] Push the production-readiness branch and open pull request #24.
+- [x] Pass GitHub CI and security-evidence checks.
+- [x] Merge without bypassing branch protection.
+- [x] Deploy v0.3 to `clavis.testnet` and `factory.clavis.testnet` on Testnet.
+- [x] Deploy v0.3 to the VPS agent and verify health.
+- [ ] Merge and deploy the production frontend configuration regression fix.
+- [ ] Run final post-deployment browser, responsive, and log checks.
+- [ ] Merge the final live-deployment evidence and documentation update.
 
 ## Residual limitations
 

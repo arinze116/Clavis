@@ -43,9 +43,9 @@ The film was captured against the v0.2 deployment. It is valid historical produc
 
 The 180-second master at `artifacts/video-production/clavis-final-demo-20261111/clavis-final-demo-180s.mp4` is preserved unchanged as earlier evidence. The public release at <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified> predates the later live settlement workflow.
 
-## Future recording gate
+## v0.3 recording boundary
 
-A video may claim v0.3 only after all of these checks pass:
+The production infrastructure may be described as v0.3 because these checks passed:
 
 - the exact source commit is merged to `main`;
 - root and factory report v0.3.0;
@@ -55,3 +55,5 @@ A video may claim v0.3 only after all of these checks pass:
 - a v0.3 milestone reference is visible through the contract view;
 - the public frontend serves the merged commit;
 - no secret, private plan, or credential appears in footage.
+
+The accepted 178-second tutorial itself remains historical v0.2 footage. A future v0.3 recording must still show the new deployed state directly before making a v0.3 video claim.
