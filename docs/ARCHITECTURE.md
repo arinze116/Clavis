@@ -12,7 +12,7 @@ The frontend provides public contract reads, owner controls, setup, worker regis
 
 ### TypeScript agent
 
-The agent discovers configured payroll contracts, validates each restricted key, reads private plans, evaluates due work, and calls only `request_payment`. It also reconciles staged private-plan operations, monitors contract events, sends notifications, and exposes a loopback HTTP service for signed browser requests.
+The agent discovers configured payroll contracts, validates each restricted key, reads private plans, evaluates due work, and calls only `request_payment`. It also reconciles staged private-plan operations, monitors contract events, sends notifications, and exposes a loopback HTTP service for signed browser requests. Read and signed-transaction providers fail over across an explicit Testnet-only RPC list when a provider is unavailable or rate limited.
 
 The v0.3 scheduler refuses payroll contracts older than v0.3.0. This prevents it from running one-time milestones without on-chain replay protection.
 

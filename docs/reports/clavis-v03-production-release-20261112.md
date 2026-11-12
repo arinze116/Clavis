@@ -14,6 +14,8 @@ The v0.3 production-readiness change merged through [pull request #24](https://g
 
 Post-deployment browser verification found that the configured `https://rpc.testnet.fastnear.com` endpoint was omitted from the frontend Testnet allowlist. The serverless RPC boundary remained healthy, but the browser failed before rendering. The corrective release adds the exact endpoint, rejects unrecognized and Mainnet RPC configuration at both browser and proxy boundaries, and adds regression tests. This report will be finalized with the corrective merged commit and production-browser evidence after that deployment completes.
 
+Post-restart agent monitoring also found repeated FastNEAR HTTP 429 responses. The protected VPS configuration was moved to dRPC, and the source now uses dRPC by default with explicit Intea, archival, and FastNEAR failover providers for reads and signed transactions. The service produced no new RPC errors across a complete scheduler interval after the operational change.
+
 ## Contract deployment
 
 The reviewed v0.3 artifacts were built immediately before deployment:
@@ -51,10 +53,10 @@ The agent will be redeployed from the final corrective merge commit so deployed 
 - 34 payroll-contract tests;
 - 3 factory tests;
 - 12 signer tests;
-- 73 agent tests;
-- 54 API tests;
+- 75 agent tests;
+- 55 API tests;
 - 8 Playwright tests;
-- 184 total mapped repository tests;
+- 187 total mapped repository tests;
 - 31 mapped security threats;
 - Rust formatting and Clippy;
 - TypeScript and Testnet-script type checks;

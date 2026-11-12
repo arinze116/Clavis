@@ -1,4 +1,4 @@
-import { keyStores, KeyPair, Near, type Account } from "near-api-js";
+import { keyStores, KeyPair, Near, providers, type Account } from "near-api-js";
 
 import type {
   AuditEntry,
@@ -7,7 +7,12 @@ import type {
   RecipientView,
 } from "./types.js";
 
-export const DEFAULT_TESTNET_RPC_URL = "https://test.rpc.fastnear.com";
+export const DEFAULT_TESTNET_RPC_URL = "https://near-testnet.drpc.org";
+export const TESTNET_RPC_FALLBACK_URLS = [
+  "https://testnet-rpc.intea.rs",
+  "https://archival-rpc.testnet.near.org",
+  "https://test.rpc.fastnear.com",
+] as const;
 
 interface RpcResponse<T> {
   result?: T;
@@ -84,9 +89,11 @@ export function assertContractControlledSettlementVersion(version: string): void
 
 export class NearRpcClient {
   readonly rpcUrl: string;
+  readonly rpcUrls: readonly string[];
 
   constructor(rpcUrl: string) {
     this.rpcUrl = rpcUrl.trim() || DEFAULT_TESTNET_RPC_URL;
+    this.rpcUrls = [...new Set([this.rpcUrl, ...TESTNET_RPC_FALLBACK_URLS])];
   }
 
   async view<T>(
@@ -110,27 +117,62 @@ export class NearRpcClient {
   }
 
   async jsonRpc<T>(method: string, params: unknown): Promise<T> {
-    const response = await fetch(this.rpcUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: "clavis-agent",
-        method,
-        params,
-      }),
-      signal: AbortSignal.timeout(20_000),
+    const encodedRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: "clavis-agent",
+      method,
+      params,
     });
-    if (!response.ok) {
-      throw new Error(`NEAR RPC request failed with HTTP ${response.status}`);
-    }
+    let lastError: unknown;
+    for (const rpcUrl of this.rpcUrls) {
+      try {
+        const response = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: encodedRequest,
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!response.ok) {
+          const error = new Error(`NEAR RPC request failed with HTTP ${response.status}`);
+          if (isRetryableHttpStatus(response.status)) {
+            lastError = error;
+            continue;
+          }
+          throw error;
+        }
 
-    const body = (await response.json()) as RpcResponse<T>;
-    if (body.error || body.result === undefined) {
-      throw new Error(body.error?.message ?? "NEAR RPC returned an invalid response");
+        const body = (await response.json()) as RpcResponse<T>;
+        if (body.error || body.result === undefined) {
+          const error = new Error(body.error?.message ?? "NEAR RPC returned an invalid response");
+          if (isRetryableRpcError(body.error)) {
+            lastError = error;
+            continue;
+          }
+          throw error;
+        }
+        return body.result;
+      } catch (error) {
+        lastError = error;
+        if (error instanceof Error && !isTransientNetworkError(error)) throw error;
+      }
     }
-    return body.result;
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("No NEAR Testnet RPC endpoint was available");
   }
+}
+
+function isRetryableHttpStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+function isRetryableRpcError(error: RpcResponse<unknown>["error"]): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  return message.includes("rate limit") || message.includes("endpoint is deprecated");
+}
+
+function isTransientNetworkError(error: Error): boolean {
+  return error.name === "AbortError" || error.name === "TimeoutError" || error instanceof TypeError;
 }
 
 export class FactoryClient {
@@ -177,6 +219,11 @@ export class NearClient {
     const near = new Near({
       networkId: this.#options.networkId,
       nodeUrl: this.#options.rpcUrl,
+      provider: new providers.FailoverRpcProvider(
+        this.#rpc.rpcUrls.map(
+          (url) => new providers.JsonRpcProvider({ url }, { retries: 0, wait: 0, backoff: 1 }),
+        ),
+      ),
       walletUrl: "",
       helperUrl: "",
       keyStore,

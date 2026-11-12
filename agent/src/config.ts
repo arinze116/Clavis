@@ -46,7 +46,7 @@ const schema = z.object({
       const host = new URL(value).hostname.toLowerCase();
       return TESTNET_RPC_HOST_PATTERNS.some((pattern) => pattern.test(host));
     }, "NEAR_RPC_URL must identify a Testnet endpoint")
-    .default("https://test.rpc.fastnear.com"),
+    .default("https://near-testnet.drpc.org"),
   FACTORY_CONTRACT_ID: z
     .string()
     .endsWith(".testnet", "FACTORY_CONTRACT_ID must be a Testnet account")

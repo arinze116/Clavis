@@ -11,7 +11,7 @@ const configuredNetwork = envValue(import.meta.env.VITE_NEAR_NETWORK, "testnet")
 export const networkId: NetworkId = "testnet";
 export const rpcUrl = envValue(
   import.meta.env.VITE_NEAR_RPC_URL,
-  "https://test.rpc.fastnear.com",
+  "https://near-testnet.drpc.org",
 );
 export const rpcEndpoint = "/api/near-rpc";
 export const rootContractId = envValue(

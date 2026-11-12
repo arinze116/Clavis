@@ -7,16 +7,20 @@ const originalFetch = globalThis.fetch;
 let testClientSequence = 0;
 const originalEnvironment = {
   apiKey: process.env.NEAR_AI_API_KEY,
+  clavisNearRpc: process.env.CLAVIS_NEAR_TESTNET_RPC_URL,
   discoverModels: process.env.NEAR_AI_DISCOVER_MODELS,
   models: process.env.NEAR_AI_MODELS,
+  nearRpc: process.env.NEAR_RPC_URL,
   timeout: process.env.NEAR_AI_MODEL_TIMEOUT_MS,
 };
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   restoreEnvironment("NEAR_AI_API_KEY", originalEnvironment.apiKey);
+  restoreEnvironment("CLAVIS_NEAR_TESTNET_RPC_URL", originalEnvironment.clavisNearRpc);
   restoreEnvironment("NEAR_AI_DISCOVER_MODELS", originalEnvironment.discoverModels);
   restoreEnvironment("NEAR_AI_MODELS", originalEnvironment.models);
+  restoreEnvironment("NEAR_RPC_URL", originalEnvironment.nearRpc);
   restoreEnvironment("NEAR_AI_MODEL_TIMEOUT_MS", originalEnvironment.timeout);
 });
 
@@ -891,6 +895,34 @@ test("returns route measurements from live RPC evidence instead of model prose",
   assert.doesNotMatch(payload.result.gas_comparison, /Invented gas claim/);
   assert.doesNotMatch(payload.result.reason, /Invented route claim/);
   assert.ok(Number.isFinite(Date.parse(payload.result.observed_at)));
+});
+
+test("ignores unrecognized and Mainnet RPC configuration for route observations", async () => {
+  delete process.env.NEAR_AI_API_KEY;
+  process.env.CLAVIS_NEAR_TESTNET_RPC_URL = "https://rpc.mainnet.near.org";
+  process.env.NEAR_RPC_URL = "https://example.com/rpc";
+  const requestedUrls: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requestedUrls.push(url);
+    const body = rpcRequestBody(init);
+    if (url.includes("near-testnet.drpc.org")) {
+      return body.method === "gas_price"
+        ? jsonResponse({ result: { gas_price: "100000000" } })
+        : jsonResponse({ result: {} });
+    }
+    return jsonResponse({ result: "0x3b9aca00" });
+  };
+
+  const response = await invokeAiTask({
+    task: "route",
+    input: { selected_chain: "near", selected_token: "NEAR", region: "Nigeria" },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(requestedUrls.some((url) => url.includes("rpc.mainnet.near.org")), false);
+  assert.equal(requestedUrls.some((url) => url.includes("example.com")), false);
+  assert.equal(requestedUrls.some((url) => url.includes("near-testnet.drpc.org")), true);
 });
 
 test("switches route and anomaly attribution when a model makes no selection", async () => {
