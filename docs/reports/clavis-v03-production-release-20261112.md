@@ -2,19 +2,30 @@
 
 Date: 2026-11-12  
 Network: NEAR Testnet only  
-Status: Corrective frontend release in progress
+Status: **COMPLETE — AUDITED, FIXED, MERGED, DEPLOYED AND VERIFIED**
 
-## Source and CI
+## Source, pull requests, and CI
 
-The v0.3 production-readiness change merged through [pull request #24](https://github.com/arinze116/Clavis/pull/24) as commit `2d3793b6a9a812b3d14c3d55267cfa32987b7018`.
+The production-readiness release merged through three protected pull requests:
 
-- [CI run 43246974427](https://github.com/arinze116/Clavis/actions/runs/43246974427): passed.
-- [Security evidence run 43246974348](https://github.com/arinze116/Clavis/actions/runs/43246974348): passed.
-- Vercel deployment `dpl_8UbYjFfeXjzkht5Pmn3XEd5QmFMT` was built from commit `2d3793b`.
+| Pull request | Merge commit | Purpose |
+| --- | --- | --- |
+| [#24](https://github.com/arinze116/Clavis/pull/24) | `2d3793b6a9a812b3d14c3d55267cfa32987b7018` | v0.3 contract, agent, security, test, and documentation remediation |
+| [#25](https://github.com/arinze116/Clavis/pull/25) | `b85b5fc674886c4e4ab519939072b28f45afbec3` | Testnet RPC configuration correction and initial live-deployment evidence |
+| [#26](https://github.com/arinze116/Clavis/pull/26) | `0fd129610f2729cb0f56f31a10adbef18fa027ca` | Resilient Testnet RPC defaults and failover for browser, API, agent reads, and signed transactions |
 
-Post-deployment browser verification found that the configured `https://rpc.testnet.fastnear.com` endpoint was omitted from the frontend Testnet allowlist. The serverless RPC boundary remained healthy, but the browser failed before rendering. The corrective release adds the exact endpoint, rejects unrecognized and Mainnet RPC configuration at both browser and proxy boundaries, and adds regression tests. This report will be finalized with the corrective merged commit and production-browser evidence after that deployment completes.
+Required checks passed on pull request #26:
 
-Post-restart agent monitoring also found repeated FastNEAR HTTP 429 responses. The protected VPS configuration was moved to dRPC, and the source now uses dRPC by default with explicit Intea, archival, and FastNEAR failover providers for reads and signed transactions. The service produced no new RPC errors across a complete scheduler interval after the operational change.
+- [CI run 43256308621](https://github.com/arinze116/Clavis/actions/runs/43256308621): `verify` and `browser-smoke` passed.
+- [Security evidence run 43256308735](https://github.com/arinze116/Clavis/actions/runs/43256308735): passed.
+- Both Vercel preview projects passed.
+
+Exact-main checks also passed for merge commit `0fd1296`:
+
+- [CI run 43256863190](https://github.com/arinze116/Clavis/actions/runs/43256863190): passed.
+- [Security evidence run 43256863186](https://github.com/arinze116/Clavis/actions/runs/43256863186): passed.
+
+No required check was bypassed.
 
 ## Contract deployment
 
@@ -30,25 +41,67 @@ The reviewed v0.3 artifacts were built immediately before deployment:
 | `clavis.testnet` | [`BrhdaCBXiYCMEAwtBRPQoCr7bDbFc645sEMGa64zFfPY`](https://testnet.nearblocks.io/txns/BrhdaCBXiYCMEAwtBRPQoCr7bDbFc645sEMGa64zFfPY) | Final success; `contract_version` returns `0.3.0` |
 | `factory.clavis.testnet` | [`C4TRcKwXwwQmBpfGrbXgMgGrDF2AKh2ZZ99JNpufnEKP`](https://testnet.nearblocks.io/txns/C4TRcKwXwwQmBpfGrbXgMgGrDF2AKh2ZZ99JNpufnEKP) | Final success; `contract_version` returns `0.3.0` |
 
-The guarded deployment compared owner, agent, limits, spend, pause state, recipients, audit entries, anomalies, pending settlement state, factory root account, and factory registry before and after deployment. The comparison passed. No pending native settlement existed before or after migration.
+The guarded deployment compared owner, agent, limits, spend, pause state, recipients, audit entries, anomalies, pending settlement state, factory root account, and factory registry before and after deployment. The comparison passed. The root and factory Full Access deployment keys remained unchanged.
 
-The root Full Access deployment key and factory Full Access deployment key remained unchanged. The factory registry retained all three existing entries.
+Final read-only RPC verification at `2026-11-12T16:22:45Z` confirmed:
+
+- chain ID `testnet`;
+- root owner `clavis.testnet` and agent `clavis-agent.testnet`;
+- five root recipients and no pending native settlement recovery;
+- factory root account `clavis.testnet` and three registered child contracts;
+- unchanged root and factory code hashes shown above.
+
+## RPC resilience remediation
+
+Production monitoring found repeated FastNEAR HTTP 429 responses. The protected VPS configuration was moved to `https://near-testnet.drpc.org`, and source now uses dRPC by default.
+
+The merged implementation adds an explicit Testnet-only failover set for:
+
+- agent view calls;
+- agent signed transactions through `FailoverRpcProvider`;
+- the same-origin frontend RPC boundary;
+- historical transaction lookups;
+- AI route observations.
+
+Unrecognized and Mainnet RPC overrides are ignored or rejected. dRPC, Intea, and the NEAR archival endpoint independently returned `chain_id: testnet` during release verification.
 
 ## Backend agent
 
-The agent was deployed from commit `2d3793b6a9a812b3d14c3d55267cfa32987b7018` after the root and factory independently reported v0.3.0.
+The agent deployment script fast-forwarded `/opt/clavis` to exact merge commit `0fd129610f2729cb0f56f31a10adbef18fa027ca`, then independently ran type checks, 75 agent tests, and production builds before restarting PM2.
 
 - PM2 service: `clavis-agent`, online, package version `0.3.0`.
 - Health endpoint: `{"ok":true}`.
-- Credential and payroll files: metadata and SHA-256 preservation checks passed before and after deployment.
+- Credential and private-payroll files: metadata and SHA-256 preservation checks passed.
 - Signer account: `clavis-agent.testnet`.
 - Signer permission: one Function Call key restricted to `request_payment` on `clavis.testnet`.
+- Scheduler: multiple complete 60-second cycles succeeded after restart with five root recipients.
+- Logs: no new RPC failures or HTTP 429 responses; only expected `payroll.plan_missing` warnings for registered factory children without local private plans.
 
-The agent will be redeployed from the final corrective merge commit so deployed source identity remains exact even though the corrective changes are frontend/configuration-only.
+## Production frontend
+
+Production URL: <https://clavisapp.vercel.app>
+
+Both Vercel projects reported successful deployments for exact merge commit `0fd1296`:
+
+- [Clavis deployment status](https://vercel.com/0xmaxizs-projects/clavis/746NAmzodcU9aRjkwrXbytUeFVcz)
+- [Clavis frontend deployment status](https://vercel.com/0xmaxizs-projects/clavis-frontend/HB4TM8EPuosks4Rh7vktz93nqzjK)
+
+Post-deployment browser verification captured 27 route/viewport combinations: nine public routes at 1440×1100, 768×1024, and 390×844. Every case returned HTTP 200 with:
+
+- zero console or page errors;
+- exactly one visible page heading and one `main` landmark;
+- no horizontal overflow;
+- no detected unlabeled visible controls.
+
+Evidence: `artifacts/acceptance/clavis-v03-20261112/production-routes/`.
+
+The setup workflow also passed focused accessibility and responsive checks at widths 320, 375, 768, 1024, and 1440 pixels, including skip-link focus, minimum 44×44 pixel targets, image alternatives, semantic landmarks, and overflow checks.
+
+Evidence: `artifacts/acceptance/clavis-v03-20261112/live-factory-production/`.
 
 ## Verification
 
-`bash scripts/verify.sh` passed after the corrective changes and generated evidence refresh:
+`bash scripts/verify.sh` passed on the final source:
 
 - 34 payroll-contract tests;
 - 3 factory tests;
@@ -67,16 +120,7 @@ The agent will be redeployed from the final corrective merge commit so deployed 
 - dependency audit threshold;
 - Git whitespace checks.
 
-The dependency audit reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack. The offered automated remediation is a breaking dependency change and was not applied without compatibility work.
-
-## Remaining release checks
-
-- Merge the corrective frontend PR after CI passes.
-- Confirm Vercel built the exact corrective merge commit.
-- Redeploy the agent from that exact commit.
-- Run live route, console, accessibility, and responsive checks at 1440, 768, and 390 pixels.
-- Confirm final contract state, agent health, and production logs again.
-- Replace this in-progress status with the final production verdict.
+The dependency audit reports 17 low-severity transitive `elliptic` advisories in the NEAR wallet stack. The offered automated remediation is a breaking dependency change and was not applied without compatibility work. A clean production `npm ci` reported 22 low-severity findings across all development and runtime packages; the repository release gate enforces the accepted threshold and still reports the 17 runtime-relevant transitive findings above.
 
 ## Persistent limitations
 

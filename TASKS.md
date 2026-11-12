@@ -23,9 +23,10 @@ This file records current release work. Dated evidence reports remain historical
 - [x] Merge without bypassing branch protection.
 - [x] Deploy v0.3 to `clavis.testnet` and `factory.clavis.testnet` on Testnet.
 - [x] Deploy v0.3 to the VPS agent and verify health.
-- [ ] Merge and deploy the production frontend configuration regression fix.
-- [ ] Run final post-deployment browser, responsive, and log checks.
-- [ ] Merge the final live-deployment evidence and documentation update.
+- [x] Merge and deploy the production frontend configuration regression fix.
+- [x] Add and deploy resilient Testnet RPC failover after production rate limiting.
+- [x] Run final post-deployment browser, responsive, accessibility, chain-state, and log checks.
+- [x] Merge the final live-deployment evidence and documentation update.
 
 ## Residual limitations
 
