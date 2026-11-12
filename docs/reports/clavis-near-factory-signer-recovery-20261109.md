@@ -1,5 +1,7 @@
 # Clavis NEAR factory signer recovery — final completion
 
+> Historical evidence captured on 2026-11-09. It is retained for audit history and is not current deployment status.
+
 Initial investigation date: 2026-11-09
 
 Recovery completion date: 2026-11-10

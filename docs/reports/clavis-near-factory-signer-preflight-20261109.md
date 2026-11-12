@@ -1,5 +1,7 @@
 # Clavis NEAR factory signer connection report
 
+> Historical evidence captured on 2026-11-09. It is retained for audit history and is not current deployment status.
+
 Execution date: 2026-11-09
 
 ## Verdict

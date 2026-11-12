@@ -1,5 +1,7 @@
 # Clavis NEAR factory signer identity investigation
 
+> Historical evidence captured on 2026-11-09. It is retained for audit history and is not current deployment status.
+
 Investigation date: 2026-11-09
 
 Scope: read-only identity, configuration, source, keychain-metadata, and Testnet investigation

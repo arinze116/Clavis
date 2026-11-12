@@ -7,6 +7,14 @@ export interface TestnetConfiguration {
   nearBlocksApiUrl: string;
 }
 
+const TESTNET_HOST_PATTERNS = [
+  /^test\.rpc\.fastnear\.com$/,
+  /(^|\.)testnet\.near\.org$/,
+  /^near-testnet\.drpc\.org$/,
+  /^testnet\.nearblocks\.io$/,
+  /^api-testnet\.nearblocks\.io$/,
+];
+
 export function assertTestnetConfiguration(
   configuration: TestnetConfiguration,
   options: { allowLocalhost?: boolean } = {},
@@ -36,7 +44,7 @@ function assertTestnetUrl(value: string, label: string, allowLocalhost: boolean)
   }
   const host = url.hostname.toLowerCase();
   const isLocalhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
-  const identifiesTestnet = host.includes("testnet") || host.startsWith("test.");
+  const identifiesTestnet = TESTNET_HOST_PATTERNS.some((pattern) => pattern.test(host));
   if (url.protocol !== "https:" && !(allowLocalhost && isLocalhost)) {
     throw new Error(`Clavis ${label} URL must use HTTPS`);
   }

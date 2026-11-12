@@ -1,5 +1,7 @@
 # Clavis v0.2 final Testnet acceptance
 
+> Historical v0.2 acceptance captured on 2026-11-10. It remains valid evidence for that deployment but does not describe source v0.3 or a future v0.3 deployment.
+
 Acceptance date: 2026-11-10
 
 Workspace: `/home/ubuntu/Clavis1`

@@ -8,18 +8,18 @@ export const securityEvidence = {
     "repository_tests": {
       "rust": 37,
       "signer": 12,
-      "agent": 71,
+      "agent": 73,
       "api": 53,
       "browser": 8,
-      "total": 181,
+      "total": 183,
       "count_basis": "Contract, signer, API, and browser source definitions plus successful Vitest JSON report"
     }
   },
   "verification": {
     "status": "passed",
-    "commit": "8f064c9550d25f2e4407fc07714e68c1b5e7e4d5",
+    "commit": "046517e62602e6b1edc7ec8c3ee58381905cea3e",
     "tree_state": "modified",
-    "generated_at": "2026-11-12T14:58:34.691Z",
+    "generated_at": "2026-11-12T15:12:57.255Z",
     "run_url": "",
     "workflow_url": "https://github.com/arinze116/Clavis/actions/workflows/security-evidence.yml"
   },
@@ -33,7 +33,7 @@ export const securityEvidence = {
       "test": "rule_2_rejects_unauthorized_caller",
       "line": 498,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L498"
     },
     {
       "id": "AUTH-002",
@@ -44,7 +44,7 @@ export const securityEvidence = {
       "test": "non_owner_cannot_run_security_audit_or_append_entries",
       "line": 819,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L819"
     },
     {
       "id": "AUTH-003",
@@ -55,7 +55,7 @@ export const securityEvidence = {
       "test": "accepts only the owner returned by the payroll contract",
       "line": 74,
       "source_sha256": "3700d14a535e303119fd5c987e23c50adc06b6bd9226385bcd904957b3aa3bf7",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-api.test.ts#L74"
     },
     {
       "id": "KEY-001",
@@ -66,7 +66,7 @@ export const securityEvidence = {
       "test": "rejects Full Access keys without an override",
       "line": 47,
       "source_sha256": "f8cf85647273c754408128a7fd0702eeff9f29ec3149a547de149f3e2a3c2b13",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/near.test.ts#L47"
     },
     {
       "id": "KEY-002",
@@ -77,7 +77,7 @@ export const securityEvidence = {
       "test": "fails closed when a credential file omits a discovered contract",
       "line": 33,
       "source_sha256": "270e2f0342b2049a33488a860aee95882c5b18754e0ca381ef6615a457779d11",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/agent-credentials.test.ts#L33"
     },
     {
       "id": "VERSION-001",
@@ -88,7 +88,7 @@ export const securityEvidence = {
       "test": "rejects scheduler-incompatible version",
       "line": 13,
       "source_sha256": "f8cf85647273c754408128a7fd0702eeff9f29ec3149a547de149f3e2a3c2b13",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/near.test.ts#L13"
     },
     {
       "id": "POLICY-001",
@@ -99,7 +99,7 @@ export const securityEvidence = {
       "test": "rule_3_rejects_unknown_recipient",
       "line": 517,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L517"
     },
     {
       "id": "POLICY-002",
@@ -110,7 +110,7 @@ export const securityEvidence = {
       "test": "rule_4_rejects_suspended_recipient",
       "line": 529,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L529"
     },
     {
       "id": "POLICY-003",
@@ -121,7 +121,7 @@ export const securityEvidence = {
       "test": "rule_5_rejects_global_limit_breach",
       "line": 543,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L543"
     },
     {
       "id": "POLICY-004",
@@ -132,7 +132,7 @@ export const securityEvidence = {
       "test": "rule_6_rejects_personal_cap_breach",
       "line": 555,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L555"
     },
     {
       "id": "POLICY-005",
@@ -143,7 +143,7 @@ export const securityEvidence = {
       "test": "rule_8_rejects_daily_limit_breach",
       "line": 579,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L579"
     },
     {
       "id": "POLICY-006",
@@ -154,7 +154,7 @@ export const securityEvidence = {
       "test": "rule_1_rejects_when_paused",
       "line": 484,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L484"
     },
     {
       "id": "ROUTE-001",
@@ -165,7 +165,7 @@ export const securityEvidence = {
       "test": "rejects_unregistered_destination_route",
       "line": 627,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L627"
     },
     {
       "id": "SETTLE-001",
@@ -176,7 +176,7 @@ export const securityEvidence = {
       "test": "rejects_native_destination_that_does_not_match_commitment",
       "line": 386,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L386"
     },
     {
       "id": "SETTLE-002",
@@ -187,7 +187,7 @@ export const securityEvidence = {
       "test": "failed_native_transfer_rolls_back_reserved_policy_state",
       "line": 211,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L211"
     },
     {
       "id": "SETTLE-003",
@@ -198,7 +198,7 @@ export const securityEvidence = {
       "test": "cross_chain_authorization_fails_closed_before_policy_is_consumed",
       "line": 407,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L407"
     },
     {
       "id": "SETTLE-004",
@@ -209,7 +209,7 @@ export const securityEvidence = {
       "test": "never submits funds from an external settlement signer",
       "line": 113,
       "source_sha256": "60dd1628b7c1f9109350f0fa5887ca1a29024923f8e5ad5a4c7a7120901a6bb7",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/intents.test.ts#L113"
     },
     {
       "id": "SETTLE-005",
@@ -220,7 +220,7 @@ export const securityEvidence = {
       "test": "rejects_a_transfer_that_would_consume_storage_and_operational_reserves",
       "line": 445,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L445"
     },
     {
       "id": "SETTLE-006",
@@ -231,7 +231,7 @@ export const securityEvidence = {
       "test": "stale_failed_callback_can_be_rolled_back_with_transaction_evidence",
       "line": 255,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L255"
     },
     {
       "id": "SCHEDULE-001",
@@ -242,7 +242,7 @@ export const securityEvidence = {
       "test": "rejects_early_scheduled_payment",
       "line": 612,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L612"
     },
     {
       "id": "SCHEDULE-002",
@@ -253,7 +253,7 @@ export const securityEvidence = {
       "test": "triggers a milestone once per stable milestone ID",
       "line": 73,
       "source_sha256": "157ebc2e4855b4b13b2d6e388d38e023dd377553c7393b2199e39b3b461d4c9f",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/trigger.test.ts#L73"
     },
     {
       "id": "SCHEDULE-003",
@@ -264,7 +264,7 @@ export const securityEvidence = {
       "test": "milestone_reference_prevents_duplicate_settlement_after_agent_state_loss",
       "line": 315,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L315"
     },
     {
       "id": "REPLAY-001",
@@ -275,7 +275,7 @@ export const securityEvidence = {
       "test": "alerts and removes a filled intent without submitting it again",
       "line": 295,
       "source_sha256": "157ebc2e4855b4b13b2d6e388d38e023dd377553c7393b2199e39b3b461d4c9f",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/trigger.test.ts#L295"
     },
     {
       "id": "REPLAY-002",
@@ -286,7 +286,7 @@ export const securityEvidence = {
       "test": "deduplicates processed transaction and authorization events",
       "line": 85,
       "source_sha256": "8e3d739c0e6a475a511494e377ffa5a57307e919c17a5da0c2f31613357cf5b4",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-preferences.test.ts#L85"
     },
     {
       "id": "REPLAY-003",
@@ -297,7 +297,7 @@ export const securityEvidence = {
       "test": "retries an event after a restart when delivery was never completed",
       "line": 54,
       "source_sha256": "d0d67061290e7cba2d4e662339bfa7da3020db42ec88e8f789d7cddc58180c70",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-event-store.test.ts#L54"
     },
     {
       "id": "DATA-001",
@@ -308,7 +308,7 @@ export const securityEvidence = {
       "test": "rejects malformed routes before writing a plan",
       "line": 112,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L112"
     },
     {
       "id": "DATA-002",
@@ -319,7 +319,7 @@ export const securityEvidence = {
       "test": "syncs a validated private plan without exposing it through the response",
       "line": 66,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L66"
     },
     {
       "id": "DATA-003",
@@ -330,7 +330,7 @@ export const securityEvidence = {
       "test": "keeps a staged upsert inactive across restart until reconciliation commits it",
       "line": 137,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L137"
     },
     {
       "id": "DATA-004",
@@ -341,7 +341,7 @@ export const securityEvidence = {
       "test": "does not remove an active recipient until the staged removal is committed",
       "line": 164,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L164"
     },
     {
       "id": "MATH-001",
@@ -352,7 +352,7 @@ export const securityEvidence = {
       "test": "pure_rule_evaluator_rejects_daily_spend_overflow",
       "line": 833,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L833"
     },
     {
       "id": "STATE-001",
@@ -363,7 +363,7 @@ export const securityEvidence = {
       "test": "security_audit_fails_before_writing_when_log_counter_is_exhausted",
       "line": 856,
       "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
-      "source_url": ""
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L856"
     }
   ],
   "limitations": [

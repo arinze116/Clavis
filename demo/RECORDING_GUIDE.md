@@ -1,5 +1,7 @@
 # Clavis walkthrough recording guide
 
+> Historical production plan from the v0.2 release cycle. It is retained for audit history and does not describe the current v0.3 source or deployment procedure. Use [`DEMO.md`](../DEMO.md) for the current claim boundary.
+
 This guide prepares the next live-v0.2 Remotion demo. The currently published video predates deployment and remains historical evidence. Do not publish a replacement until every publication gate in [`DEMO.md`](../DEMO.md) has passed.
 
 ## 1. Verify the release before capture

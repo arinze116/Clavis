@@ -1,83 +1,82 @@
 # Clavis architecture
 
-## Release boundary
+## Status boundary
 
-Repository contract v0.2.0 controls native NEAR settlement. The current `clavis.testnet` deployment reports v0.2.0 and has settled native NEAR on Testnet. The current `factory.clavis.testnet` deployment also reports v0.2.0 and has created a verified v0.2 child.
-
-The frontend reads versions independently for the root, factory, and payroll children. It applies the v0.2 settlement claim only to deployments that report v0.2.0 or newer and continues to label the two historical v0.1 children as legacy.
+Repository source is v0.3.0. The public root, factory, and agent currently remain v0.2.0. Native contract-controlled settlement exists in v0.2; durable on-chain milestone-reference replay protection is new in v0.3.
 
 ## Components
 
-- **Owner wallet:** signs policy changes, factory deployment requests, emergency administration, and private-plan staging.
-- **Contract-account deployment key:** performed the explicitly approved root code deployment before the stored-owner-checked migration ran. It is a Full Access authority outside contract enforcement and is isolated from the scheduler process in a manually unlocked Secret Service keychain.
-- **Payroll contract:** enforces policy, holds native payout funds, transfers NEAR, commits or rolls back policy state, and emits minimized audit events.
-- **Restricted agent:** admits only contracts reporting v0.2.0 or newer, discovers due work, reads the private plan, performs native-route preflight, and calls only `request_payment`.
-- **Private-plan service:** stores owner-authorized sensitive fields and reconciles staged operations against final on-chain recipient policy.
-- **React application:** reads final contract state through a same-origin read-only RPC boundary, signs owner actions, exposes explicit source/deployment limitations, and enriches audit entries with event-derived explorer links.
-- **RPC proxy:** accepts only bounded read/status methods, limits request and response sizes, and fails over across configured HTTPS testnet providers so browser CORS behavior cannot break contract reads.
-- **AI proxy:** extracts or explains bounded choices; it has no signing authority and does not create factual evidence.
+### React frontend
 
-Factory-created payroll children are created without access keys. The root account is different: its deployment key can redeploy code or transfer account funds regardless of contract policy, so v0.2 removes the agent settlement-key risk but does not eliminate deployment-key custody or host-compromise risk.
+The frontend provides public contract reads, owner controls, setup, worker registration, audit evidence, security evidence, guides, and AI-assisted workflows. Wallet mutations go through NEAR Wallet Selector. Serverless boundaries proxy read-only NEAR RPC, AI requests, and signed notification/private-plan requests.
 
-## Native payment sequence
+### TypeScript agent
+
+The agent discovers configured payroll contracts, validates each restricted key, reads private plans, evaluates due work, and calls only `request_payment`. It also reconciles staged private-plan operations, monitors contract events, sends notifications, and exposes a loopback HTTP service for signed browser requests.
+
+The v0.3 scheduler refuses payroll contracts older than v0.3.0. This prevents it from running one-time milestones without on-chain replay protection.
+
+### Payroll contract
+
+The Rust contract owns policy and native settlement state. It checks authorization, pause state, recipient commitment, route, cap, daily limit, schedule, operating hours, pending settlement, and treasury reserve. It transfers native NEAR and commits or rolls back state in the callback.
+
+For a v0.3 milestone, `request_payment` requires a stable reference. A successful callback stores the recipient/reference pair. Future requests for the same pair are rejected.
+
+### Factory contract
+
+The factory creates isolated `*.clavis.testnet` payroll accounts, deploys the embedded payroll WASM, initializes owner/agent/limits, and records successful children. Created child accounts have no access keys. A failed asynchronous deployment can leave a pending factory record; recovery cannot safely assume whether funds already moved, so no automatic refund/clear path is claimed.
+
+## Authority and data flow
 
 ```mermaid
 sequenceDiagram
-    participant Agent
-    participant Contract
-    participant Worker
+    participant Owner as Owner wallet
+    participant UI as React app
+    participant API as Agent API
+    participant Agent as Restricted scheduler
+    participant Contract as Payroll contract
+    participant Worker as Worker account
 
-    Agent->>Contract: request_payment(hash, amount, near, NEAR, account)
-    Contract->>Contract: enforce rules and match SHA-256(account)
-    Contract->>Contract: reserve daily spend and schedule
-    Contract->>Worker: Promise.transfer(amount)
-    Worker-->>Contract: callback result
-    alt transfer succeeded
-        Contract->>Contract: append Approved audit event
-    else transfer failed
-        Contract->>Contract: roll back spend and schedule
-        Contract->>Contract: append Rejected audit event
-    end
+    Owner->>UI: Connect and review policy
+    UI->>Contract: Signed policy transaction
+    Owner->>UI: Sign private-plan authorization
+    UI->>API: Stage private payroll data
+    API->>Contract: Read final policy
+    API-->>UI: Commit only after exact match
+    Agent->>Contract: request_payment
+    Contract->>Worker: Transfer native NEAR
+    Contract->>Contract: Callback commit or rollback
+    UI->>Contract: Read final audit and state
 ```
 
-Approval is not recorded before delivery. A process crash after the agent submits the transaction cannot strand an approved payment in an off-chain retry queue because the transfer and callback remain inside the finalized NEAR transaction graph.
+## Trust boundaries
 
-Only one native payment may be pending per contract. Mutation of its recipient and emergency withdrawal are blocked while settlement is pending. If the callback itself never completes, the pending payment remains locked for ten minutes. After that finality window, the owner may call `resolve_stale_native_payment` with the reviewed NEAR transaction hash and an explicit delivered/failed attestation. The contract emits a public `payment_recovery` event. Operators must inspect the final receipt first: falsely marking an actual delivery as failed could permit a duplicate retry.
-
-## Cross-chain boundary
-
-Cross-chain and split routes are not executable in v0.2. The agent preflight and contract both fail closed. There is no external settlement signer, live relay submission, or dry-run receipt that is presented as settlement.
+- **Owner wallet:** changes policy and authorizes private-plan changes.
+- **Restricted agent key:** invokes only `request_payment` on one assigned contract.
+- **Payroll contract:** final policy authority and native settlement custodian.
+- **Root/factory Full Access keys:** privileged deployment authorities outside contract enforcement.
+- **Agent host:** can read private plans and notification contacts; compromise does not broaden a correctly restricted agent key.
+- **RPC/indexers:** provide public evidence but can be unavailable or malicious; state-changing authorization remains wallet/contract controlled.
+- **AI provider:** receives bounded task inputs and returns proposals. It has no signer and cannot create on-chain evidence.
 
 ## Private-plan reconciliation
 
-Private and public recipient data cannot be atomically committed in one storage system, so Clavis uses a persisted two-phase protocol:
+Recipient plan changes use a persisted two-phase workflow:
 
-1. The browser signs an upsert or removal and the service writes a pending operation.
-2. The prior active plan remains untouched.
-3. The owner signs the contract transaction.
-4. The service reads final `get_recipient` state.
-5. Upsert commits only if name, cap, active state, route, split, and schedule exactly match.
-6. Removal commits only if the recipient is absent.
-7. A 30-second background loop resumes pending work after restart; operations expire after 24 hours.
+1. The browser signs and stages the intended private change.
+2. The owner signs the public policy transaction.
+3. The API reads final on-chain recipient state.
+4. The staged plan becomes active only when all expected fields match.
+5. Pending operations survive restart and expire after 24 hours.
 
-Initial bulk setup adds recipients on-chain first, then verifies all expected policies before writing the private plan.
+A cancelled wallet transaction therefore leaves the previous active private plan unchanged.
 
-## Audit transaction links
+## Notification delivery
 
-NearBlocks supplies candidate transaction hashes and senders. The frontend then loads each final transaction through the same-origin RPC proxy and parses contract-emitted `EVENT_JSON` logs. Each `payment_id` maps directly to the transaction that emitted it, including five entries emitted by one security-audit transaction. Block height and array order are never used to guess the mapping.
+Contract decisions and anomalies are claimed in memory during delivery. Persistent completion occurs only when at least one configured channel reports success. Failed or skipped delivery remains eligible for retry. This is at-least-once delivery: a narrow crash after provider acceptance can duplicate an alert.
 
-This remains best-effort because indexer or RPC failures must not block contract-state rendering.
+## Upgrade model
 
-## Public and private data
+The root can be upgraded by its segregated Full Access deployment key. `migrate` accepts the v0.1 or v0.2 state layout and requires the stored owner as predecessor. The factory v0.3 change is state-compatible and embeds the reviewed v0.3 payroll artifact.
 
-The audit record omits amount and recipient identity. Standard function-call arguments and configured recipient policy remain public. Sensitive private-plan files are permission-restricted, atomically replaced, excluded from version control, and not returned by plan-management APIs.
-
-See [PRIVACY.md](PRIVACY.md), [THREAT-MODEL.md](THREAT-MODEL.md), and [ADR 0001](adr/0001-contract-controlled-settlement.md).
-
-## Upgrade boundary
-
-The root v0.1 account was upgraded by its authorized Full Access key. The migration function also required the predecessor to equal the owner stored in legacy state, and the resulting deployment reports v0.2.0. The factory was then upgraded through its recovered, distinct deployment authority. The factory change was state-compatible, so no migration call was required; the existing registry remained intact.
-
-Factory-created v0.1 payroll children were created without an access key and the legacy code has no self-upgrade method. Their policy owner therefore cannot migrate them in place through the current repository. Such a child needs an account-specific upgrade mechanism or replacement. New factory deployments must remain blocked until the factory itself reports v0.2.0 or newer.
-
-The dedicated acceptance child `clavis-v02-e2e-20261110.clavis.testnet` proves the upgraded path: its code hash matches the reviewed root v0.2 artifact, its owner and agent match the creation request, and its access-key list is empty.
+Legacy factory children without access keys and without a self-upgrade entry point cannot be migrated through the current owner interface. They require an account-specific mechanism or replacement.

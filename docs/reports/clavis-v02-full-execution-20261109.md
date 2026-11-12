@@ -1,5 +1,7 @@
 # Clavis v0.2 full execution report
 
+> Historical v0.2 evidence captured on 2026-11-09. It is retained for audit history and is not current source or deployment status.
+
 Initial execution date: 2026-11-09
 
 Factory completion date: 2026-11-10

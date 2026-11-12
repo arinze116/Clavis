@@ -20,8 +20,9 @@ Recipient management wrote public contract state and private plan state in diffe
 6. The active TypeScript agent contains no external settlement signer.
 7. Private-plan changes use persisted pending operations and commit only after exact final-chain reconciliation.
 8. The React application stages first, signs the public transaction second, and requests immediate reconciliation third; background reconciliation handles crashes and restarts.
-9. The UI reads contract versions and distinguishes v0.2 settlement guarantees from legacy authorization-only deployments.
+9. The UI reads contract versions and distinguishes contract-controlled settlement from legacy authorization-only deployments.
 10. A callback that remains unresolved is locked for ten minutes. The owner may then resolve it with a public NEAR transaction hash and an explicit delivered/failed attestation; the contract emits a `payment_recovery` event.
+11. ADR 0005 extends this model in v0.3 with on-chain milestone-reference idempotency and restart reconciliation.
 
 ## Consequences
 
@@ -31,6 +32,6 @@ Recipient management wrote public contract state and private plan state in diffe
 - Native throughput is serialized to one in-flight transfer per payroll contract.
 - Callback uncertainty fails closed during the finality window. Recovery restores availability but depends on correct owner verification of the referenced receipt; a false failure attestation can enable a duplicate retry.
 - Cross-chain routes are unavailable in this release.
-- The root v0.1 contract required, and has now completed, an explicitly approved deployment-key upgrade plus stored-owner-checked migration; the factory must still be upgraded before creating v0.2 children.
+- The root and factory completed the earlier v0.2 upgrade. Their v0.3 upgrade remains a separate release action and does not change this ADR's settlement decision.
 - Factory-created v0.1 children have no deployment key or legacy self-upgrade entry point, so their policy owner cannot migrate them in place through this repository and may need to replace them.
 - Private-plan changes may remain visibly pending while RPC or service reconciliation is unavailable, but the previous active plan stays consistent.

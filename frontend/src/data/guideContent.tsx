@@ -128,8 +128,8 @@ export const businessGuide: RoleGuide = {
             <li>Enter the payroll agent account, review the summary, and approve deployment in your wallet.</li>
           </BulletList>
           <Note>
-            Setup checks that the deployed factory reports v0.2.0 or newer. Legacy factories are
-            blocked because they would create authorization-only contracts. Keep approximately
+            Setup checks that the deployed factory reports v0.3.0 or newer. Older factories are
+            blocked because they do not embed on-chain milestone replay protection. Keep approximately
             6–10 testnet NEAR available for deployment and initial native payouts.
           </Note>
         </div>
@@ -189,7 +189,7 @@ export const businessGuide: RoleGuide = {
             <li>Set the agent account during setup or update it later from Policy controls.</li>
             <li>Use a Function Call Key restricted to the contract and the <code className="font-mono text-xs">request_payment</code> method.</li>
             <li>Verify the key on NearBlocks under Access keys: receiver and method names should match the payroll contract exactly.</li>
-            <li>The scheduler also refuses contracts older than v0.2.0, then the contract rechecks pause state, recipient approval, caps, daily limit, schedule, route, and recipient commitment for every request.</li>
+            <li>The production scheduler refuses contracts older than v0.3.0, then the contract rechecks pause state, recipient approval, caps, daily limit, schedule, route, and recipient commitment for every request.</li>
           </BulletList>
           <Note>
             A restricted key can request a decision, but it cannot add recipients, raise limits,
@@ -486,7 +486,7 @@ export const developerGuide: RoleGuide = {
         "Clavis separates scheduling, private planning, contract-controlled native settlement, and presentation so no off-chain settlement wallet can bypass policy.",
       content: (
         <BulletList>
-          <li><strong>Smart contract (Rust):</strong> the final rules engine and native-NEAR settlement custodian for v0.2 deployments.</li>
+          <li><strong>Smart contract (Rust):</strong> the final rules engine and native-NEAR settlement custodian; source v0.3 also persists completed milestone references.</li>
           <li><strong>Payroll agent (TypeScript):</strong> the autonomous 60-second scheduler that discovers due work and submits <code className="font-mono text-xs">request_payment</code>.</li>
           <li><strong>Frontend (React + TypeScript):</strong> wallet connection, setup, owner controls, worker portal, AI assistance, and public verification.</li>
           <li><strong>Factory contract:</strong> deploys one isolated <code className="font-mono text-xs">*.clavis.testnet</code> payroll account per owner.</li>
@@ -509,14 +509,14 @@ export const developerGuide: RoleGuide = {
       id: "run-locally",
       title: "Run Clavis locally",
       summary:
-        "Verify the source and run the frontend with Node.js 20+ and Rust stable. Starting the scheduler additionally requires a verified v0.2 contract and a restricted contract-scoped key.",
+        "Verify the source and run the frontend with Node.js 20+ and Rust stable. Starting the scheduler additionally requires a verified v0.3 contract and a restricted contract-scoped key.",
       content: (
         <div className="grid gap-4">
           <BulletList>
             <li>Clone the repository and install workspace dependencies.</li>
             <li>Run the typechecks, deterministic tests, contract builds, and production build before relying on a local change.</li>
             <li>The frontend verifies the live root, factory, and each payroll child independently, showing contract-controlled settlement only for deployments that report v0.2.0 or newer.</li>
-            <li>Start the scheduler only after targeting a deployed v0.2 payroll contract, creating a <code className="font-mono text-xs">request_payment</code>-only key, and preparing permission-restricted credential and payroll files.</li>
+            <li>Start the scheduler only after targeting a deployed v0.3 payroll contract, creating a <code className="font-mono text-xs">request_payment</code>-only key, and preparing permission-restricted credential and payroll files.</li>
           </BulletList>
           <CodeBlock>{`git clone https://github.com/arinze116/Clavis.git
 cd Clavis
@@ -532,9 +532,10 @@ npm run dev:frontend`}</CodeBlock>
           <Note>
             Never commit private keys, AI credentials, payroll plans, notification secrets, or
             generated agent state. The browser should call AI services through the serverless proxy.
-            The current public root is v0.2.0 and the production scheduler uses a
-            <code className="font-mono text-xs">request_payment</code>-only key. The factory is also
-            v0.2.0 and has created a verified v0.2 child without access keys. Contract deployment,
+            The current public root and factory still report v0.2.0. The v0.3 production scheduler
+            remains gated until both are upgraded, and then uses a
+            <code className="font-mono text-xs">request_payment</code>-only key. The factory has
+            already created a verified v0.2 child without access keys. Contract deployment,
             migration, and child creation sign testnet transactions; review account IDs and obtain
             explicit owner approval before running them.
           </Note>
@@ -543,12 +544,12 @@ npm run dev:frontend`}</CodeBlock>
       visual: {
         label: "Local stack",
         title: "Source checks before runtime",
-        caption: "The live root and factory report v0.2.0; the scheduler still rejects legacy payroll contracts.",
+        caption: "The live root and factory report v0.2.0; source v0.3 requires an upgrade before scheduler admission.",
         rows: [
           { label: "Public root", value: "Live v0.2.0", state: "active" },
           { label: "Factory", value: "Live v0.2.0", state: "active" },
           { label: "Acceptance child", value: "v0.2.0 · no access keys", state: "active" },
-          { label: "Agent target", value: "v0.2.0+ required" },
+          { label: "Agent target", value: "v0.3.0+ required" },
           { label: "Frontend", value: "Vite · localhost:5173" },
           { label: "Verification", value: "Tests + both WASM builds", state: "active" },
         ],
@@ -564,7 +565,7 @@ npm run dev:frontend`}</CodeBlock>
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ["Function Call Keys", "Each contract uses a key restricted to that receiver and request_payment, so the scheduler cannot invoke owner controls."],
-            ["Native settlement", "The v0.2 contract transfers NEAR itself and records approval only after the transfer callback succeeds."],
+            ["Native settlement", "v0.2+ transfers NEAR from the contract; v0.3 also prevents replay of a completed milestone reference."],
             ["Privacy boundary", "Audit entries omit amounts and destination details; standard NEAR call arguments and metadata remain public."],
           ].map(([title, text]) => (
             <div key={title} className="rounded-2xl border border-line bg-white p-4">

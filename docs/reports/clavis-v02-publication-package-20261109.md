@@ -1,5 +1,7 @@
 # Clavis v0.2 publication package
 
+> Historical publication package captured on 2026-11-09. Its blockers and release claims must not be read as current status.
+
 Prepared: 2026-11-09
 
 Status: **READY FOR APPROVAL-GATED PUBLICATION — FACTORY UPGRADE EXCLUDED**

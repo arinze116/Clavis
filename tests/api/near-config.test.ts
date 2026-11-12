@@ -40,4 +40,12 @@ test("rejects endpoints that do not identify Testnet", () => {
       }),
     /Testnet endpoint/,
   );
+  assert.throws(
+    () =>
+      assertTestnetConfiguration({
+        ...validConfiguration,
+        rpcUrl: "https://not-testnet.example",
+      }),
+    /Testnet endpoint/,
+  );
 });

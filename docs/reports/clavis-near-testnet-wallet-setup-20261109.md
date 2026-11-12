@@ -1,5 +1,7 @@
 # Clavis NEAR Testnet wallet setup and transaction verification
 
+> Historical evidence captured on 2026-11-09. Later v0.2 acceptance resolved several blockers recorded below; this report is not current deployment status.
+
 Execution date: 2026-11-09
 
 Host: `node1`, Africa/Lagos

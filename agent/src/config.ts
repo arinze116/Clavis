@@ -25,6 +25,12 @@ const optionalStrongSecret = z.preprocess(
   z.string().trim().min(32).optional(),
 );
 
+const TESTNET_RPC_HOST_PATTERNS = [
+  /^test\.rpc\.fastnear\.com$/,
+  /(^|\.)testnet\.near\.org$/,
+  /^near-testnet\.drpc\.org$/,
+];
+
 const schema = z.object({
   NEAR_ACCOUNT_ID: z.string().min(2).optional(),
   NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/).optional(),
@@ -36,7 +42,7 @@ const schema = z.object({
     .url()
     .refine((value) => {
       const host = new URL(value).hostname.toLowerCase();
-      return host.includes("testnet") || host.startsWith("test.");
+      return TESTNET_RPC_HOST_PATTERNS.some((pattern) => pattern.test(host));
     }, "NEAR_RPC_URL must identify a Testnet endpoint")
     .default("https://test.rpc.fastnear.com"),
   FACTORY_CONTRACT_ID: z

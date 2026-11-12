@@ -1,5 +1,7 @@
 # Clavis demo storyboard
 
+> Historical storyboard from the v0.2 release cycle. It is not the current accepted 178-second tutorial and must not be used as current deployment evidence. See [`DEMO.md`](../DEMO.md).
+
 Target duration: 60–90 seconds of content plus the opening and end-card holds. The published 95.9-second render is historical pre-deployment evidence. The source below is updated for the next live-v0.2 capture and still uses deterministic caption timing because no approved narration credential is configured.
 
 | Beat | Visual | Narration focus | Product proof |

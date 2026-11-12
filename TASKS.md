@@ -1,46 +1,37 @@
-# Clavis v0.2 release completion
+# Clavis v0.3 release tracker
 
-This file tracks the current release truth. Historical v0.1 test counts and implementation plans are intentionally removed because they do not prove the v0.2 settlement model.
+This file records current release work. Dated evidence reports remain historical records.
 
-## Source acceptance status
+## Completed locally
 
-| ID | Requirement | Source status | Evidence boundary |
-| --- | --- | --- | --- |
-| S1 | Contract-controlled native settlement | Implemented | The payroll contract transfers native NEAR, commits approval after callback success, and rolls reserved state back on failure. |
-| S2 | No authorization-to-persistence crash gap | Implemented | Transfer and final decision remain in the NEAR promise graph; the agent records only the settled result. |
-| S3 | Stable mobile navigation | Implemented | Business, Worker, Audit, and Setup each retain one `AppShell` across loading and content states. |
-| S4 | Consistent recipient changes | Implemented | Private upserts and removals are durably staged and become active only after exact final-chain reconciliation. |
-| S5 | Truthful settlement documentation | Implemented locally | Cross-chain, split, dry-run, confidential-executor, and external-settlement claims match the fail-closed source behavior. |
-| S6 | Honest worker history | Implemented | The portal labels audit data as employer-wide because entries omit recipient identity. |
-| S7 | Deterministic explorer links | Implemented | Final transaction events map emitted `payment_id` values; block height and array order are never used as identity. |
-| S8 | Version-aware web claims | Implemented | Legacy deployments receive authorization-only warnings; setup blocks a legacy factory. |
+- [x] Audit application, agent, contracts, APIs, deployment scripts, CI, and documentation.
+- [x] Add on-chain milestone-reference idempotency.
+- [x] Reconcile completed milestones after scheduler restart.
+- [x] Require v0.3.0 or newer for production scheduler admission.
+- [x] Persist notification completion only after successful delivery.
+- [x] Enforce Testnet-only frontend and agent configuration.
+- [x] Remove unsafe worker identity inference from display names.
+- [x] Add v0.3 root, factory, and agent deployment verification scripts.
+- [x] Add regression tests and refresh generated security evidence.
+- [x] Align active documentation with source v0.3 and deployed v0.2 status.
 
-## Local release gate
+## Release sequence
 
-The authoritative commands and latest recorded counts are maintained in [`README.md`](README.md) and [`SUBMISSION.md`](SUBMISSION.md). Before any commit or deployment, all of these must pass on the final working tree:
+- [ ] Pass the complete local release gate.
+- [ ] Push the feature branch and open the production-readiness pull request.
+- [ ] Pass GitHub CI and security-evidence checks.
+- [ ] Merge without bypassing branch protection.
+- [ ] Deploy the exact merged commit to `clavis.testnet` and `factory.clavis.testnet` on Testnet.
+- [ ] Deploy the exact merged commit to the VPS agent.
+- [ ] Verify the production frontend deployment for the merged commit.
+- [ ] Run post-deployment contract, agent, browser, responsive, and log checks.
+- [ ] Update live deployment evidence and final release documentation.
 
-```bash
-bash scripts/verify.sh
-```
+## Residual limitations
 
-Regenerate the source-linked security report after the final test run and verify that its source hashes, line numbers, threat mappings, and total test count match the same working tree.
-
-## Approval-gated release work
-
-- [x] Upgrade `clavis.testnet` and call owner-authorized `migrate`.
-- [ ] Upgrade `factory.clavis.testnet`.
-- [x] Deploy and verify the production frontend at <https://clavisapp.vercel.app>.
-- [x] Deploy the verified v0.2 agent revision against the upgraded root.
-- [x] Verify the v0.2 root and legacy factory code hashes and contract-version boundary.
-- [x] Verify the upgraded root v0.2 code hash and contract version.
-- [x] Execute and verify two native settlements plus rollback and rejection evidence on testnet.
-- [x] Run two uninterrupted deployed browser rehearsals.
-- [x] Capture and inspect deployed desktop, tablet, and mobile screenshots.
-- [x] Record, render, inspect, and publish the historical pre-deployment source-and-test demo.
-- [x] Capture, render, inspect, and package a truthful live-v0.2 demo candidate.
-- [ ] Publish the live-v0.2 demo and final frontend fixes after explicit owner approval.
-- [x] Add final public app, repository, CI, contract, release, and demo URLs to the submission documents.
-- [x] Keep the release on the feature branch until repository and publication approval is explicit.
-- [ ] Push the final feature-branch commits and publish the prepared package.
-
-The factory upgrade requires the sole Full Access key on `factory.clavis.testnet`, fingerprint `11ced76408bc820a`. It is not present in the secure Clavis keychain and does not match the imported owner or worker identities. From a trusted SSH terminal, the exact existing credential can be verified and imported with `bash scripts/connect-factory-signer.sh`; the prompt is hidden and the workflow does not deploy anything. Publication of the remaining frontend/demo changes is separately approval-gated. The available agent key remains restricted to `request_payment` and cannot deploy code.
+- Cross-chain and split settlement remain disabled.
+- Stale callback recovery relies on an owner-reviewed final receipt and explicit attestation.
+- Notification delivery is at least once and can duplicate after a narrow crash window.
+- Factory-created legacy v0.1 children have no repository-supported in-place owner upgrade path.
+- Low-severity transitive advisories remain in the NEAR wallet dependency chain pending compatible upstream fixes.
+- Large wallet and RPC browser chunks remain a performance maintenance item.

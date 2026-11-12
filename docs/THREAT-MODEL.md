@@ -2,9 +2,7 @@
 
 ## Scope
 
-Clavis is testnet software. During normal contract execution, source contract v0.2 is the final authority for policy and native NEAR settlement. The scheduler decides when to request a payment but has only a contract-scoped Function Call key. The owner wallet controls policy and emergency administration; code deployment requires separate Full Access contract-account authority that sits outside contract enforcement.
-
-The current public root and factory report v0.2.0. The root and a factory-created acceptance child have completed contract-controlled native settlements. Any payroll deployment receives the v0.2 guarantees only when its own `contract_version` reports v0.2.0 or newer.
+Clavis is Testnet software. Source v0.3 makes the payroll contract the final policy and native-settlement authority and adds on-chain milestone-reference replay protection. The current public root and factory remain v0.2.0 until release deployment.
 
 ## Adversaries
 
@@ -12,60 +10,51 @@ The current public root and factory report v0.2.0. The root and a factory-create
 2. A stolen or malfunctioning restricted agent key.
 3. A compromised agent host.
 4. A malicious recipient attempting to redirect payment.
-5. A replaying or restarted service.
-6. An operator supplying malformed private configuration.
-7. A chain observer correlating public transaction inputs and metadata.
-8. A compromised contract-account deployment key.
+5. A replaying or restarted scheduler.
+6. An operator supplying malformed configuration.
+7. A chain observer correlating public data.
+8. A compromised Full Access deployment key.
+9. A malicious or unavailable wallet, RPC provider, indexer, AI provider, or notification provider.
 
 ## Enforced invariants
 
-- Unauthorized callers cannot append payment audit entries.
-- Full Access and over-broad agent keys fail runtime verification.
-- Legacy or malformed contract versions fail scheduler admission before any payment request.
-- Unknown, suspended, early, off-hours, over-cap, over-limit, and wrong-route requests fail on-chain.
-- The native destination account must hash to the owner-approved recipient commitment.
-- Native funds leave the payroll contract, not a separate settlement wallet.
-- Approval is appended only after successful transfer callback.
-- Transfer failure rolls back reserved daily spend and schedule state.
-- Callback uncertainty remains locked for a ten-minute finality window. Stale recovery is owner-only, requires a syntactically valid NEAR transaction hash, and emits public evidence of the delivered/failed attestation.
-- Mutation of the in-flight recipient and emergency withdrawal are blocked during pending settlement.
+- Only the configured agent can request payment; owner-only methods reject other callers.
+- Full Access and over-broad scheduler keys fail runtime verification.
+- The v0.3 scheduler rejects contracts older than v0.3.0.
+- Unknown, suspended, early, off-hours, over-cap, over-limit, wrong-route, and commitment-mismatched requests fail on-chain.
+- Native funds leave the payroll contract, not an external settlement wallet.
+- Approval is written only after transfer success.
+- Transfer failure restores reserved daily spend and schedule state.
+- One native settlement may be pending per contract.
+- Recipient mutation and emergency withdrawal are blocked while settlement is pending.
+- A milestone requires a validated reference; a successfully settled recipient/reference pair cannot settle again.
 - Cross-chain and split execution fail closed before policy state advances.
-- Private-plan upserts and removals remain staged until final public state matches.
-- Pending private changes survive restart and expire without changing the active plan.
+- Private-plan changes remain staged until final public state matches.
+- Notification events remain retryable until at least one channel succeeds.
 - Arithmetic overflow and partial security-audit writes fail closed.
-- Processed notification events and legacy filled-delivery records are deduplicated.
+
+## Residual risks
+
+- No independent third-party audit has been completed.
+- Mainnet is unsupported.
+- Standard NEAR transaction inputs and metadata are public.
+- Unsalted hashes of predictable account IDs are commitments, not anonymity.
+- Agent-host compromise can expose private plans and notification contacts.
+- A Full Access payroll-account key can redeploy code or move funds outside contract logic. Root and factory keys are isolated from the scheduler, but full VPS compromise remains a custody risk.
+- Factory-created v0.1 children have no current in-place owner upgrade path.
+- Stale callback recovery depends on correct owner interpretation of a final receipt. A false failed-delivery attestation can permit a duplicate retry.
+- At-least-once notification semantics can duplicate an alert after a narrow crash window.
+- A factory deployment interrupted after funds move can leave a pending record that cannot be safely auto-refunded without trustworthy receipt interpretation.
+- Employer audit events omit recipient identity, so worker-specific history cannot be reconstructed from those events alone.
 
 ## Reproducible evidence
 
 ```bash
-cargo test --manifest-path contract/Cargo.toml
-cargo test --manifest-path contract/Cargo.toml --package clavis-factory
-npm exec --workspace=@clavis/agent -- vitest run --reporter=json --outputFile=../artifacts/security-evidence/vitest.json
-node scripts/security/generate-security-report.mjs \
-  --status passed \
-  --vitest-report artifacts/security-evidence/vitest.json \
-  --frontend-output frontend/src/data/securityEvidence.generated.ts
+bash scripts/verify.sh
 ```
 
-The generator resolves every mapped test marker, records current source hashes and line numbers, counts the successful Rust and agent suites, and fails if a mapped test disappears. The generated report is the authoritative case count.
-
-Live Testnet acceptance additionally verified two successful 0.01 NEAR settlements, failed-transfer rollback, unauthorized caller, invalid recipient, duplicate-payment, insufficient-treasury, and restricted-agent-key rejection paths. Transaction hashes are recorded in [`SUBMISSION.md`](../SUBMISSION.md) and the full execution report.
-
-## Known limitations
-
-- No independent third-party audit has been completed.
-- Testnet only; do not custody mainnet funds.
-- The live root and factory are v0.2.0; legacy v0.1 children remain readable but cannot be upgraded in place through the current owner interface.
-- Factory-created v0.1 children lack an in-place owner upgrade path and may require replacement.
-- Cross-chain execution is disabled.
-- Standard NEAR transaction inputs and metadata remain public.
-- Unsalted hashes of predictable account IDs are weak anonymity.
-- Agent-host compromise can expose private plans and notification contacts, although the restricted agent credential cannot bypass v0.2 contract-controlled native settlement.
-- A Full Access payroll-account key can bypass contract logic, redeploy code, or transfer account funds. The root deployment key is isolated from the scheduler process in a manually unlocked keychain, but compromise of the VPS remains a custody risk. Factory-created v0.2 children are created without access keys.
-- A stale-callback recovery depends on the owner correctly reading the referenced final receipt. A false failed-delivery attestation can enable a duplicate retry; the delay and public recovery event provide guardrails and accountability, not cryptographic receipt verification.
-- Malicious wallets, RPC providers, indexers, and browser extensions require operational controls beyond repository tests.
-- Audit events omit recipient identity, so worker-specific history cannot be reconstructed from them.
+The generated case map is in [generated/security-report.md](generated/security-report.md). It links threats to deterministic tests and records source hashes. It is repository evidence, not an external audit.
 
 ## Reporting vulnerabilities
 
-Do not publish secrets or weaponized exploit details in a public issue. Contact the repository owner privately with the affected revision, prerequisites, reproduction steps, impact, and suggested mitigation.
+Do not publish credentials or weaponized exploit details in a public issue. Contact the repository owner privately with the affected revision, prerequisites, reproduction steps, impact, and suggested mitigation.
