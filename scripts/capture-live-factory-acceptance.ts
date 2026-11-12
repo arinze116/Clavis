@@ -4,9 +4,10 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const baseUrl = process.env.CLAVIS_ACCEPTANCE_BASE_URL ?? "http://127.0.0.1:4173";
+const expectedFactoryVersion = process.env.CLAVIS_ACCEPTANCE_FACTORY_VERSION ?? "0.3.0";
 const outputDirectory = path.resolve(
   process.env.CLAVIS_ACCEPTANCE_UI_DIRECTORY ??
-    "artifacts/acceptance/clavis-v02-20261110/ui",
+    "artifacts/acceptance/clavis-v03-20261112/ui",
 );
 const viewports = [
   { height: 844, label: "320", width: 320 },
@@ -34,7 +35,12 @@ try {
 
     await page.goto(`${baseUrl}/setup`, { waitUntil: "networkidle" });
     await page
-      .getByText(/Factory v0\.2\.0 creates contracts with contract-controlled native NEAR settlement/i)
+      .getByText(
+        new RegExp(
+          `Factory v${expectedFactoryVersion.replaceAll(".", "\\.")} creates contracts with contract-controlled native NEAR settlement`,
+          "i",
+        ),
+      )
       .first()
       .waitFor({ state: "visible", timeout: 30_000 });
     await page.keyboard.press("Tab");
@@ -107,7 +113,7 @@ try {
     await page.screenshot({ fullPage: true, path: screenshot });
     results.push({
       browser_errors: browserErrors,
-      factory_status: "v0.2.0 active",
+      factory_status: `v${expectedFactoryVersion} active`,
       ...metrics,
       screenshot,
       viewport,

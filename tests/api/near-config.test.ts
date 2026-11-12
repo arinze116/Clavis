@@ -14,6 +14,18 @@ const validConfiguration = {
 
 test("accepts the configured Clavis Testnet boundary", () => {
   assert.doesNotThrow(() => assertTestnetConfiguration(validConfiguration));
+  assert.doesNotThrow(() =>
+    assertTestnetConfiguration({
+      ...validConfiguration,
+      rpcUrl: "https://rpc.testnet.fastnear.com",
+    }),
+  );
+  assert.doesNotThrow(() =>
+    assertTestnetConfiguration({
+      ...validConfiguration,
+      rpcUrl: "https://archival-rpc.testnet.near.org",
+    }),
+  );
 });
 
 test("rejects a mainnet network or account configuration", () => {
@@ -45,6 +57,22 @@ test("rejects endpoints that do not identify Testnet", () => {
       assertTestnetConfiguration({
         ...validConfiguration,
         rpcUrl: "https://not-testnet.example",
+      }),
+    /Testnet endpoint/,
+  );
+  assert.throws(
+    () =>
+      assertTestnetConfiguration({
+        ...validConfiguration,
+        rpcUrl: "https://rpc.mainnet.fastnear.com",
+      }),
+    /Testnet endpoint/,
+  );
+  assert.throws(
+    () =>
+      assertTestnetConfiguration({
+        ...validConfiguration,
+        explorerUrl: "https://test.rpc.fastnear.com",
       }),
     /Testnet endpoint/,
   );

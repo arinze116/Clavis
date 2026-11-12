@@ -27,7 +27,7 @@ Clavis gives a business owner a rule-bound payroll contract and an AI-assisted o
 
 ## Current status
 
-Repository source is v0.3.0. The public root, factory, and agent remain v0.2.0 until the authorized release deployment completes. Clavis is Testnet-only and privacy-minimized, not confidential or anonymous.
+Repository source, the public root, the public factory, and the backend agent are v0.3.0. Clavis is Testnet-only and privacy-minimized, not confidential or anonymous.
 
 The accepted 178-second product tutorial was captured against v0.2. It demonstrates real owner setup, AI policy extraction, genuine Meteor approval, two 0.001 NEAR settlements, and Worker 1 receipt verification. SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`.
 

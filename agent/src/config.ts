@@ -27,8 +27,10 @@ const optionalStrongSecret = z.preprocess(
 
 const TESTNET_RPC_HOST_PATTERNS = [
   /^test\.rpc\.fastnear\.com$/,
-  /(^|\.)testnet\.near\.org$/,
+  /^rpc\.testnet\.fastnear\.com$/,
+  /^archival-rpc\.testnet\.near\.org$/,
   /^near-testnet\.drpc\.org$/,
+  /^testnet-rpc\.intea\.rs$/,
 ];
 
 const schema = z.object({

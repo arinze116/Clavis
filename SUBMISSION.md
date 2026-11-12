@@ -4,7 +4,7 @@
 
 Clavis is a privacy-minimized payroll control plane on NEAR Testnet. Owners configure policy and privately authorize payroll plans. A restricted scheduler requests due native payments, while the payroll contract verifies policy and transfers its own NEAR.
 
-Repository source is v0.3.0. The live root, factory, and backend agent remain v0.2.0 until the authorized v0.3 release is merged and deployed. Native settlement is live in v0.2; on-chain milestone-reference idempotency and restart reconciliation are new in v0.3.
+Repository source, the live root, the live factory, and the backend agent are v0.3.0. Native settlement, on-chain milestone-reference idempotency, restart reconciliation, and retryable notification delivery are deployed on NEAR Testnet.
 
 ## Implemented and verified
 
@@ -29,12 +29,13 @@ Repository source is v0.3.0. The live root, factory, and backend agent remain v0
 - Emergency withdrawal and recipient removal exist but were not executed for the accepted film because they are destructive operations.
 - Repository tests are not an independent security audit.
 
-## Verified live v0.2 evidence
+## Verified live release evidence
 
 | Item | Evidence |
 | --- | --- |
-| Root | `clavis.testnet`, v0.2.0, upgrade transaction [`7DAC…KqWA`](https://testnet.nearblocks.io/txns/7DACvFhKgtGrrGENKAoZk23uHjMmRtP6wXotRFHTKqWA) |
-| Factory | `factory.clavis.testnet`, v0.2.0, upgrade transaction [`9RjG…Kdce`](https://testnet.nearblocks.io/txns/9RjGMTzWMCbPzndsSZQVw935UQRe8qGZYATCzEH9Kdce) |
+| Root | `clavis.testnet`, v0.3.0, code hash `HCSBA…5yAr`, upgrade transaction [`Brhda…FfPY`](https://testnet.nearblocks.io/txns/BrhdaCBXiYCMEAwtBRPQoCr7bDbFc645sEMGa64zFfPY) |
+| Factory | `factory.clavis.testnet`, v0.3.0, code hash `Jt4uf…iZy`, upgrade transaction [`C4TR…nEKP`](https://testnet.nearblocks.io/txns/C4TRcKwXwwQmBpfGrbXgMgGrDF2AKh2ZZ99JNpufnEKP) |
+| Backend agent | v0.3.0, healthy on the VPS, with one Function Call key restricted to `request_payment` on `clavis.testnet` |
 | Factory child | `clavis-v02-e2e-20261110.clavis.testnet`, created in [`Dnch…q1qr`](https://testnet.nearblocks.io/txns/DnchBkKvWex7VWwmz5qE2aXDdDoYSzcq9BaoXC9kq1qr), no access keys |
 | Worker 1 film settlement | Payment 20, [`B1Lt…3zDLD`](https://testnet.nearblocks.io/txns/B1Lthb1fvZahjQht9Bu168U8LeG4Cktp3B9ougy3zDLD), 0.001 NEAR |
 | Worker 2 film settlement | Payment 21, [`GGou…VfTL`](https://testnet.nearblocks.io/txns/GGouc9FHTXpoKFVaiGFuBHGo7xK6ige5j7TgtJwfVfTL), 0.001 NEAR |
@@ -63,6 +64,6 @@ The film shows the real v0.2 application workflow: owner wallet connection, busi
 - Factory: <https://testnet.nearblocks.io/address/factory.clavis.testnet>
 - Historical source release: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
 
-## Release condition
+## Release verification
 
-The production release is complete only when the v0.3 source is merged, CI passes, the exact merged commit is deployed, root and factory report v0.3.0, the agent is healthy on the same commit, the public frontend serves that commit, and the post-deployment verification report records the evidence.
+The root and factory report v0.3.0, their deployment receipts are final, preserved state checks passed, and the v0.3 agent is healthy. The exact frontend and agent commit, CI, browser verification, and post-deployment checks are recorded in [the v0.3 production release report](docs/reports/clavis-v03-production-release-20261112.md).

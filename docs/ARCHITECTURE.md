@@ -2,7 +2,7 @@
 
 ## Status boundary
 
-Repository source is v0.3.0. The public root, factory, and agent currently remain v0.2.0. Native contract-controlled settlement exists in v0.2; durable on-chain milestone-reference replay protection is new in v0.3.
+Repository source, the public root, the public factory, and the backend agent are v0.3.0. The deployed release provides native contract-controlled settlement and durable on-chain milestone-reference replay protection.
 
 ## Components
 
