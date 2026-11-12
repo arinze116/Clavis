@@ -40,7 +40,7 @@ test("forwards an allowed read through the same-origin RPC boundary", async () =
   const response = await invoke(viewRequest());
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
+  assert.deepEqual(requestedUrls, ["https://near-testnet.drpc.org/"]);
   assert.equal(
     (JSON.parse(String(response.body)) as { result: { block_height: number } }).result.block_height,
     42,
@@ -61,7 +61,7 @@ test("fails over when the configured RPC is rate limited", async () => {
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
     "https://rpc.testnet.fastnear.com/",
-    "https://test.rpc.fastnear.com/",
+    "https://near-testnet.drpc.org/",
   ]);
 });
 
@@ -85,7 +85,7 @@ test("fails over when an RPC returns the endpoint-deprecated JSON error", async 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
     "https://testnet-rpc.intea.rs/",
-    "https://test.rpc.fastnear.com/",
+    "https://near-testnet.drpc.org/",
   ]);
   assert.equal(
     (JSON.parse(String(response.body)) as { result: { block_height: number } }).result.block_height,
@@ -120,7 +120,7 @@ test("uses the archival Testnet RPC for historical transaction lookups", async (
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
-    "https://test.rpc.fastnear.com/",
+    "https://near-testnet.drpc.org/",
     "https://archival-rpc.testnet.near.org/",
   ]);
 });
@@ -136,7 +136,7 @@ test("ignores the retired official Testnet RPC when configured", async () => {
   const response = await invoke(viewRequest());
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
+  assert.deepEqual(requestedUrls, ["https://near-testnet.drpc.org/"]);
 });
 
 test("ignores an unrecognized or Mainnet RPC when configured", async () => {
@@ -150,7 +150,7 @@ test("ignores an unrecognized or Mainnet RPC when configured", async () => {
   const response = await invoke(viewRequest());
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
+  assert.deepEqual(requestedUrls, ["https://near-testnet.drpc.org/"]);
 });
 
 function viewRequest() {

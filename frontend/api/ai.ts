@@ -1,3 +1,5 @@
+import { isTestnetRpcUrl } from "../src/utils/nearConfig.js";
+
 interface ApiRequest {
   method?: string;
   body?: unknown;
@@ -1472,13 +1474,15 @@ function nearRpcEndpoints(): URL[] {
   const values = [
     process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
     process.env.NEAR_RPC_URL?.trim(),
-    "https://test.rpc.fastnear.com",
     "https://near-testnet.drpc.org",
+    "https://testnet-rpc.intea.rs",
+    "https://test.rpc.fastnear.com",
   ];
   return [...new Set(values.filter((value): value is string => Boolean(value)))].flatMap((value) => {
     try {
       const endpoint = new URL(value);
-      return endpoint.protocol === "https:" && !DEPRECATED_TESTNET_RPC_HOSTS.has(endpoint.hostname)
+      return isTestnetRpcUrl(endpoint.href) &&
+        !DEPRECATED_TESTNET_RPC_HOSTS.has(endpoint.hostname)
         ? [endpoint]
         : [];
     } catch {
@@ -1535,7 +1539,7 @@ async function enrichRouteRequest(body: AiRequestBody): Promise<AiRequestBody> {
 }
 
 async function observeRouteConditions(): Promise<RouteConditions> {
-  const nearUrl = nearRpcEndpoints()[0]?.href ?? "https://test.rpc.fastnear.com";
+  const nearUrl = nearRpcEndpoints()[0]?.href ?? "https://near-testnet.drpc.org";
   const ethereumUrl =
     process.env.CLAVIS_ETHEREUM_SEPOLIA_RPC_URL?.trim() ||
     "https://ethereum-sepolia-rpc.publicnode.com";

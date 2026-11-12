@@ -8,7 +8,7 @@ const notificationProxyPath = "/api/notifications";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://test.rpc.fastnear.com";
+  const rpcTarget = env.VITE_NEAR_RPC_URL?.trim() || "https://near-testnet.drpc.org";
   const aiTarget = env.VITE_AI_PROXY_TARGET?.trim();
   const notificationTarget = env.VITE_NOTIFICATION_PROXY_TARGET?.trim();
   const proxy = {

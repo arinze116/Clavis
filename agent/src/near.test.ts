@@ -1,9 +1,55 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   assertContractControlledSettlementVersion,
   assertRestrictedAgentAccessKey,
+  NearRpcClient,
 } from "./near.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("NearRpcClient", () => {
+  it("fails over after a rate-limited Testnet RPC response", async () => {
+    const requestedUrls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        requestedUrls.push(String(input));
+        if (requestedUrls.length === 1) {
+          return new Response(JSON.stringify({ error: "rate limited" }), { status: 429 });
+        }
+        return Response.json({ jsonrpc: "2.0", id: "clavis-agent", result: "ok" });
+      }),
+    );
+
+    const client = new NearRpcClient("https://test.rpc.fastnear.com");
+
+    await expect(client.jsonRpc("status", [])).resolves.toBe("ok");
+    expect(requestedUrls).toEqual([
+      "https://test.rpc.fastnear.com",
+      "https://testnet-rpc.intea.rs",
+    ]);
+  });
+
+  it("does not retry a non-transient contract RPC error", async () => {
+    const request = vi.fn(async () =>
+      Response.json({
+        jsonrpc: "2.0",
+        id: "clavis-agent",
+        error: { message: "MethodNotFound" },
+      }),
+    );
+    vi.stubGlobal("fetch", request);
+
+    const client = new NearRpcClient("https://near-testnet.drpc.org");
+
+    await expect(client.jsonRpc("query", {})).rejects.toThrow("MethodNotFound");
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("assertContractControlledSettlementVersion", () => {
   it.each(["0.3.0", "0.4.0", "1.0.0"])("accepts scheduler-compatible version %s", (version) => {

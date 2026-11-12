@@ -5,7 +5,7 @@ set +x
 umask 077
 
 readonly DEPLOY_DIR="/opt/clavis"
-readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
+readonly RPC_URL="${NEAR_RPC_URL:-https://near-testnet.drpc.org}"
 readonly EXPECTED_COMMIT="${CLAVIS_EXPECTED_COMMIT:-}"
 readonly CREDENTIAL_PATH="$DEPLOY_DIR/agent/config/agent-credentials.local.json"
 readonly PAYROLL_PATH="$DEPLOY_DIR/agent/config/payroll.local.json"

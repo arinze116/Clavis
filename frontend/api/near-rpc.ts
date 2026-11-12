@@ -145,10 +145,17 @@ function allowedParams(method: string, value: unknown): boolean {
 function upstreamEndpoints(method: string): URL[] {
   const configured = [
     (process.env.CLAVIS_NEAR_TESTNET_RPC_URL ?? process.env.NEAR_RPC_URL)?.trim(),
-    "https://test.rpc.fastnear.com",
     ...(method === "tx"
-      ? ["https://archival-rpc.testnet.near.org", "https://near-testnet.drpc.org"]
-      : ["https://near-testnet.drpc.org", "https://archival-rpc.testnet.near.org"]),
+      ? [
+          "https://near-testnet.drpc.org",
+          "https://archival-rpc.testnet.near.org",
+          "https://testnet-rpc.intea.rs",
+        ]
+      : [
+          "https://near-testnet.drpc.org",
+          "https://testnet-rpc.intea.rs",
+          "https://test.rpc.fastnear.com",
+        ]),
   ];
   const endpoints: URL[] = [];
   const seen = new Set<string>();
