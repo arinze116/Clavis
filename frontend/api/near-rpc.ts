@@ -1,3 +1,5 @@
+import { isTestnetRpcUrl } from "../src/utils/nearConfig.js";
+
 interface ApiRequest {
   method?: string;
   body?: unknown;
@@ -23,7 +25,6 @@ const MAX_REQUEST_BYTES = 32 * 1_024;
 const MAX_RESPONSE_BYTES = 2 * 1_024 * 1_024;
 const UPSTREAM_TIMEOUT_MS = 5_500;
 const ALLOWED_METHODS = new Set(["block", "query", "tx"]);
-const DEPRECATED_TESTNET_RPC_HOSTS = new Set(["rpc.testnet.near.org"]);
 
 export default async function handler(
   request: ApiRequest,
@@ -156,8 +157,7 @@ function upstreamEndpoints(method: string): URL[] {
     try {
       const endpoint = new URL(value);
       if (
-        endpoint.protocol !== "https:" ||
-        DEPRECATED_TESTNET_RPC_HOSTS.has(endpoint.hostname) ||
+        !isTestnetRpcUrl(endpoint.href) ||
         seen.has(endpoint.href)
       ) {
         continue;

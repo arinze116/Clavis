@@ -48,7 +48,7 @@ test("forwards an allowed read through the same-origin RPC boundary", async () =
 });
 
 test("fails over when the configured RPC is rate limited", async () => {
-  process.env.NEAR_RPC_URL = "https://primary-rpc.example";
+  process.env.NEAR_RPC_URL = "https://rpc.testnet.fastnear.com";
   const requestedUrls: string[] = [];
   globalThis.fetch = async (input) => {
     requestedUrls.push(String(input));
@@ -60,13 +60,13 @@ test("fails over when the configured RPC is rate limited", async () => {
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
-    "https://primary-rpc.example/",
+    "https://rpc.testnet.fastnear.com/",
     "https://test.rpc.fastnear.com/",
   ]);
 });
 
 test("fails over when an RPC returns the endpoint-deprecated JSON error", async () => {
-  process.env.NEAR_RPC_URL = "https://configured-rpc.example";
+  process.env.NEAR_RPC_URL = "https://testnet-rpc.intea.rs";
   const requestedUrls: string[] = [];
   globalThis.fetch = async (input) => {
     requestedUrls.push(String(input));
@@ -84,7 +84,7 @@ test("fails over when an RPC returns the endpoint-deprecated JSON error", async 
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(requestedUrls, [
-    "https://configured-rpc.example/",
+    "https://testnet-rpc.intea.rs/",
     "https://test.rpc.fastnear.com/",
   ]);
   assert.equal(
@@ -131,6 +131,20 @@ test("ignores the retired official Testnet RPC when configured", async () => {
   globalThis.fetch = async (input) => {
     requestedUrls.push(String(input));
     return jsonResponse({ jsonrpc: "2.0", id: "view", result: { block_height: 45 } });
+  };
+
+  const response = await invoke(viewRequest());
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(requestedUrls, ["https://test.rpc.fastnear.com/"]);
+});
+
+test("ignores an unrecognized or Mainnet RPC when configured", async () => {
+  process.env.NEAR_RPC_URL = "https://rpc.mainnet.fastnear.com";
+  const requestedUrls: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    return jsonResponse({ jsonrpc: "2.0", id: "view", result: { block_height: 46 } });
   };
 
   const response = await invoke(viewRequest());
