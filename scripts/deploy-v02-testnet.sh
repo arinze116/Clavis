@@ -11,6 +11,7 @@ readonly FACTORY_ACCOUNT="factory.clavis.testnet"
 readonly ROOT_PUBLIC_KEY="ed25519:Bzk9o3X52NXSWU8GW2HXFiRWj8TdLYzVKSZQxi7vDq8c"
 readonly FACTORY_PUBLIC_KEY="ed25519:6BhFt1XJrfAdFanjdxQvAbyPu8zVZjvRvZw6S85mQ9pD"
 readonly RPC_URL="${NEAR_RPC_URL:-https://test.rpc.fastnear.com}"
+readonly NEAR_CONNECTION="${CLAVIS_NEAR_NETWORK_CONNECTION:-testnet}"
 readonly BASELINE_DIRECTORY="${CLAVIS_BASELINE_DIRECTORY:-/home/ubuntu/.local/state/clavis-v02-20261109}"
 readonly BASELINE_PATH="$BASELINE_DIRECTORY/baseline.json"
 readonly EVIDENCE_DIRECTORY="$BASELINE_DIRECTORY/execution"
@@ -42,10 +43,17 @@ case "${RPC_URL%/}" in
     exit 2
     ;;
 esac
+case "$NEAR_CONNECTION" in
+  testnet | testnet-drpc) ;;
+  *)
+    echo "Refusing unrecognised NEAR Testnet connection: $NEAR_CONNECTION" >&2
+    exit 2
+    ;;
+esac
 
 readonly CLI_RPC_URL="$(
-  awk '
-    /^\[network_connection\.testnet\]$/ { in_testnet=1; next }
+  awk -v header="[network_connection.${NEAR_CONNECTION}]" '
+    $0 == header { in_testnet=1; next }
     /^\[/ { in_testnet=0 }
     in_testnet && /^rpc_url = / { gsub(/^rpc_url = "|"$/, ""); print; exit }
   ' /home/ubuntu/.config/near-cli/config.toml
@@ -157,7 +165,7 @@ verify_keychain_public_key() {
   local output
   if ! output="$(
     "$NEAR_BINARY" account get-public-key from-keychain "$account_id" \
-      network-config testnet 2>&1
+      network-config "$NEAR_CONNECTION" 2>&1
   )"; then
     echo "No usable secure-keychain signer was found for $account_id." >&2
     return 1
@@ -267,9 +275,10 @@ NODE
 
 verify_factory_state() {
   local expected_hash="$1"
-  node --input-type=module - "$RPC_URL" "$BASELINE_PATH" "$expected_hash" <<'NODE'
+  local verification_mode="${2:-strict}"
+  node --input-type=module - "$RPC_URL" "$BASELINE_PATH" "$expected_hash" "$verification_mode" <<'NODE'
 import { readFile } from "node:fs/promises";
-const [rpcUrl, baselinePath, expectedHash] = process.argv.slice(2);
+const [rpcUrl, baselinePath, expectedHash, verificationMode] = process.argv.slice(2);
 const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
 async function rpc(method, params) {
   const response = await fetch(rpcUrl, {
@@ -299,10 +308,25 @@ const rootAccount = await view("get_root_account");
 const contracts = await view("get_all_contracts");
 if (version !== "0.2.0") throw new Error(`Unexpected factory version ${version}`);
 if (rootAccount !== baseline.factory.root_account) throw new Error("Factory root account changed during upgrade");
-if (JSON.stringify(contracts) !== JSON.stringify(baseline.factory.contracts)) {
-  throw new Error("Factory contract registry changed during code upgrade");
+if (verificationMode === "strict") {
+  if (JSON.stringify(contracts) !== JSON.stringify(baseline.factory.contracts)) {
+    throw new Error("Factory contract registry changed during code upgrade");
+  }
+  console.log(`Verified factory v${version} with preserved registry state.`);
+} else if (verificationMode === "resume") {
+  const currentById = new Map(contracts.map((record) => [record.contract_id, record]));
+  for (const expected of baseline.factory.contracts) {
+    if (JSON.stringify(currentById.get(expected.contract_id)) !== JSON.stringify(expected)) {
+      throw new Error(`Factory resume verification lost or changed ${expected.contract_id}`);
+    }
+  }
+  if (contracts.length < baseline.factory.contracts.length) {
+    throw new Error("Factory resume verification observed a smaller registry");
+  }
+  console.log(`Verified resume-safe factory v${version} with the complete baseline registry preserved.`);
+} else {
+  throw new Error(`Unknown factory verification mode ${verificationMode}`);
 }
-console.log(`Verified factory v${version} with preserved registry state.`);
 NODE
 }
 
@@ -335,7 +359,7 @@ deploy_root() {
     with-init-call migrate json-args '{}' \
     prepaid-gas "100 TeraGas" \
     attached-deposit "0 NEAR" \
-    network-config testnet \
+    network-config "$NEAR_CONNECTION" \
     sign-with-keychain --signer-public-key "$ROOT_PUBLIC_KEY" \
     send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/root-deploy.log"
@@ -351,7 +375,7 @@ deploy_factory() {
   baseline_hash="$(node -e 'const b=require(process.argv[1]);process.stdout.write(b.accounts["factory.clavis.testnet"].code_hash)' "$BASELINE_PATH")"
 
   if [[ "$current_hash" == "$expected_hash" ]]; then
-    verify_factory_state "$expected_hash"
+    verify_factory_state "$expected_hash" resume
     echo "Factory already matches the reviewed v0.2 artifact; no transaction submitted."
     return
   fi
@@ -365,7 +389,7 @@ deploy_factory() {
   "$NEAR_BINARY" contract deploy "$FACTORY_ACCOUNT" \
     use-file "$wasm_path" \
     without-init-call \
-    network-config testnet \
+    network-config "$NEAR_CONNECTION" \
     sign-with-keychain --signer-public-key "$FACTORY_PUBLIC_KEY" \
     send --wait-until final 2>&1 \
     | tee "$EVIDENCE_DIRECTORY/factory-deploy.log"

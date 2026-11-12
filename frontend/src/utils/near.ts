@@ -1,12 +1,14 @@
 import type { NetworkId, WalletSelector } from "@near-wallet-selector/core";
 import type { WalletSelectorModal } from "@near-wallet-selector/modal-ui";
 
+import { assertTestnetConfiguration } from "./nearConfig";
+
 function envValue(value: string | undefined, fallback: string): string {
   return value?.trim() || fallback;
 }
 
 const configuredNetwork = envValue(import.meta.env.VITE_NEAR_NETWORK, "testnet");
-export const networkId: NetworkId = configuredNetwork === "mainnet" ? "mainnet" : "testnet";
+export const networkId: NetworkId = "testnet";
 export const rpcUrl = envValue(
   import.meta.env.VITE_NEAR_RPC_URL,
   "https://test.rpc.fastnear.com",
@@ -27,6 +29,18 @@ export const explorerUrl = envValue(
 export const nearBlocksApiUrl = envValue(
   import.meta.env.VITE_NEARBLOCKS_API_URL,
   "https://api-testnet.nearblocks.io",
+);
+
+assertTestnetConfiguration(
+  {
+    networkId: configuredNetwork,
+    rpcUrl,
+    rootContractId,
+    factoryContractId,
+    explorerUrl,
+    nearBlocksApiUrl,
+  },
+  { allowLocalhost: import.meta.env.DEV },
 );
 
 let selectorPromise: Promise<WalletSelector> | null = null;

@@ -2,6 +2,7 @@
 pub struct AccountTarget {
     pub account_id: String,
     pub identity_evidence: String,
+    pub expected_public_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -33,20 +34,40 @@ pub enum Verdict {
     Fail,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignerScope {
+    PrimaryAccounts,
+    Factory,
+}
+
 impl Verdict {
-    pub fn text(self) -> &'static str {
-        match self {
-            Self::Ready => "READY — ALL THREE EXISTING FULL ACCESS SIGNERS VERIFIED",
-            Self::Partial => "PARTIAL — SOME SIGNERS VERIFIED",
-            Self::Blocked => "BLOCKED — ACCOUNT IDENTITY OR SECURE KEYCHAIN UNAVAILABLE",
-            Self::Fail => "FAIL — SECURITY OR IDENTITY VERIFICATION FAILED",
+    pub fn text(self, scope: SignerScope) -> &'static str {
+        match (self, scope) {
+            (Self::Ready, SignerScope::PrimaryAccounts) => {
+                "READY — ALL THREE EXISTING FULL ACCESS SIGNERS VERIFIED"
+            }
+            (Self::Ready, SignerScope::Factory) => {
+                "READY — EXISTING FACTORY FULL ACCESS SIGNER VERIFIED"
+            }
+            (Self::Partial, SignerScope::PrimaryAccounts) => "PARTIAL — SOME SIGNERS VERIFIED",
+            (Self::Partial, SignerScope::Factory) => "PARTIAL — FACTORY SIGNER NOT FULLY VERIFIED",
+            (Self::Blocked, SignerScope::PrimaryAccounts) => {
+                "BLOCKED — ACCOUNT IDENTITY OR SECURE KEYCHAIN UNAVAILABLE"
+            }
+            (Self::Blocked, SignerScope::Factory) => "BLOCKED — FACTORY SIGNER UNAVAILABLE",
+            (Self::Fail, SignerScope::PrimaryAccounts) => {
+                "FAIL — SECURITY OR IDENTITY VERIFICATION FAILED"
+            }
+            (Self::Fail, SignerScope::Factory) => {
+                "FAIL — FACTORY SIGNER IDENTITY VERIFICATION FAILED"
+            }
         }
     }
 }
 
-pub fn select_verdict(results: &[AccountResult], blocked: bool) -> Verdict {
+pub fn select_verdict(results: &[AccountResult], required: usize, blocked: bool) -> Verdict {
     let passed = results.iter().filter(|result| result.succeeded()).count();
-    if passed == 3 {
+    if passed == required && results.len() == required {
         Verdict::Ready
     } else if passed > 0 {
         Verdict::Partial
@@ -75,7 +96,7 @@ mod tests {
     fn selects_ready_only_for_three_complete_signers() {
         let complete = complete_result();
         assert_eq!(
-            select_verdict(&[complete.clone(), complete.clone(), complete], false),
+            select_verdict(&[complete.clone(), complete.clone(), complete], 3, false),
             Verdict::Ready
         );
     }
@@ -83,7 +104,7 @@ mod tests {
     #[test]
     fn selects_partial_when_only_one_signer_completed() {
         assert_eq!(
-            select_verdict(&[complete_result(), AccountResult::default()], false),
+            select_verdict(&[complete_result(), AccountResult::default()], 3, false),
             Verdict::Partial
         );
     }
@@ -91,7 +112,7 @@ mod tests {
     #[test]
     fn selects_blocked_when_preflight_cannot_verify_signers() {
         assert_eq!(
-            select_verdict(&[AccountResult::default()], true),
+            select_verdict(&[AccountResult::default()], 3, true),
             Verdict::Blocked
         );
     }
@@ -99,8 +120,16 @@ mod tests {
     #[test]
     fn selects_fail_for_an_attempted_identity_failure() {
         assert_eq!(
-            select_verdict(&[AccountResult::default()], false),
+            select_verdict(&[AccountResult::default()], 3, false),
             Verdict::Fail
+        );
+    }
+
+    #[test]
+    fn selects_ready_for_one_complete_factory_signer() {
+        assert_eq!(
+            select_verdict(&[complete_result()], 1, false),
+            Verdict::Ready
         );
     }
 }

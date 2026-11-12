@@ -125,10 +125,16 @@ else
   failure_probe_added=0
 fi
 
-node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" agent-permission
-node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" invalid-recipient
-node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" payroll-before
-"$ROOT_DIR/scripts/deploy-v02-agent-testnet.sh" run-once
+if [[ ! -f "$EVIDENCE_DIRECTORY/acceptance-payroll-before.json" ]]; then
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" agent-permission
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" invalid-recipient
+  node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" payroll-before
+fi
+node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" payroll-resume
+if jq -e '.status == "pending"' "$EVIDENCE_DIRECTORY/acceptance-payroll-resume.json" \
+  >/dev/null; then
+  "$ROOT_DIR/scripts/deploy-v02-agent-testnet.sh" run-once
+fi
 node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" payroll-after
 node --import tsx "$ROOT_DIR/scripts/v02-testnet-acceptance.ts" duplicate-worker1
 

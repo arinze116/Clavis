@@ -75,9 +75,9 @@ export function assertContractControlledSettlementVersion(version: string): void
   }
   const major = Number(match[1]);
   const minor = Number(match[2]);
-  if (major === 0 && minor < 2) {
+  if (major === 0 && minor < 3) {
     throw new Error(
-      `Payroll contract ${version} is authorization-only; v0.2.0 or newer is required for contract-controlled settlement`,
+      `Payroll contract ${version} is not scheduler-compatible; v0.3.0 or newer is required for on-chain milestone idempotency`,
     );
   }
 }
@@ -235,6 +235,7 @@ export class NearClient {
     amountYocto: string;
     chain: string;
     token: string;
+    paymentReference?: string;
   }): Promise<PaymentResult> {
     if (!this.#account) {
       throw new Error("NEAR client is not connected");
@@ -249,6 +250,9 @@ export class NearClient {
         chain: args.chain,
         token: args.token,
         recipient_account_id: args.recipientAccountId,
+        ...(args.paymentReference
+          ? { payment_reference: args.paymentReference }
+          : {}),
       },
       gas: 150_000_000_000_000n,
       attachedDeposit: 0n,
@@ -265,6 +269,16 @@ export class NearClient {
     const decoded = Buffer.from(status.SuccessValue, "base64").toString("utf8");
     const result = JSON.parse(decoded) as Omit<PaymentResult, "transaction_hash">;
     return { ...result, transaction_hash: outcome.transaction.hash };
+  }
+
+  async isPaymentReferenceCompleted(
+    recipientHash: string,
+    paymentReference: string,
+  ): Promise<boolean> {
+    return this.view<boolean>("is_payment_reference_completed", {
+      recipient_hash: recipientHash,
+      payment_reference: paymentReference,
+    });
   }
 
   view<T>(methodName: string, args: Record<string, unknown> = {}): Promise<T> {

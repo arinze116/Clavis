@@ -34,6 +34,8 @@ const initialRecipient: RecipientDraft = {
   preferredChain: "near",
   preferredToken: "NEAR",
   schedule: "Weekly",
+  milestoneReady: false,
+  milestoneId: "",
 };
 
 export function RulesPanel(props: RulesPanelProps) {

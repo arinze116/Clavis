@@ -3,22 +3,23 @@ export const securityEvidence = {
   "schema_version": 1,
   "project": "Clavis",
   "summary": {
-    "mapped_threats": 29,
+    "mapped_threats": 31,
     "categories": 7,
     "repository_tests": {
-      "rust": 34,
-      "agent": 66,
-      "api": 39,
-      "browser": 6,
-      "total": 145,
-      "count_basis": "Rust, API, and browser source definitions plus successful Vitest JSON report"
+      "rust": 37,
+      "signer": 12,
+      "agent": 73,
+      "api": 53,
+      "browser": 8,
+      "total": 183,
+      "count_basis": "Contract, signer, API, and browser source definitions plus successful Vitest JSON report"
     }
   },
   "verification": {
-    "status": "source-mapped",
-    "commit": "11bc677aa431824c3f313079719fb8bf8e799435",
-    "tree_state": "clean",
-    "generated_at": "2026-11-10T07:41:02.287Z",
+    "status": "passed",
+    "commit": "046517e62602e6b1edc7ec8c3ee58381905cea3e",
+    "tree_state": "modified",
+    "generated_at": "2026-11-12T15:12:57.255Z",
     "run_url": "",
     "workflow_url": "https://github.com/arinze116/Clavis/actions/workflows/security-evidence.yml"
   },
@@ -30,9 +31,9 @@ export const securityEvidence = {
       "protection": "Only the configured agent account may call request_payment.",
       "source": "contract/src/tests.rs",
       "test": "rule_2_rejects_unauthorized_caller",
-      "line": 395,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L395"
+      "line": 498,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L498"
     },
     {
       "id": "AUTH-002",
@@ -41,9 +42,9 @@ export const securityEvidence = {
       "protection": "The security probe is owner-only and fails before changing audit state.",
       "source": "contract/src/tests.rs",
       "test": "non_owner_cannot_run_security_audit_or_append_entries",
-      "line": 715,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L715"
+      "line": 819,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L819"
     },
     {
       "id": "AUTH-003",
@@ -54,7 +55,7 @@ export const securityEvidence = {
       "test": "accepts only the owner returned by the payroll contract",
       "line": 74,
       "source_sha256": "3700d14a535e303119fd5c987e23c50adc06b6bd9226385bcd904957b3aa3bf7",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/notification-api.test.ts#L74"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-api.test.ts#L74"
     },
     {
       "id": "KEY-001",
@@ -63,9 +64,9 @@ export const securityEvidence = {
       "protection": "Runtime access-key verification rejects Full Access and over-broad Function Call permissions.",
       "source": "agent/src/near.test.ts",
       "test": "rejects Full Access keys without an override",
-      "line": 44,
-      "source_sha256": "e548760fbc4a9865dce5c721a92ff6dccceaa003454a6e98175b8374bec6346c",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/near.test.ts#L44"
+      "line": 47,
+      "source_sha256": "f8cf85647273c754408128a7fd0702eeff9f29ec3149a547de149f3e2a3c2b13",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/near.test.ts#L47"
     },
     {
       "id": "KEY-002",
@@ -76,18 +77,18 @@ export const securityEvidence = {
       "test": "fails closed when a credential file omits a discovered contract",
       "line": 33,
       "source_sha256": "270e2f0342b2049a33488a860aee95882c5b18754e0ca381ef6615a457779d11",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/agent-credentials.test.ts#L33"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/agent-credentials.test.ts#L33"
     },
     {
       "id": "VERSION-001",
       "category": "Access control",
-      "threat": "The v0.2 scheduler submits to a legacy authorization-only payroll contract and advances policy without contract-controlled settlement.",
-      "protection": "Scheduler admission rejects every contract version older than v0.2.0 before a payment request can be sent.",
+      "threat": "The v0.3 scheduler submits to a contract without on-chain milestone idempotency.",
+      "protection": "Scheduler admission rejects every contract version older than v0.3.0 before a payment request can be sent.",
       "source": "agent/src/near.test.ts",
-      "test": "rejects legacy authorization-only version",
+      "test": "rejects scheduler-incompatible version",
       "line": 13,
-      "source_sha256": "e548760fbc4a9865dce5c721a92ff6dccceaa003454a6e98175b8374bec6346c",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/near.test.ts#L13"
+      "source_sha256": "f8cf85647273c754408128a7fd0702eeff9f29ec3149a547de149f3e2a3c2b13",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/near.test.ts#L13"
     },
     {
       "id": "POLICY-001",
@@ -96,9 +97,9 @@ export const securityEvidence = {
       "protection": "Unknown recipient commitments are rejected on-chain.",
       "source": "contract/src/tests.rs",
       "test": "rule_3_rejects_unknown_recipient",
-      "line": 414,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L414"
+      "line": 517,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L517"
     },
     {
       "id": "POLICY-002",
@@ -107,9 +108,9 @@ export const securityEvidence = {
       "protection": "Suspended recipients cannot receive an authorization.",
       "source": "contract/src/tests.rs",
       "test": "rule_4_rejects_suspended_recipient",
-      "line": 426,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L426"
+      "line": 529,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L529"
     },
     {
       "id": "POLICY-003",
@@ -118,9 +119,9 @@ export const securityEvidence = {
       "protection": "The contract rejects the request before spend state changes.",
       "source": "contract/src/tests.rs",
       "test": "rule_5_rejects_global_limit_breach",
-      "line": 440,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L440"
+      "line": 543,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L543"
     },
     {
       "id": "POLICY-004",
@@ -129,9 +130,9 @@ export const securityEvidence = {
       "protection": "The recipient cap is independently enforced.",
       "source": "contract/src/tests.rs",
       "test": "rule_6_rejects_personal_cap_breach",
-      "line": 452,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L452"
+      "line": 555,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L555"
     },
     {
       "id": "POLICY-005",
@@ -140,9 +141,9 @@ export const securityEvidence = {
       "protection": "Cumulative daily spend is checked before approval.",
       "source": "contract/src/tests.rs",
       "test": "rule_8_rejects_daily_limit_breach",
-      "line": 476,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L476"
+      "line": 579,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L579"
     },
     {
       "id": "POLICY-006",
@@ -151,9 +152,9 @@ export const securityEvidence = {
       "protection": "The pause switch is evaluated before payment policy.",
       "source": "contract/src/tests.rs",
       "test": "rule_1_rejects_when_paused",
-      "line": 381,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L381"
+      "line": 484,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L484"
     },
     {
       "id": "ROUTE-001",
@@ -162,9 +163,9 @@ export const securityEvidence = {
       "protection": "The destination route must exactly match owner-approved recipient policy.",
       "source": "contract/src/tests.rs",
       "test": "rejects_unregistered_destination_route",
-      "line": 524,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L524"
+      "line": 627,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L627"
     },
     {
       "id": "SETTLE-001",
@@ -173,9 +174,9 @@ export const securityEvidence = {
       "protection": "The contract hashes the supplied NEAR account and rejects any destination that does not match the recipient commitment.",
       "source": "contract/src/tests.rs",
       "test": "rejects_native_destination_that_does_not_match_commitment",
-      "line": 285,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L285"
+      "line": 386,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L386"
     },
     {
       "id": "SETTLE-002",
@@ -184,9 +185,9 @@ export const securityEvidence = {
       "protection": "The settlement callback rolls back reserved spend and schedule state before recording rejection.",
       "source": "contract/src/tests.rs",
       "test": "failed_native_transfer_rolls_back_reserved_policy_state",
-      "line": 166,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L166"
+      "line": 211,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L211"
     },
     {
       "id": "SETTLE-003",
@@ -195,9 +196,9 @@ export const securityEvidence = {
       "protection": "Cross-chain authorization fails closed before daily spend or schedule state changes.",
       "source": "contract/src/tests.rs",
       "test": "cross_chain_authorization_fails_closed_before_policy_is_consumed",
-      "line": 305,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L305"
+      "line": 407,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L407"
     },
     {
       "id": "SETTLE-004",
@@ -208,7 +209,7 @@ export const securityEvidence = {
       "test": "never submits funds from an external settlement signer",
       "line": 113,
       "source_sha256": "60dd1628b7c1f9109350f0fa5887ca1a29024923f8e5ad5a4c7a7120901a6bb7",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/intents.test.ts#L113"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/intents.test.ts#L113"
     },
     {
       "id": "SETTLE-005",
@@ -217,9 +218,9 @@ export const securityEvidence = {
       "protection": "The contract preserves measured storage stake, callback write headroom, and an operational reserve before transferring funds.",
       "source": "contract/src/tests.rs",
       "test": "rejects_a_transfer_that_would_consume_storage_and_operational_reserves",
-      "line": 342,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L342"
+      "line": 445,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L445"
     },
     {
       "id": "SETTLE-006",
@@ -228,9 +229,9 @@ export const securityEvidence = {
       "protection": "After a ten-minute finality window, the owner can resolve the stale payment with a public transaction hash; failed-delivery recovery rolls back reserved state.",
       "source": "contract/src/tests.rs",
       "test": "stale_failed_callback_can_be_rolled_back_with_transaction_evidence",
-      "line": 210,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L210"
+      "line": 255,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L255"
     },
     {
       "id": "SCHEDULE-001",
@@ -239,9 +240,9 @@ export const securityEvidence = {
       "protection": "The contract rejects early scheduled requests.",
       "source": "contract/src/tests.rs",
       "test": "rejects_early_scheduled_payment",
-      "line": 509,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L509"
+      "line": 612,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L612"
     },
     {
       "id": "SCHEDULE-002",
@@ -251,8 +252,19 @@ export const securityEvidence = {
       "source": "agent/src/trigger.test.ts",
       "test": "triggers a milestone once per stable milestone ID",
       "line": 73,
-      "source_sha256": "8c63e6f2b0f47eaf28c2054f66fdaedbc6d91d450ec2d0b6c82de23202a7bbd8",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/trigger.test.ts#L73"
+      "source_sha256": "157ebc2e4855b4b13b2d6e388d38e023dd377553c7393b2199e39b3b461d4c9f",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/trigger.test.ts#L73"
+    },
+    {
+      "id": "SCHEDULE-003",
+      "category": "Schedule and replay",
+      "threat": "The agent process exits after a milestone transfer finalizes but before local completion state is saved.",
+      "protection": "The contract stores the completed recipient/reference pair and rejects a second transfer for the same milestone reference.",
+      "source": "contract/src/tests.rs",
+      "test": "milestone_reference_prevents_duplicate_settlement_after_agent_state_loss",
+      "line": 315,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L315"
     },
     {
       "id": "REPLAY-001",
@@ -261,9 +273,9 @@ export const securityEvidence = {
       "protection": "Legacy filled intent records are alerted and removed without resubmission; new cross-chain submission is disabled.",
       "source": "agent/src/trigger.test.ts",
       "test": "alerts and removes a filled intent without submitting it again",
-      "line": 245,
-      "source_sha256": "8c63e6f2b0f47eaf28c2054f66fdaedbc6d91d450ec2d0b6c82de23202a7bbd8",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/trigger.test.ts#L245"
+      "line": 295,
+      "source_sha256": "157ebc2e4855b4b13b2d6e388d38e023dd377553c7393b2199e39b3b461d4c9f",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/trigger.test.ts#L295"
     },
     {
       "id": "REPLAY-002",
@@ -274,7 +286,18 @@ export const securityEvidence = {
       "test": "deduplicates processed transaction and authorization events",
       "line": 85,
       "source_sha256": "8e3d739c0e6a475a511494e377ffa5a57307e919c17a5da0c2f31613357cf5b4",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/notification-preferences.test.ts#L85"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-preferences.test.ts#L85"
+    },
+    {
+      "id": "REPLAY-003",
+      "category": "Schedule and replay",
+      "threat": "A notification event is marked handled before any configured delivery channel succeeds.",
+      "protection": "The event store persists completion only after successful delivery and retries events left incomplete across restarts.",
+      "source": "agent/src/notification-event-store.test.ts",
+      "test": "retries an event after a restart when delivery was never completed",
+      "line": 54,
+      "source_sha256": "d0d67061290e7cba2d4e662339bfa7da3020db42ec88e8f789d7cddc58180c70",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/notification-event-store.test.ts#L54"
     },
     {
       "id": "DATA-001",
@@ -285,7 +308,7 @@ export const securityEvidence = {
       "test": "rejects malformed routes before writing a plan",
       "line": 112,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/payroll-plan-store.test.ts#L112"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L112"
     },
     {
       "id": "DATA-002",
@@ -296,7 +319,7 @@ export const securityEvidence = {
       "test": "syncs a validated private plan without exposing it through the response",
       "line": 66,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/payroll-plan-store.test.ts#L66"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L66"
     },
     {
       "id": "DATA-003",
@@ -307,7 +330,7 @@ export const securityEvidence = {
       "test": "keeps a staged upsert inactive across restart until reconciliation commits it",
       "line": 137,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/payroll-plan-store.test.ts#L137"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L137"
     },
     {
       "id": "DATA-004",
@@ -318,7 +341,7 @@ export const securityEvidence = {
       "test": "does not remove an active recipient until the staged removal is committed",
       "line": 164,
       "source_sha256": "40609ab0df4dbc2f72dba8918c48a70c93acf14359740755301496ce2e756b01",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/agent/src/payroll-plan-store.test.ts#L164"
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/agent/src/payroll-plan-store.test.ts#L164"
     },
     {
       "id": "MATH-001",
@@ -327,9 +350,9 @@ export const securityEvidence = {
       "protection": "Overflow is detected and rejected by the pure rule evaluator.",
       "source": "contract/src/tests.rs",
       "test": "pure_rule_evaluator_rejects_daily_spend_overflow",
-      "line": 729,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L729"
+      "line": 833,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L833"
     },
     {
       "id": "STATE-001",
@@ -338,9 +361,9 @@ export const securityEvidence = {
       "protection": "Capacity is checked before any of the five audit records are written.",
       "source": "contract/src/tests.rs",
       "test": "security_audit_fails_before_writing_when_log_counter_is_exhausted",
-      "line": 752,
-      "source_sha256": "4df97854e3acb0645142219ce4e65f5b345ed7657433d7974ffeaf17e9d9a24a",
-      "source_url": "https://github.com/arinze116/Clavis/blob/11bc677aa431824c3f313079719fb8bf8e799435/contract/src/tests.rs#L752"
+      "line": 856,
+      "source_sha256": "5857b76c22627eb7545527376b4b0268f7af672aba342ced1a0c8357e1525641",
+      "source_url": "https://github.com/arinze116/Clavis/blob/046517e62602e6b1edc7ec8c3ee58381905cea3e/contract/src/tests.rs#L856"
     }
   ],
   "limitations": [
@@ -348,8 +371,8 @@ export const securityEvidence = {
     "The product is testnet-only and must not custody mainnet funds.",
     "Standard NEAR function-call arguments and chain metadata remain public even when public audit entries omit salary and recipient fields.",
     "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
-    "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
-    "A Full Access key on a payroll contract account is outside contract enforcement. The legacy root deployment key must be segregated from the agent host; factory-created v0.2 children are created without access keys.",
+    "Source v0.3 implements contract-controlled native settlement and on-chain milestone-reference idempotency. Native settlement exists in v0.2, but the production scheduler requires contract_version v0.3.0 or newer.",
+    "A Full Access key on a payroll contract account is outside contract enforcement. The root deployment key is isolated from the agent process in a manually unlocked keychain, but VPS compromise remains a custody risk; factory-created children are created without access keys.",
     "Callback uncertainty remains locked for ten minutes. Owner recovery then requires a public transaction hash and explicit delivery attestation; the contract cannot cryptographically verify that off-chain receipt interpretation.",
     "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence."
   ]

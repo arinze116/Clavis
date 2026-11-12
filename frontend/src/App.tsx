@@ -25,7 +25,7 @@ const descriptions = {
   worker: "Register your NEAR testnet wallet and inspect employer-wide payroll decisions without claiming worker-specific history.",
   audit: "Inspect privacy-minimized Clavis payroll decisions with the public NEAR transaction boundary disclosed.",
   security: "Review Clavis threat cases, source-linked tests, CI evidence, and documented limitations.",
-  setup: "Deploy a v0.2 isolated Clavis payroll contract when the live factory supports contract-controlled native settlement.",
+  setup: "Deploy a v0.3 isolated Clavis payroll contract with contract-controlled native settlement and on-chain milestone replay protection.",
   guide: "Step-by-step guides for Clavis business owners, workers, and developers.",
   businessGuide:
     "Deploy, fund, secure, and monitor an autonomous Clavis payroll contract as a business owner.",

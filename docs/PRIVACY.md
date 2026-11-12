@@ -1,54 +1,48 @@
 # Clavis privacy boundary
 
-Clavis provides a privacy-minimized audit, not confidential blockchain execution.
+Clavis provides privacy minimization, not confidential blockchain execution.
 
-## Public by design
+## Public on-chain data
 
-- contract owner and authorized agent accounts;
-- configured limits, pause state, recipient labels, caps, schedules, and routes;
-- standard transaction caller, function arguments, timing, gas, and receipts;
-- payment ID, timestamp, block height, outcome, and rejection reason;
-- public-safe anomaly descriptions.
+NEAR observers can see:
 
-For v0.2 native settlement, the recipient account and amount are transaction inputs and therefore observable even though they are omitted from the dedicated audit event.
+- account IDs and transaction signers;
+- function names and arguments, including native payment destination and amount;
+- configured recipient policy stored by the contract;
+- timestamps, block metadata, receipts, and outcomes;
+- contract events and deployment activity;
+- completed milestone references queried by recipient/reference pair.
 
-## Omitted from the Clavis audit entry
+The dedicated Clavis audit entry omits amount, recipient commitment, wallet address, display name, and destination route. This reduces repeated disclosure in the application ledger; it does not erase public transaction data.
 
-- payment amount;
-- recipient commitment and wallet address;
-- display name;
-- destination chain, token, and address;
-- private scheduled amount and report totals.
+## Application-side data
 
-Omission reduces repeated disclosure in the application’s audit ledger; it does not erase transaction data from NEAR.
+Permission-restricted agent files may contain:
 
-## Access-controlled agent storage
-
-The agent stores:
-
-- scheduled payment amount;
-- worker NEAR account;
-- destination configuration;
+- scheduled amounts;
+- worker NEAR accounts and destination configuration;
 - notification email or Telegram chat ID;
 - staged private-plan operations;
-- report and deduplication state.
+- delivery, reconciliation, and deduplication state.
 
-Files are created with owner-only permissions where supported, updated through atomic replacement, ignored by Git, and never returned in plan-management responses. This boundary depends on host and operator security and is not cryptographic confidentiality.
+Files are ignored by Git, created with owner-only permissions where supported, and updated through atomic replacement. Plan-management responses do not return stored salary or destination details. This boundary depends on host and operator security and is not cryptographic confidentiality.
 
-There is no `CONFIDENTIAL_EXECUTOR_URL` implementation and no dry-run confidential executor in this repository.
+## AI boundary
 
-## Consistency protection
+Policy extraction receives owner-provided payroll text. Evidence tasks are enriched server-side from public contract or repository evidence. Inputs are validated and bounded, prompts instruct the model to treat supplied data as untrusted, and deterministic normalization removes unsupported claims. The AI has no wallet key and cannot sign or submit a payment.
 
-Private recipient changes are staged and become active only after final on-chain state matches. Wallet cancellation, service failure, or browser termination therefore does not overwrite the previous active plan. Pending operations survive service restart and expire after 24 hours.
+## Worker limitation
 
-## Worker view limitation
+The contract audit event intentionally omits recipient identity. The worker portal can prove that a connected wallet is registered, but the employer-wide audit list cannot independently prove which worker received each entry. Exact payment attribution requires the finalized transaction evidence.
 
-Audit entries intentionally omit recipient identity. The worker portal therefore shows employer-wide decisions and cannot prove that an entry belongs to the connected worker.
+## Not implemented
+
+- Confidential transactions.
+- Anonymous payroll.
+- Zero-knowledge recipient or amount proofs.
+- Encrypted on-chain recipient policy.
+- A confidential executor or dry-run relay.
 
 ## Hardening path
 
-1. Replace predictable unsalted account hashes with random or salted commitments.
-2. Move labels, caps, schedules, and routes into encrypted or confidential state.
-3. Execute policy checks inside a verifiable confidential runtime.
-4. Publish only an attested decision commitment.
-5. Add authenticated worker-specific delivery records without weakening audit minimization.
+Potential future work includes salted commitments, encrypted policy state, authenticated worker-specific delivery records, and a verifiable confidential execution environment. None is represented as current functionality.

@@ -214,9 +214,16 @@ export function RecipientFormFields({
               id={`${prefix}-schedule`}
               className="field mt-2"
               value={value.schedule}
-              onChange={(event) =>
-                update("schedule", event.target.value as RecipientDraft["schedule"])
-              }
+              onChange={(event) => {
+                const schedule = event.target.value as RecipientDraft["schedule"];
+                onChange({
+                  ...value,
+                  schedule,
+                  ...(schedule === "Milestone"
+                    ? {}
+                    : { milestoneReady: false, milestoneId: "" }),
+                });
+              }}
             >
               <option value="Weekly">Weekly</option>
               <option value="Biweekly">Biweekly</option>
@@ -224,6 +231,44 @@ export function RecipientFormFields({
             </select>
           </label>
         </div>
+
+        {value.schedule === "Milestone" && (
+          <div className="mt-4 rounded-xl border border-moss/20 bg-white p-4">
+            <label className="flex cursor-pointer items-start gap-3 text-xs leading-5 text-ink/60">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-line text-moss"
+                checked={Boolean(value.milestoneReady)}
+                onChange={(event) => update("milestoneReady", event.target.checked)}
+                disabled={disabled}
+              />
+              <span>
+                <strong className="block text-ink">Prepare this one-time milestone payment</strong>
+                The restricted payroll agent may request it once after the owner saves this
+                private plan. This does not create recurring execution.
+              </span>
+            </label>
+            {value.milestoneReady && (
+              <label
+                className="mt-4 block text-xs font-semibold text-ink/55"
+                htmlFor={`${prefix}-milestone-id`}
+              >
+                Milestone reference
+                <input
+                  id={`${prefix}-milestone-id`}
+                  className="field mt-2 font-mono text-xs"
+                  value={value.milestoneId ?? ""}
+                  onChange={(event) => update("milestoneId", event.target.value)}
+                  placeholder="november-payroll-2026"
+                  maxLength={128}
+                  pattern="[A-Za-z0-9._:-]{1,128}"
+                  disabled={disabled}
+                  required
+                />
+              </label>
+            )}
+          </div>
+        )}
 
         <button
           type="button"
@@ -241,7 +286,7 @@ export function RecipientFormFields({
 
         {value.preferredChain === "near" ? (
           <p className="mt-3 text-xs leading-5 text-ink/45">
-            Native NEAR is the only executable route in this release and settles from a v0.2
+            Native NEAR is the only executable route in this release and settles from a v0.3
             contract to the worker testnet wallet entered above.
           </p>
         ) : (

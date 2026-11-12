@@ -106,6 +106,7 @@ pub(crate) struct PendingNativePayment {
     pub amount: u128,
     pub reserved_at: u64,
     pub previous_last_paid: u64,
+    pub payment_reference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]

@@ -25,14 +25,30 @@ const optionalStrongSecret = z.preprocess(
   z.string().trim().min(32).optional(),
 );
 
+const TESTNET_RPC_HOST_PATTERNS = [
+  /^test\.rpc\.fastnear\.com$/,
+  /(^|\.)testnet\.near\.org$/,
+  /^near-testnet\.drpc\.org$/,
+];
+
 const schema = z.object({
   NEAR_ACCOUNT_ID: z.string().min(2).optional(),
   NEAR_PRIVATE_KEY: z.string().regex(/^(ed25519|secp256k1):/).optional(),
   LEGACY_AGENT_CONTRACT_ID: z.string().min(2).optional(),
   AGENT_CREDENTIALS_PATH: z.string().trim().min(1).optional(),
-  NEAR_NETWORK: z.string().default("testnet"),
-  NEAR_RPC_URL: z.string().url().default("https://test.rpc.fastnear.com"),
-  FACTORY_CONTRACT_ID: z.string().default("factory.clavis.testnet"),
+  NEAR_NETWORK: z.literal("testnet").default("testnet"),
+  NEAR_RPC_URL: z
+    .string()
+    .url()
+    .refine((value) => {
+      const host = new URL(value).hostname.toLowerCase();
+      return TESTNET_RPC_HOST_PATTERNS.some((pattern) => pattern.test(host));
+    }, "NEAR_RPC_URL must identify a Testnet endpoint")
+    .default("https://test.rpc.fastnear.com"),
+  FACTORY_CONTRACT_ID: z
+    .string()
+    .endsWith(".testnet", "FACTORY_CONTRACT_ID must be a Testnet account")
+    .default("factory.clavis.testnet"),
   SOLVER_RELAY_URL: z.string().url().default("https://solver-relay-v2.chaindefuser.com/rpc"),
   INTENTS_API_KEY: optionalSecret,
   PAYROLL_CONFIG_PATH: z.string().default("./config/payroll.local.json"),

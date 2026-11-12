@@ -1,142 +1,89 @@
-# Clavis — Contract-Controlled Payroll on NEAR
+# Clavis — Contract-controlled payroll on NEAR
 
-> Source release v0.2 moves normal native NEAR settlement into the payroll contract; a restricted scheduler can only request it.
+Clavis is a Testnet payroll control plane for remote teams. A business owner defines workers, limits, schedules, and routes; a restricted scheduler may request due payments; the Rust contract makes the final policy decision and transfers native NEAR from its own treasury.
 
-Clavis is a testnet payroll control plane for remote teams. Owners define recipients, caps, schedules, routes, pause state, and treasury limits. A TypeScript scheduler may call only `request_payment`; it cannot change policy or transfer funds independently.
+## Release status
 
-Public release links:
+Source and deployment status are intentionally separate.
 
-- Web app: <https://clavisapp.vercel.app>
-- Repository: <https://github.com/arinze116/Clavis>
-- Source-and-test demo: <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4>
-- Release evidence: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
-
-## Deployment status
-
-Source behavior and deployed behavior are deliberately separated.
-
-| Target | Verified status on 2026-11-09 |
+| Target | Verified status |
 | --- | --- |
-| Repository source | Contract v0.2.0 implements contract-controlled native NEAR settlement, callback finalization, rollback, migration, and cross-chain fail-closed behavior. PR [#13](https://github.com/arinze116/Clavis/pull/13) is merged. |
-| Public web app | Deployed at <https://clavisapp.vercel.app> from the merged source release. It reads live final-block state and labels legacy contracts rather than claiming v0.2 is live. |
-| `clavis.testnet` | Reports `contract_version = 0.1.0`; code hash `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`. This live deployment authorizes requests but does not provide the v0.2 settlement guarantee. |
-| `factory.clavis.testnet` | `contract_version` returns `MethodNotFound`; code hash `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW`. The web setup treats it as legacy and blocks new deployments at the signed deployment step. |
-| v0.2 contract and agent deployment | Not performed. The required root and factory Full Access signers are not available on this host or in GitHub Actions; the restricted agent key cannot deploy code. Starting the v0.2 agent against the legacy root would fail closed. |
+| Repository source | v0.3.0. Adds on-chain milestone-reference idempotency, restart reconciliation, Testnet-only configuration validation, and retryable notification delivery. |
+| Public root | `clavis.testnet`, currently v0.2.0 on NEAR Testnet. |
+| Public factory | `factory.clavis.testnet`, currently v0.2.0 on NEAR Testnet. |
+| Backend agent | Healthy on the VPS, currently v0.2.0. Its key is restricted to `request_payment` on `clavis.testnet`. |
+| Web app | <https://clavisapp.vercel.app> |
+| Mainnet | Not deployed or supported. |
 
-The dashboard reads `contract_version` and labels each contract honestly:
+The v0.2 deployment already provides contract-controlled native NEAR settlement. The v0.3 source adds durable one-time milestone replay protection. The v0.3 scheduler therefore refuses contracts older than v0.3.0.
 
-- v0.2.0 or newer: native NEAR is paid from the contract treasury;
-- missing method or pre-v0.2: legacy authorization-only warning;
-- setup is disabled while the deployed factory is pre-v0.2.
+## What is implemented
 
-## What v0.2 enforces
+- Public final-block dashboard for treasury, policy, recipients, anomalies, and audit evidence.
+- Owner wallet controls for limits, agent assignment, recipients, schedules, pause state, recovery, and guarded withdrawal.
+- Business setup for an existing owner contract or a new factory-created payroll account.
+- AI-assisted policy extraction with deterministic validation and explicit owner confirmation.
+- Evidence-backed payroll reports, route guidance, anomaly analysis, and security summaries.
+- Private payroll plans authorized by signed wallet messages and reconciled against final on-chain policy.
+- Native NEAR settlement from the payroll contract after access, route, commitment, cap, daily-limit, schedule, and treasury checks.
+- Worker registration and wallet-commitment lookup.
+- Public audit enrichment from finalized `payment_decision` events.
+- Email and Telegram notification linking.
+- Source-linked security evidence and browser-visible limitations.
 
-For a native NEAR payment:
+## Settlement model
 
-1. The scheduler preflights one 100% NEAR route whose account matches the worker identity.
-2. The restricted Function Call key invokes only `request_payment` on one payroll contract.
-3. The Rust contract re-checks caller, pause state, recipient, route, cap, daily limit, schedule, and operating hours.
-4. The contract hashes `recipient_account_id` and requires it to match the owner-approved recipient commitment.
-5. The contract reserves policy state and transfers NEAR from its own balance.
-6. The callback records approval only after transfer success.
-7. A failed transfer rolls back daily spend and schedule state, then records rejection.
-8. If the callback itself never finalizes, the contract remains locked for ten minutes; the owner may then resolve it only with a public Testnet transaction hash and an explicit delivered/failed attestation.
+For a native payment:
 
-There is no agent-held Full Access settlement wallet. The restricted agent key can only ask its assigned contract to execute `request_payment`, and the runtime rejects the removed `SETTLEMENT_ACCOUNT_ID` and `SETTLEMENT_PRIVATE_KEY` configuration.
+1. The scheduler loads a private plan and checks that the route is 100% native NEAR.
+2. A contract-scoped Function Call key invokes only `request_payment` on its assigned payroll contract.
+3. The contract verifies the caller, pause state, recipient, route, account commitment, limits, schedule, hours, and treasury reserve.
+4. The contract reserves policy state and transfers NEAR from its own balance.
+5. The callback records approval only after delivery succeeds.
+6. A failed transfer restores reserved spend and schedule state before recording rejection.
+7. In v0.3, a successful milestone also persists the recipient/reference pair on-chain. A restarted scheduler reconciles that state and cannot repay the same reference.
 
-Contract-account deployment authority remains a separate privileged trust boundary. Factory-created v0.2 child accounts are created without access keys, but the legacy root account requires a Full Access deployment key for upgrades. Compromise of that root key could redeploy code or move root-account funds outside contract policy, so it must never be stored on the agent host.
+There is no agent-held Full Access settlement wallet. Contract-account Full Access deployment keys remain a separate privileged boundary: they can redeploy code or move account funds outside contract policy. The root and factory keys are isolated from the scheduler in a manually unlocked Secret Service keyring. Factory-created child accounts have no access keys.
 
-Cross-chain execution is disabled in this release. Ethereum, BNB Chain, split, and external-relay submissions fail closed because custody is not yet contract-controlled end to end. They do not advance the schedule or consume daily policy capacity.
+## Privacy boundary
 
-## Product truth boundaries
+Clavis is privacy-minimized, not confidential, anonymous, or zero-knowledge.
 
-### Private-plan consistency
+The dedicated audit record omits amount, recipient identity, wallet address, and destination route. Standard NEAR transaction arguments, signer accounts, configured policy, timestamps, and receipts remain public. Private amounts, destinations, and notification contacts are stored in permission-restricted application files; this is operational access control, not cryptographic confidentiality.
 
-Recipient add, edit, and removal use a durable two-phase workflow:
+## Unsupported or limited behavior
 
-1. The browser signs and stages the private change.
-2. The owner confirms the public contract transaction.
-3. The agent reads `get_recipient` from final chain state.
-4. The staged operation becomes active only when every expected public policy field matches, or when a removed recipient is confirmed absent.
-5. Pending operations survive service restarts and are retried in the background; abandoned operations expire after 24 hours.
-
-A wallet cancellation or process crash therefore leaves the previous active private plan unchanged.
-
-Initial setup writes its private plan only after every recipient has been added on-chain and verified against the expected policy.
-
-### Worker history
-
-The worker portal shows **employer decision history**, not worker-specific payment history. Audit entries intentionally omit recipient identity, so the frontend cannot safely filter decisions to one worker.
-
-### Explorer links
-
-Audit transaction links are best-effort enrichment. The frontend:
-
-1. discovers candidate transactions through NearBlocks;
-2. loads each finalized transaction from NEAR RPC;
-3. parses `EVENT_JSON` `payment_decision` logs;
-4. maps each emitted `payment_id` to its exact transaction hash.
-
-If enrichment is unavailable, the UI falls back to the recorded block or contract page rather than guessing by block order.
-
-### Privacy
-
-Clavis minimizes its audit entries; it does not claim transaction confidentiality.
-
-Audit entries contain payment ID, timestamp, block height, outcome, and rejection reason. They omit amount, recipient commitment, wallet address, display name, and destination route. Standard NEAR transaction arguments, signer accounts, configured recipient policy, timing, and chain metadata remain public.
-
-Private scheduled amounts, worker addresses, delivery destinations, and notification contacts live in permission-restricted agent storage. This is operational access control, not cryptographic confidentiality.
+- Testnet only.
+- Native NEAR is the only executable settlement route. Cross-chain and split settlement fail closed.
+- The demonstrated workers use explicit one-time `Milestone` schedules; recurring execution is not claimed for that demo state.
+- Worker audit history is employer-wide because audit events omit recipient identity.
+- Stale callback recovery requires an owner to inspect a final receipt and attest delivered or failed; the contract cannot cryptographically verify that interpretation.
+- Notification delivery is at least once. A crash after provider acceptance but before completion persistence may produce a duplicate alert.
+- Repository tests are not an independent third-party audit.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Owner[Owner wallet] -->|signed policy writes| Contract[Payroll contract v0.2]
-    Owner -->|NEP-413 signed staged plan| PrivateAPI[Private-plan API]
+    Owner[Owner wallet] -->|signed policy writes| Contract[Payroll contract]
+    Owner -->|signed private-plan authorization| PrivateAPI[Agent API]
     PrivateAPI --> Store[Permission-restricted plan store]
     Agent[Restricted scheduler] -->|request_payment only| Contract
-    Contract -->|native transfer| Worker[Worker NEAR account]
+    Contract -->|native NEAR transfer| Worker[Worker account]
     Contract -->|callback commit or rollback| Audit[Minimized audit event]
-    Browser[React web app] -->|wallet-signed writes| Contract
-    Browser -->|same-origin read requests| RPCProxy[Read-only RPC proxy]
-    RPCProxy -->|bounded provider failover| RPC[NEAR RPC]
-    Browser -->|candidate transaction discovery| NearBlocks[NearBlocks]
+    Browser[React app] -->|bounded reads| RPCProxy[Same-origin RPC proxy]
+    RPCProxy --> RPC[NEAR Testnet RPC]
 ```
 
-Authorities are separate:
-
-- **Owner wallet:** changes policy, requests factory deployment, and authorizes private-plan staging.
-- **Contract-account deployment key:** performs an explicitly approved root code upgrade; `migrate` then verifies the stored owner before converting v0.1 state. This Full Access key is outside contract enforcement and must be segregated from the agent.
-- **Payroll contract:** controls native funds, makes the final policy decision, transfers NEAR, and records audit evidence.
-- **Agent:** schedules due work, stores private amounts, submits restricted requests, and sends notifications.
-- **AI service:** drafts or explains bounded choices; it has no key and cannot create operational evidence.
-
-## Web application
-
-The React application includes:
-
-- public contract dashboard with final-block evidence;
-- owner-only recipient, rule, anomaly, pause, audit, and withdrawal controls;
-- version-aware treasury and settlement copy;
-- setup that blocks legacy factories;
-- worker registration, wallet sharing, local preferences, and employer-wide decision history;
-- public audit with exact event-derived transaction links where available;
-- generated, source-linked security evidence;
-- grounded AI policy drafting and deterministic evidence fallbacks;
-- email and Telegram notification linking;
-- persistent mobile navigation across loading-state changes;
-- same-origin, read-only NEAR RPC access with bounded upstream failover;
-- keyboard skip link and labelled desktop/mobile navigation.
-
-## Repository layout
+Repository layout:
 
 ```text
-contract/   Rust payroll and factory contracts, migration, settlement callback, tests
-agent/      Scheduler, restricted NEAR client, two-phase private-plan store, notifications
-frontend/   React application, wallet flows, dashboards, setup, audit enrichment
-tests/      API and Playwright tests
-scripts/    Build, deployment, verification, and security-report generation
-docs/       Architecture, privacy, threat model, ADRs, and generated evidence
+contract/   Rust payroll and factory contracts
+agent/      Scheduler, restricted signer client, private-plan and notification services
+frontend/   React application and Vercel serverless boundaries
+tests/      API and Playwright suites
+scripts/    Build, verification, Testnet deployment, and evidence generation
+docs/       Architecture, privacy, threat model, ADRs, reports, and generated evidence
 ```
 
 ## Local setup
@@ -144,127 +91,81 @@ docs/       Architecture, privacy, threat model, ADRs, and generated evidence
 Requirements:
 
 - Node.js 20+
-- Rust stable
-- `wasm32-unknown-unknown` target
-- NEAR CLI RS v0.31.1 or newer for deployment work (not installed on this verification host)
-- testnet-only accounts and credentials
+- Rust stable with `wasm32-unknown-unknown`
+- NEAR Testnet accounts for signed operations
+- NEAR CLI RS for deployment work
 
 ```bash
 npm ci
 rustup target add wasm32-unknown-unknown
 npm run typecheck
-npm run test:api
-npm run test:agent
-cargo test --manifest-path contract/Cargo.toml
+npm test
 npm run build
+npm run test:e2e:built
 ```
 
-Running the scheduler additionally requires a deployed v0.2 payroll contract, one `request_payment`-only Function Call key for that contract, and a matching private payroll plan. The current public `clavis.testnet` contract is v0.1.0, so the v0.2 agent deliberately refuses it.
+Copy `.env.example` only for local operation. Keep private values in ignored, owner-readable files. Never put credentials in a `VITE_` variable.
 
-Prepare local agent files only for a verified v0.2 target:
+The production scheduler requires:
 
-```bash
-cp .env.example agent/.env
-cp agent/config/agent-credentials.example.json agent/config/agent-credentials.local.json
-cp agent/config/payroll.example.json agent/config/payroll.local.json
-chmod 600 agent/.env agent/config/agent-credentials.local.json agent/config/payroll.local.json
-```
+- `NEAR_NETWORK=testnet`;
+- an HTTPS Testnet RPC endpoint;
+- a payroll contract reporting v0.3.0 or newer;
+- one Function Call key restricted to `request_payment` for each contract;
+- a matching private payroll plan.
 
-Relevant agent configuration:
-
-```dotenv
-NEAR_NETWORK=testnet
-NEAR_RPC_URL=https://test.rpc.fastnear.com
-FACTORY_CONTRACT_ID=factory.clavis.testnet
-AGENT_CREDENTIALS_PATH=./config/agent-credentials.local.json
-PAYROLL_CONFIG_PATH=./config/payroll.local.json
-PAYROLL_DIRECTORY=./config/payrolls
-```
-
-Each entry in `agent-credentials.local.json` binds one payroll contract ID to its agent account and restricted private key. Missing contract credentials fail closed; the runtime never reuses one contract's key for another.
-
-The example credential and payroll files intentionally use the same `acmecorp.clavis.testnet` contract, and the example recipient hash is the SHA-256 commitment for `worker.testnet`. Replace the contract, account, and key placeholders together for the verified v0.2 deployment you operate.
-
-The agent key must be a Function Call key restricted to `request_payment` on its assigned contract. Full Access and over-broad keys fail startup verification. The scheduler also requires `contract_version` v0.2.0 or newer before admitting a payroll contract, so a legacy authorization-only deployment cannot consume policy state through the v0.2 agent.
-
-Do not configure settlement account credentials. Cross-chain execution is intentionally unavailable.
+Full Access or over-broad agent keys fail startup verification.
 
 ## Verification
 
-Verified locally on the current working tree:
-
-| Suite | Result |
-| --- | --- |
-| Payroll contract | 31 passed |
-| Factory contract | 3 passed |
-| Agent Vitest | 66 passed |
-| API/utility Node tests | 30 passed |
-| Playwright browser paths | 5 passed |
-| Repository total | 135 passed |
-
-The complete release gate is:
+Run the complete release gate:
 
 ```bash
-cargo fmt --check --manifest-path contract/Cargo.toml
-cargo test --manifest-path contract/Cargo.toml
-bash scripts/build-contracts.sh
-cargo test --manifest-path contract/Cargo.toml --package clavis-factory
-npm run typecheck
-npm run test:api
-npm run test:agent
-npm run build
-npm run demo:typecheck
-npm run test:e2e:built
-npm audit --omit=dev --audit-level=moderate
-git diff --check
+bash scripts/verify.sh
 ```
 
-The merged source release passed [CI](https://github.com/arinze116/Clavis/actions/runs/42602465954) and [security-evidence verification](https://github.com/arinze116/Clavis/actions/runs/42602465956). The public origin then passed two uninterrupted six-route rehearsals and deployed visual checks at 390, 768, and 1440 pixels with one `main`, one `h1`, no horizontal overflow, and no application errors. Screenshots are attached to the source-verified release.
+It runs Rust formatting, Clippy, contract and factory tests, WASM builds, signer tests, TypeScript checks, API tests, agent tests, production builds, Playwright checks, generated-security-evidence validation, deployment-script syntax checks, dependency auditing, and `git diff --check`.
 
-Generated security evidence is refreshed with:
+## Deployment
+
+Deployment is Testnet-only and uses the existing isolated keyring:
 
 ```bash
-npm exec --workspace=@clavis/agent -- vitest run --reporter=json --outputFile=../artifacts/security-evidence/vitest.json
-node scripts/security/generate-security-report.mjs \
-  --status passed \
-  --vitest-report artifacts/security-evidence/vitest.json \
-  --frontend-output frontend/src/data/securityEvidence.generated.ts
+bash scripts/run-with-clavis-near-keyring.sh \
+  bash scripts/deploy-v03-testnet.sh all
 
-node scripts/security/generate-security-report.mjs \
-  --check \
-  --vitest-report artifacts/security-evidence/vitest.json \
-  --frontend-output frontend/src/data/securityEvidence.generated.ts
+CLAVIS_EXPECTED_COMMIT=<merged-main-sha> \
+  bash scripts/deploy-v03-agent-testnet.sh
 ```
 
-## Upgrade notes
+The scripts verify network, account IDs, exact public keys, versions, state preservation, code hashes, credential-file hashes, process health, and the expected merged commit. Do not use them for Mainnet.
 
-The root v0.1 payroll contract must be upgraded with the v0.2 WASM by its contract-account deployment key and call `migrate` in the approved deployment operation. `migrate` verifies that the call predecessor matches the owner stored in v0.1 state. The deployment command shape in `scripts/deploy-factory.sh` was checked against the official NEAR CLI RS v0.31.1 source. It was not executed here because this host has no `near` binary and deployment requires explicit owner approval.
+## Demonstration evidence
 
-The factory must then be upgraded so newly created child contracts embed v0.2. Factory-created v0.1 children have neither a deployment key nor a legacy self-upgrade method, so their policy owner cannot migrate them in place through this repository; they require an account-specific upgrade mechanism or replacement. Do not imply otherwise in the UI or submission.
+The current end-to-end Testnet tutorial is stored locally at `artifacts/video-production/clavis-desktop-tutorial-20261111/clavis-desktop-tutorial-178s.mp4`.
 
-The production frontend is published, but no contract upgrade or agent restart is performed automatically. Contract deployment still requires the segregated root and factory signers plus an owner-reviewed transaction preview.
+- Duration: 178.000000 seconds
+- Frames: 5,340 at 30 fps
+- Video: H.264 High, 1920×1080
+- Audio: AAC-LC stereo, 48 kHz
+- Size: 13,394,060 bytes
+- SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`
 
-## Known limitations
+It was captured against the v0.2 Testnet deployment and is historical product evidence, not proof that v0.3 is already deployed.
 
-- Testnet only; do not use mainnet funds.
-- The live root and factory remain legacy until explicitly upgraded.
-- The root contract's Full Access deployment key is outside contract enforcement; compromise can redeploy code or move root-account funds. It must be segregated from the scheduler host. Factory-created v0.2 children from this source are created without access keys.
-- Factory-created legacy child contracts may require replacement because v0.1 has no in-place owner upgrade path.
-- Cross-chain and split execution are disabled.
-- Only one native settlement may be pending per contract at a time.
-- Callback uncertainty fails closed during the finality window. After ten minutes, the owner can resolve a stale callback only by supplying the reviewed NEAR transaction hash and attesting whether delivery occurred; that recovery event is public. A wrong attestation can cause false accounting or a duplicate retry, so operators must verify the final receipt first.
-- Unsalted hashes of predictable account IDs are commitments, not anonymity.
-- Recipient policy configuration remains public contract state.
-- Audit links depend on third-party indexing plus NEAR RPC and remain best-effort.
-- Employer audit entries do not identify workers.
-- Repository tests are not an independent third-party audit.
-
-## Further documentation
+## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
-- [Privacy boundary](docs/PRIVACY.md)
+- [Privacy](docs/PRIVACY.md)
 - [Threat model](docs/THREAT-MODEL.md)
-- [Settlement and reconciliation ADR](docs/adr/0001-contract-controlled-settlement.md)
-- [Generated security report](docs/generated/security-report.md)
+- [Security policy](SECURITY.md)
+- [Generated security evidence](docs/generated/security-report.md)
+- [Complete feature inventory](docs/reports/clavis-complete-feature-inventory.md)
 - [Submission status](SUBMISSION.md)
-- [Demo and rehearsal checklist](DEMO.md)
+- [Demo boundary](DEMO.md)
+- [Contract settlement ADR](docs/adr/0001-contract-controlled-settlement.md)
+- [Milestone idempotency ADR](docs/adr/0005-on-chain-milestone-idempotency.md)
+
+## License
+
+[MIT](LICENSE)

@@ -35,16 +35,16 @@ const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: s
   },
   configure: {
     eyebrow: "Deployed state first",
-    title: "The live root is labelled authorization-only",
-    highlight: "clavis.testnet · v0.1.0",
+    title: "The root is v0.2; the factory stays visibly blocked",
+    highlight: "clavis.testnet · v0.2.0",
   },
   constrain: {
-    eyebrow: "Source v0.2 key boundary",
+    eyebrow: "Live v0.2 key boundary",
     title: "One restricted key. One contract. One method.",
     highlight: "request_payment only",
   },
   enforce: {
-    eyebrow: "Source v0.2 settlement",
+    eyebrow: "Live v0.2 settlement",
     title: "Callback success commits; failure rolls back",
     highlight: "Native only · unsupported routes fail closed",
   },
@@ -60,8 +60,8 @@ const sceneTitles: Record<string, { eyebrow: string; title: string; highlight: s
   },
   close: {
     eyebrow: "Reproducible evidence",
-    title: "132 tests verify source v0.2; signers gate deployment",
-    highlight: "Source-verified · live upgrade pending",
+    title: "159 checks verify live root settlement",
+    highlight: "Factory signer · new-child upgrade pending",
   },
 };
 
@@ -433,7 +433,7 @@ function EndCard({ fps }: { fps: number }) {
             fontSize: 30,
           }}
         >
-          Source v0.2 is verified. The live root and factory remain legacy.
+          Root settlement is live on v0.2. The factory remains legacy.
         </div>
         <div
           style={{
@@ -446,7 +446,7 @@ function EndCard({ fps }: { fps: number }) {
             textTransform: "uppercase",
           }}
         >
-          Production web app live · signer-connected contract upgrade pending
+          Two workers settled · factory signer still unavailable
         </div>
       </div>
     </AbsoluteFill>

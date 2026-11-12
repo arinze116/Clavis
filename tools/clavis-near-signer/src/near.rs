@@ -145,6 +145,81 @@ pub fn verify_near_cli_retrieval(
     }
 }
 
+pub fn run_nep413_challenge(
+    near_binary: &str,
+    account_id: &str,
+    expected_public_key: &str,
+) -> Result<(), String> {
+    let message = format!("Clavis signer verification for {account_id}");
+    let recipient = "clavis-signer-verification.local";
+    let mut nonce = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let encoded_nonce = base64::engine::general_purpose::STANDARD.encode(nonce);
+    let output = std::process::Command::new(near_binary)
+        .args([
+            "message",
+            "sign-nep413",
+            "utf8",
+            &message,
+            "nonce",
+            &encoded_nonce,
+            "recipient",
+            recipient,
+            "sign-as",
+            account_id,
+            "sign-with-keychain",
+            "network-config",
+            "testnet",
+        ])
+        .output()
+        .map_err(|error| format!("Unable to run NEP-413 signing challenge: {error}"))?;
+    if !output.status.success() {
+        return Err(format!("NEP-413 signing challenge failed for {account_id}"));
+    }
+    let signed: SignedMessage = serde_json::from_slice(&output.stdout)
+        .map_err(|_| format!("NEP-413 output was invalid for {account_id}"))?;
+    verify_nep413(
+        &signed,
+        &message,
+        nonce,
+        recipient,
+        account_id,
+        expected_public_key,
+    )
+}
+
+fn verify_nep413(
+    signed: &SignedMessage,
+    message: &str,
+    nonce: [u8; 32],
+    recipient: &str,
+    account_id: &str,
+    expected_public_key: &str,
+) -> Result<(), String> {
+    if signed.account_id != account_id || signed.public_key != expected_public_key {
+        return Err("NEP-413 signer identity did not match".to_string());
+    }
+    let payload = Nep413Payload {
+        message: message.to_string(),
+        nonce,
+        recipient: recipient.to_string(),
+        callback_url: None,
+    };
+    let mut bytes = ((1_u32 << 31) + 413).to_le_bytes().to_vec();
+    borsh::to_writer(&mut bytes, &payload)
+        .map_err(|error| format!("Unable to encode NEP-413 challenge: {error}"))?;
+    let hash = Sha256::digest(&bytes);
+    let signature = Signature::from_str(&signed.signature)
+        .map_err(|_| "NEP-413 signature was malformed".to_string())?;
+    let public_key = PublicKey::from_str(expected_public_key)
+        .map_err(|_| "Stored public key was malformed".to_string())?;
+    if signature.verify(&hash, &public_key) {
+        Ok(())
+    } else {
+        Err("NEP-413 signature verification failed".to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,80 +314,5 @@ mod tests {
         let keys = parse_access_keys("owner.testnet", &response).unwrap();
         assert!(keys[0].is_full_access);
         assert!(!keys[1].is_full_access);
-    }
-}
-
-pub fn run_nep413_challenge(
-    near_binary: &str,
-    account_id: &str,
-    expected_public_key: &str,
-) -> Result<(), String> {
-    let message = format!("Clavis signer verification for {account_id}");
-    let recipient = "clavis-signer-verification.local";
-    let mut nonce = [0_u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
-    let encoded_nonce = base64::engine::general_purpose::STANDARD.encode(nonce);
-    let output = std::process::Command::new(near_binary)
-        .args([
-            "message",
-            "sign-nep413",
-            "utf8",
-            &message,
-            "nonce",
-            &encoded_nonce,
-            "recipient",
-            recipient,
-            "sign-as",
-            account_id,
-            "sign-with-keychain",
-            "network-config",
-            "testnet",
-        ])
-        .output()
-        .map_err(|error| format!("Unable to run NEP-413 signing challenge: {error}"))?;
-    if !output.status.success() {
-        return Err(format!("NEP-413 signing challenge failed for {account_id}"));
-    }
-    let signed: SignedMessage = serde_json::from_slice(&output.stdout)
-        .map_err(|_| format!("NEP-413 output was invalid for {account_id}"))?;
-    verify_nep413(
-        &signed,
-        &message,
-        nonce,
-        recipient,
-        account_id,
-        expected_public_key,
-    )
-}
-
-fn verify_nep413(
-    signed: &SignedMessage,
-    message: &str,
-    nonce: [u8; 32],
-    recipient: &str,
-    account_id: &str,
-    expected_public_key: &str,
-) -> Result<(), String> {
-    if signed.account_id != account_id || signed.public_key != expected_public_key {
-        return Err("NEP-413 signer identity did not match".to_string());
-    }
-    let payload = Nep413Payload {
-        message: message.to_string(),
-        nonce,
-        recipient: recipient.to_string(),
-        callback_url: None,
-    };
-    let mut bytes = ((1_u32 << 31) + 413).to_le_bytes().to_vec();
-    borsh::to_writer(&mut bytes, &payload)
-        .map_err(|error| format!("Unable to encode NEP-413 challenge: {error}"))?;
-    let hash = Sha256::digest(&bytes);
-    let signature = Signature::from_str(&signed.signature)
-        .map_err(|_| "NEP-413 signature was malformed".to_string())?;
-    let public_key = PublicKey::from_str(expected_public_key)
-        .map_err(|_| "Stored public key was malformed".to_string())?;
-    if signature.verify(&hash, &public_key) {
-        Ok(())
-    } else {
-        Err("NEP-413 signature verification failed".to_string())
     }
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  classifyPayrollResume,
   parseRecoveredFailedTransferEvidence,
   recoveredUnauthorizedTransactionIdentity,
   verifyRecoveredFailedTransfer,
@@ -147,6 +148,32 @@ test("rejects a recovered unauthorized probe that emitted a payment decision", (
       ),
     /unexpectedly emitted a payment decision/u,
   );
+});
+
+test("classifies an unchanged payroll baseline as pending", () => {
+  const before = payrollSnapshotFixture();
+  assert.equal(classifyPayrollResume({ ...before }, before, 10n), "pending");
+});
+
+test("classifies one exact two-worker settlement as settled", () => {
+  const before = payrollSnapshotFixture();
+  const current = {
+    ...before,
+    approvals: [{ outcome: "Approved" }, { outcome: "Approved" }],
+    dailySpent: "20",
+    logCount: 14,
+    workerOneBalance: "110",
+    workerOneLastPaid: 101,
+    workerTwoBalance: "210",
+    workerTwoLastPaid: 102,
+  };
+  assert.equal(classifyPayrollResume(current, before, 10n), "settled");
+});
+
+test("rejects ambiguous partial payroll progress during resume", () => {
+  const before = payrollSnapshotFixture();
+  const current = { ...before, workerOneBalance: "110" };
+  assert.equal(classifyPayrollResume(current, before, 10n), "mismatch");
 });
 
 function recoveredEvidence(): unknown {
@@ -303,5 +330,20 @@ function unauthorizedExpectations() {
     reason: "Unauthorized caller",
     recipientHash: "08ef5e4511a129f31e1ebb73e6b45181c8d335b73af63fdaac9fb63d55c349b6",
     workerAccountId: "arinze-worker1.testnet",
+  };
+}
+
+function payrollSnapshotFixture() {
+  return {
+    approvals: [{ outcome: { Rejected: "probe" } }, { outcome: { Rejected: "probe" } }],
+    contractBalance: "1000",
+    dailySpent: "0",
+    logCount: 12,
+    recipientCount: 5,
+    recoveryAt: null,
+    workerOneBalance: "100",
+    workerOneLastPaid: 0,
+    workerTwoBalance: "200",
+    workerTwoLastPaid: 0,
   };
 }

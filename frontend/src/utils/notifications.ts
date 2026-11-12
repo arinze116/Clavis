@@ -86,6 +86,13 @@ function notificationApiUrl(): string {
   return import.meta.env.VITE_NOTIFICATION_API_URL?.trim() || DEFAULT_NOTIFICATION_API;
 }
 
+function authorizationOrigin(): string {
+  const captureOrigin = import.meta.env.DEV
+    ? import.meta.env.VITE_CAPTURE_AUTHORIZATION_ORIGIN?.trim()
+    : "";
+  return captureOrigin || window.location.origin;
+}
+
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -163,7 +170,9 @@ export async function signAgentAuthorization(options: {
   const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
   const nonce = nonceBase64(nonceBytes);
   const payloadHash = await sha256(stableJson(options.payload));
-  const origin = window.location.origin;
+  // Deterministic local product capture can proxy the production same-origin API while
+  // preserving the production origin in the signed message. The override is ignored in builds.
+  const origin = authorizationOrigin();
   const message = authorizationMessage({
     accountId: options.accountId,
     action: options.action,

@@ -9,7 +9,7 @@ readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly NEAR_BINARY="/home/ubuntu/.local/lib/clavis-near/near-v0.31.1/near"
 readonly NEAR_BINARY_SHA256="3611418e3d062779f68308f6a0f2067c130af9b6bbc171cc1cdbbee28703a31a"
 readonly SIGNER_BINARY="/home/ubuntu/.local/lib/clavis-near/clavis-near-signer"
-readonly SIGNER_BINARY_SHA256="c68ee164c0dfdff5f1d432574d871fcc7dd6c5b182a454cd4c3500871dae41bb"
+readonly SIGNER_BINARY_SHA256="c8ae8598d74f7366e4496f1ed4fd187b647531341901614bf783c3dcae14c9af"
 readonly KEYRING_DATA_HOME="/home/ubuntu/.local/share/clavis-near-keyring"
 readonly RUNTIME_PARENT="/run/user/$(id -u)"
 

@@ -124,6 +124,36 @@ describe("NotificationManager", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("reports an event as undelivered when every configured channel fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ message: "temporary outage" }), {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const result = await manager().contractDecisionDetected({
+      business: {
+        contract_id: "acme.clavis.testnet",
+        owner_email: "owner@example.com",
+        telegram_chat_id: undefined,
+        recipients: [],
+      },
+      ownerAccountId: "owner.testnet",
+      paymentId: 17,
+      approved: true,
+    });
+
+    expect(result).toMatchObject({
+      delivered: false,
+      succeeded: 0,
+      failed: 2,
+    });
+  });
+
   it("notifies a linked worker after their confirmed roster addition", async () => {
     const requests: Array<{ url: string; body: string }> = [];
     vi.stubGlobal(

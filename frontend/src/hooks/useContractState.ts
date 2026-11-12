@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ContractRecord, ContractSnapshot } from "../types";
+import { mergeAuditTransactionLinks } from "../utils/audit-transactions";
 import {
   enrichAuditSnapshot,
   enrichContractSnapshotAudit,
@@ -37,8 +38,14 @@ export function useContractState(contractId: string | null, pollIntervalMs = 0) 
       // Explorer links are useful evidence, but they must never delay the
       // contract-backed dashboard. Enrich them after the first meaningful paint.
       void enrichContractSnapshotAudit(snapshot).then((enriched) => {
-        if (requestId.current !== currentRequest) return;
-        setData(enriched);
+        setData((current) =>
+          current?.contractId === enriched.contractId
+            ? {
+                ...current,
+                auditLog: mergeAuditTransactionLinks(current.auditLog, enriched.auditLog),
+              }
+            : current,
+        );
       });
     } catch (reason) {
       if (requestId.current !== currentRequest) return;
@@ -114,7 +121,14 @@ export function useAuditState(contractId: string, pollIntervalMs = 0) {
       setData(snapshot);
       setResolvedContractId(contractId);
       void enrichAuditSnapshot(snapshot).then((enriched) => {
-        if (requestId.current === currentRequest) setData(enriched);
+        setData((current) =>
+          current?.contractId === enriched.contractId
+            ? {
+                ...current,
+                auditLog: mergeAuditTransactionLinks(current.auditLog, enriched.auditLog),
+              }
+            : current,
+        );
       });
     } catch (reason) {
       if (requestId.current !== currentRequest) return;

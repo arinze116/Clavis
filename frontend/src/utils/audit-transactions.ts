@@ -8,6 +8,11 @@ export interface FinalTransactionOutcome {
   }>;
 }
 
+interface AuditTransactionLink {
+  payment_id: number;
+  transaction_hash?: string;
+}
+
 interface PaymentDecisionEvent {
   standard?: unknown;
   event?: unknown;
@@ -61,4 +66,26 @@ export function mapPaymentDecisionTransactions(
     }
   }
   return transactions;
+}
+
+export function mergeAuditTransactionLinks<T extends AuditTransactionLink>(
+  current: T[],
+  enriched: T[],
+): T[] {
+  const hashesByPaymentId = new Map(
+    enriched.flatMap((entry) =>
+      entry.transaction_hash ? [[entry.payment_id, entry.transaction_hash] as const] : [],
+    ),
+  );
+  if (hashesByPaymentId.size === 0) return current;
+
+  let changed = false;
+  const merged = current.map((entry) => {
+    if (entry.transaction_hash) return entry;
+    const transactionHash = hashesByPaymentId.get(entry.payment_id);
+    if (!transactionHash) return entry;
+    changed = true;
+    return { ...entry, transaction_hash: transactionHash };
+  });
+  return changed ? merged : current;
 }

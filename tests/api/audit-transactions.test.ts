@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   mapPaymentDecisionTransactions,
+  mergeAuditTransactionLinks,
   paymentDecisionIds,
   type FinalTransactionOutcome,
 } from "../../frontend/src/utils/audit-transactions.ts";
@@ -69,5 +70,21 @@ describe("audit transaction event mapping", () => {
     };
 
     assert.deepEqual(paymentDecisionIds(value, contractId), []);
+  });
+
+  it("merges links from a slower enrichment into the latest audit snapshot", () => {
+    const current = [
+      { payment_id: 43, outcome: "Approved" },
+      { payment_id: 42, outcome: "Approved" },
+    ];
+    const enriched = [
+      { payment_id: 42, outcome: "Approved", transaction_hash: "transaction-b" },
+      { payment_id: 41, outcome: "Approved", transaction_hash: "transaction-a" },
+    ];
+
+    assert.deepEqual(mergeAuditTransactionLinks(current, enriched), [
+      { payment_id: 43, outcome: "Approved" },
+      { payment_id: 42, outcome: "Approved", transaction_hash: "transaction-b" },
+    ]);
   });
 });

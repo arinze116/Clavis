@@ -140,19 +140,33 @@ export class ContractEventMonitor {
   ): Promise<void> {
     for (const decision of [...decisions].sort((left, right) => left.payment_id - right.payment_id)) {
       if (!(await this.#events.claimDecision(contract.contract_id, decision.payment_id))) continue;
-      await this.#notifications.contractDecisionDetected({
-        business,
-        paymentId: decision.payment_id,
-        approved: decision.outcome === "Approved",
-        ...(typeof decision.outcome === "object"
-          ? { reason: decision.outcome.Rejected }
-          : {}),
-        ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
-      });
-      logger.info("notification_events.decision_sent", {
-        contractId: contract.contract_id,
-        paymentId: decision.payment_id,
-      });
+      let delivered = false;
+      try {
+        const result = await this.#notifications.contractDecisionDetected({
+          business,
+          paymentId: decision.payment_id,
+          approved: decision.outcome === "Approved",
+          ...(typeof decision.outcome === "object"
+            ? { reason: decision.outcome.Rejected }
+            : {}),
+          ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
+        });
+        delivered = result.delivered;
+        logger.info("notification_events.decision_delivery", {
+          contractId: contract.contract_id,
+          paymentId: decision.payment_id,
+          delivered,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          skipped: result.skipped,
+        });
+      } finally {
+        await this.#events.completeDecision(
+          contract.contract_id,
+          decision.payment_id,
+          delivered,
+        );
+      }
     }
   }
 
@@ -163,15 +177,29 @@ export class ContractEventMonitor {
   ): Promise<void> {
     for (const anomaly of [...anomalies].sort((left, right) => left.anomaly_id - right.anomaly_id)) {
       if (!(await this.#events.claimAnomaly(contract.contract_id, anomaly.anomaly_id))) continue;
-      await this.#notifications.contractAnomalyDetected({
-        business,
-        anomaly,
-        ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
-      });
-      logger.info("notification_events.anomaly_sent", {
-        contractId: contract.contract_id,
-        anomalyId: anomaly.anomaly_id,
-      });
+      let delivered = false;
+      try {
+        const result = await this.#notifications.contractAnomalyDetected({
+          business,
+          anomaly,
+          ...(contract.owner ? { ownerAccountId: contract.owner } : {}),
+        });
+        delivered = result.delivered;
+        logger.info("notification_events.anomaly_delivery", {
+          contractId: contract.contract_id,
+          anomalyId: anomaly.anomaly_id,
+          delivered,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          skipped: result.skipped,
+        });
+      } finally {
+        await this.#events.completeAnomaly(
+          contract.contract_id,
+          anomaly.anomaly_id,
+          delivered,
+        );
+      }
     }
   }
 }

@@ -53,6 +53,19 @@ export interface FinalTransactionOutcome {
   }>;
 }
 
+export interface PayrollResumeSnapshot {
+  approvals: Array<{ outcome: unknown }>;
+  contractBalance: string;
+  dailySpent: string;
+  logCount: number;
+  recipientCount: number;
+  recoveryAt: string | null;
+  workerOneBalance: string;
+  workerOneLastPaid: number;
+  workerTwoBalance: string;
+  workerTwoLastPaid: number;
+}
+
 interface FailedTransferExpectations {
   agentAccountId: string;
   amountYocto: string;
@@ -82,6 +95,39 @@ interface WaitForFinalStateOptions<T> {
 const DEFAULT_FINAL_STATE_ATTEMPTS = 30;
 const DEFAULT_FINAL_STATE_INTERVAL_MS = 1_000;
 const TRANSACTION_HASH_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/u;
+
+export function classifyPayrollResume(
+  current: PayrollResumeSnapshot,
+  before: PayrollResumeSnapshot,
+  amount: bigint,
+): "pending" | "settled" | "mismatch" {
+  if (
+    current.recipientCount === before.recipientCount &&
+    current.logCount === before.logCount &&
+    current.dailySpent === before.dailySpent &&
+    current.recoveryAt === before.recoveryAt &&
+    current.workerOneBalance === before.workerOneBalance &&
+    current.workerTwoBalance === before.workerTwoBalance &&
+    current.contractBalance === before.contractBalance &&
+    current.workerOneLastPaid === before.workerOneLastPaid &&
+    current.workerTwoLastPaid === before.workerTwoLastPaid
+  ) {
+    return "pending";
+  }
+  if (
+    BigInt(current.workerOneBalance) === BigInt(before.workerOneBalance) + amount &&
+    BigInt(current.workerTwoBalance) === BigInt(before.workerTwoBalance) + amount &&
+    current.logCount === before.logCount + 2 &&
+    BigInt(current.dailySpent) === BigInt(before.dailySpent) + amount * 2n &&
+    current.workerOneLastPaid > before.workerOneLastPaid &&
+    current.workerTwoLastPaid > before.workerTwoLastPaid &&
+    current.approvals.length === 2 &&
+    current.approvals.every((entry) => entry.outcome === "Approved")
+  ) {
+    return "settled";
+  }
+  return "mismatch";
+}
 
 export async function waitForFinalState<T>(
   options: WaitForFinalStateOptions<T>,

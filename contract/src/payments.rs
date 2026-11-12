@@ -43,6 +43,10 @@ impl Clavis {
             .take()
             .expect("No native payment is pending");
         if delivered {
+            if let Some(reference) = pending.payment_reference.as_deref() {
+                let key = Self::payment_reference_key(&pending.recipient_hash, reference);
+                self.completed_payment_references.insert(&key, &true);
+            }
             let payment_id = self.append_audit(PaymentOutcome::Approved);
             self.inspect_treasury_threshold();
             return PaymentResult {
@@ -72,6 +76,17 @@ impl Clavis {
                         | b'm'..=b'z'
                 )
             })
+    }
+
+    fn valid_payment_reference(value: &str) -> bool {
+        (1..=128).contains(&value.len())
+            && value.bytes().all(|byte| {
+                byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':')
+            })
+    }
+
+    fn payment_reference_key(recipient_hash: &str, payment_reference: &str) -> String {
+        format!("{recipient_hash}:{payment_reference}")
     }
 
     pub(crate) fn is_off_hours_at(timestamp: u64) -> bool {
@@ -206,6 +221,7 @@ impl Clavis {
         chain: String,
         token: String,
         recipient_account_id: Option<AccountId>,
+        payment_reference: Option<String>,
     ) -> PromiseOrValue<PaymentResult> {
         // Do not write an audit entry or anomaly state for arbitrary public
         // callers. This prevents a storage-exhaustion attack against the
@@ -259,6 +275,39 @@ impl Clavis {
                     let payment_id = self.append_audit(PaymentOutcome::Rejected(reason.clone()));
                     return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
                 }
+                let payment_reference = match payment_reference {
+                    Some(reference) => {
+                        if !Self::valid_payment_reference(&reference) {
+                            let reason = "Invalid payment reference".to_string();
+                            let payment_id =
+                                self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                            return PromiseOrValue::Value(Self::rejected_payment(
+                                payment_id, reason,
+                            ));
+                        }
+                        let key = Self::payment_reference_key(&recipient_hash, &reference);
+                        if self.completed_payment_references.get(&key) == Some(true) {
+                            let reason = "Payment reference already settled".to_string();
+                            let payment_id =
+                                self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                            return PromiseOrValue::Value(Self::rejected_payment(
+                                payment_id, reason,
+                            ));
+                        }
+                        Some(reference)
+                    }
+                    None if matches!(
+                        recipient.schedule,
+                        crate::types::PaymentSchedule::Milestone
+                    ) =>
+                    {
+                        let reason = "Milestone payment reference is required".to_string();
+                        let payment_id =
+                            self.append_audit(PaymentOutcome::Rejected(reason.clone()));
+                        return PromiseOrValue::Value(Self::rejected_payment(payment_id, reason));
+                    }
+                    None => None,
+                };
                 // Leave enough balance for the account's existing storage, a
                 // bounded callback write buffer, and an operational reserve.
                 // This keeps a successful transfer from starving the callback
@@ -286,6 +335,7 @@ impl Clavis {
                     amount: amount.0,
                     reserved_at,
                     previous_last_paid,
+                    payment_reference,
                 });
 
                 PromiseOrValue::Promise(
@@ -359,5 +409,17 @@ impl Clavis {
                 .reserved_at
                 .saturating_add(PENDING_NATIVE_PAYMENT_RECOVERY_DELAY_NS))
         })
+    }
+
+    pub fn is_payment_reference_completed(
+        &self,
+        recipient_hash: String,
+        payment_reference: String,
+    ) -> bool {
+        if !Self::valid_payment_reference(&payment_reference) {
+            return false;
+        }
+        let key = Self::payment_reference_key(&recipient_hash, &payment_reference);
+        self.completed_payment_references.get(&key) == Some(true)
     }
 }

@@ -71,6 +71,11 @@ export class StateStore {
     await this.save();
   }
 
+  async markMilestoneCompleted(recipientHash: string, milestoneId: string): Promise<void> {
+    this.#state.completedMilestones[recipientHash] = milestoneId;
+    await this.save();
+  }
+
   async markIntentFilled(intentId: string): Promise<void> {
     const completedIntent = this.#state.pendingIntents.find(
       (intent) => intent.intentId === intentId,
@@ -115,10 +120,12 @@ export class StateStore {
     cooldownMs = 300_000,
   ): Promise<boolean> {
     const previous = this.#state.anomalyNotifications[fingerprint] ?? 0;
-    if (timestamp - previous < cooldownMs) return false;
+    return timestamp - previous >= cooldownMs;
+  }
+
+  async markAnomalyNotified(fingerprint: string, timestamp: number): Promise<void> {
     this.#state.anomalyNotifications[fingerprint] = timestamp;
     await this.save();
-    return true;
   }
 
   async setRouteFingerprints(fingerprints: Record<string, string>): Promise<void> {

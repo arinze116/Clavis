@@ -1,34 +1,46 @@
-# NEAR Hackathon 2026
+# Clavis hackathon brief
 
-Clavis targets the privacy, real-world, security, agents, and business tracks.
+## Product
 
-## NEAR-native differentiators
+Clavis gives a business owner a rule-bound payroll contract and an AI-assisted operating interface on NEAR Testnet. The AI helps interpret policy and explain evidence; it cannot sign transactions or move funds. The owner controls policy, and the contract controls native settlement.
 
-- Contract-scoped Function Call keys restrict each scheduler to `request_payment` on one payroll contract.
-- Source contract v0.2 holds and transfers native NEAR, verifies the recipient commitment, and records approval only after callback success.
-- NEAR subaccounts provide isolated business state and treasury boundaries.
-- NEP-413 signatures authorize private-plan staging without exposing owner keys to the service.
-- Final-state RPC and contract events provide versioned, reproducible evidence.
-- Audit entries minimize repeated payroll fields while the product clearly discloses normal transaction visibility.
+## Core flow
 
-Cross-chain execution is disabled in this release. There is no confidential-executor adapter or dry-run relay claim.
+1. Connect an owner wallet on NEAR Testnet.
+2. Initialize an existing payroll business or deploy an isolated factory child.
+3. Configure workers, caps, routes, and schedules.
+4. Use AI to extract a proposed policy from plain English.
+5. Review and confirm the values.
+6. Sign public policy changes and the private payroll plan.
+7. Let the restricted scheduler request due native NEAR payments.
+8. Verify final receipts from the owner dashboard, worker portal, and public audit.
 
-## Highest-value demo moments
+## Security model
 
-1. A restricted scheduler requests a due native payment.
-2. The payroll contract transfers its own funds and commits approval only after success.
-3. A wrong recipient account fails the commitment check.
-4. A failed transfer restores spend and schedule state.
-5. A private recipient change remains staged until exact on-chain reconciliation.
-6. The public audit opens the transaction that emitted the exact payment ID.
-7. The worker portal states that history is employer-wide because entries omit recipient identity.
+- The scheduler uses a per-contract Function Call key restricted to `request_payment`.
+- The Rust contract checks policy and transfers its own NEAR.
+- Approval is recorded only after transfer success; failure restores reserved state.
+- v0.3 stores completed milestone references on-chain to prevent replay after agent state loss.
+- Cross-chain and split settlement fail closed.
+- Factory-created child accounts have no access keys.
+- Root and factory deployment keys remain explicit privileged boundaries outside contract enforcement.
 
-## Deployment caveat
+## Current status
 
-The current public root and factory are legacy v0.1 deployments. Do not present v0.2 as live until both are upgraded and verified.
+Repository source is v0.3.0. The public root, factory, and agent remain v0.2.0 until the authorized release deployment completes. Clavis is Testnet-only and privacy-minimized, not confidential or anonymous.
+
+The accepted 178-second product tutorial was captured against v0.2. It demonstrates real owner setup, AI policy extraction, genuine Meteor approval, two 0.001 NEAR settlements, and Worker 1 receipt verification. SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`.
+
+Both demonstrated workers use explicit one-time `Milestone` schedules. The film does not claim recurring execution.
+
+## Not implemented as live functionality
+
+- Mainnet deployment.
+- Confidential or anonymous transactions.
+- Cross-chain or split settlement.
+- Worker-initiated route changes without owner approval.
+- Worker-specific reconstruction from minimized employer audit events.
 
 ## Builder
 
-- Arinze
-- X: [@useClavis_](https://x.com/useClavis_)
-- Network: NEAR testnet only
+Arinze — Nigeria.

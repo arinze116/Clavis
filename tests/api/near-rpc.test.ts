@@ -93,6 +93,38 @@ test("fails over when an RPC returns the endpoint-deprecated JSON error", async 
   );
 });
 
+test("uses the archival Testnet RPC for historical transaction lookups", async () => {
+  delete process.env.CLAVIS_NEAR_TESTNET_RPC_URL;
+  delete process.env.NEAR_RPC_URL;
+  const requestedUrls: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    if (requestedUrls.length === 1) return jsonResponse({ error: "unknown transaction" }, 500);
+    return jsonResponse({
+      jsonrpc: "2.0",
+      id: "historical-transaction",
+      result: { final_execution_status: "FINAL" },
+    });
+  };
+
+  const response = await invoke({
+    jsonrpc: "2.0",
+    id: "historical-transaction",
+    method: "tx",
+    params: {
+      tx_hash: "2E7Mb4Dt21VCNKizFGy4WSBa3ZnK4oxLhgUVkE5N5hpR",
+      sender_account_id: "clavis-agent.testnet",
+      wait_until: "FINAL",
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(requestedUrls, [
+    "https://test.rpc.fastnear.com/",
+    "https://archival-rpc.testnet.near.org/",
+  ]);
+});
+
 test("ignores the retired official Testnet RPC when configured", async () => {
   process.env.NEAR_RPC_URL = "https://rpc.testnet.near.org";
   const requestedUrls: string[] = [];

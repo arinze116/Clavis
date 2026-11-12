@@ -48,7 +48,7 @@ export default async function handler(
   }
 
   let lastError: unknown;
-  for (const endpoint of upstreamEndpoints()) {
+  for (const endpoint of upstreamEndpoints(body.value.method)) {
     try {
       const upstream = await fetch(endpoint, {
         method: "POST",
@@ -141,12 +141,13 @@ function allowedParams(method: string, value: unknown): boolean {
   );
 }
 
-function upstreamEndpoints(): URL[] {
+function upstreamEndpoints(method: string): URL[] {
   const configured = [
-    process.env.CLAVIS_NEAR_TESTNET_RPC_URL?.trim(),
-    process.env.NEAR_RPC_URL?.trim(),
+    (process.env.CLAVIS_NEAR_TESTNET_RPC_URL ?? process.env.NEAR_RPC_URL)?.trim(),
     "https://test.rpc.fastnear.com",
-    "https://near-testnet.drpc.org",
+    ...(method === "tx"
+      ? ["https://archival-rpc.testnet.near.org", "https://near-testnet.drpc.org"]
+      : ["https://near-testnet.drpc.org", "https://archival-rpc.testnet.near.org"]),
   ];
   const endpoints: URL[] = [];
   const seen = new Set<string>();

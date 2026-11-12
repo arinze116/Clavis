@@ -38,6 +38,7 @@ import {
   change,
   changeMany,
   runSecurityAudit,
+  supportsMilestoneIdempotency,
   type ContractCall,
   type TransactionSubmission,
 } from "../utils/contract";
@@ -957,6 +958,11 @@ function PublicSettlementEvidence({ snapshot }: { snapshot?: ContractSnapshot })
   const nativeEvidenceTone = snapshot?.contractControlsSettlement
     ? "border-emerald-200 bg-emerald-50 text-emerald-900"
     : "border-amber-200 bg-amber-50 text-amber-900";
+  const schedulerCopy = snapshot
+    ? supportsMilestoneIdempotency(snapshot.contractVersion)
+      ? "The deployed contract records completed milestone references on-chain, so scheduler restarts cannot repeat the same milestone transfer."
+      : "Native settlement is contract-controlled, but the production scheduler remains disabled until this deployment supports v0.3 milestone idempotency."
+    : "Reading the deployed version before describing scheduler compatibility.";
   return (
     <section className="panel p-6 lg:p-8">
       <div className="flex items-start justify-between gap-4">
@@ -970,6 +976,10 @@ function PublicSettlementEvidence({ snapshot }: { snapshot?: ContractSnapshot })
         <div className={`rounded-[12px] border p-4 ${nativeEvidenceTone}`}>
           <dt className="font-semibold">Native NEAR</dt>
           <dd className="mt-1 opacity-70">{nativeSettlementCopy}</dd>
+        </div>
+        <div className="rounded-[12px] border border-line bg-canvas p-4">
+          <dt className="font-semibold">Scheduler restart safety</dt>
+          <dd className="mt-1 text-ink/60">{schedulerCopy}</dd>
         </div>
         <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-4">
           <dt className="font-semibold text-amber-900">Cross-chain</dt>

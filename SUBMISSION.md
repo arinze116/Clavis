@@ -1,81 +1,68 @@
 # Clavis submission status
 
-## Current status
+## Current product truth
 
-The v0.2 source is merged and the public frontend is deployed. The root contract, factory, and scheduler remain on the legacy deployment boundary, so the release is presented as **source-verified, not live-v0.2 settlement**.
+Clavis is a privacy-minimized payroll control plane on NEAR Testnet. Owners configure policy and privately authorize payroll plans. A restricted scheduler requests due native payments, while the payroll contract verifies policy and transfers its own NEAR.
 
-Verified live state on 2026-11-09:
+Repository source is v0.3.0. The live root, factory, and backend agent remain v0.2.0 until the authorized v0.3 release is merged and deployed. Native settlement is live in v0.2; on-chain milestone-reference idempotency and restart reconciliation are new in v0.3.
 
-- `clavis.testnet` reports contract v0.1.0;
-- `factory.clavis.testnet` has no `contract_version` method and is treated as legacy;
-- the live contracts therefore authorize requests but do not provide v0.2 contract-controlled settlement;
-- the production web app is live at <https://clavisapp.vercel.app> and visibly discloses that boundary;
-- the required root and factory Full Access signers are absent from this host and GitHub Actions, so no v0.2 contract upgrade or agent restart was attempted;
-- two production rehearsals, responsive screenshots, and a caption-led source-and-test demo are complete.
+## Implemented and verified
 
-## Public release links
+- Owner and worker Meteor wallet connections on NEAR Testnet.
+- Existing-business setup and factory deployment setup.
+- Worker commitment registration, compensation, cap, route, token, and schedule configuration.
+- AI policy extraction with deterministic validation, editable values, and explicit human confirmation.
+- Signed private-plan staging and exact final-chain reconciliation.
+- Contract-controlled native NEAR settlement with callback commit or rollback.
+- Public dashboard, employer-wide audit, worker registration/status view, anomalies, recovery controls, and source-linked security evidence.
+- Email and Telegram notification linking.
+- v0.3 on-chain milestone-reference replay protection.
+- v0.3 notification retry semantics that do not mark an event complete before delivery succeeds.
 
-| Item | URL |
+## Disabled, limited, or not claimed
+
+- Mainnet is not supported or deployed.
+- Cross-chain and split settlement fail closed.
+- The worker audit list is employer-wide; it is not worker-specific payment history.
+- Privacy minimization is not transaction confidentiality.
+- The demonstrated workers remain on one-time `Milestone` schedules; recurring execution is not claimed for that state.
+- Emergency withdrawal and recipient removal exist but were not executed for the accepted film because they are destructive operations.
+- Repository tests are not an independent security audit.
+
+## Verified live v0.2 evidence
+
+| Item | Evidence |
 | --- | --- |
-| Web app | <https://clavisapp.vercel.app> |
-| Repository | <https://github.com/arinze116/Clavis> |
-| Settlement implementation PR | <https://github.com/arinze116/Clavis/pull/13> |
-| Source verification CI | <https://github.com/arinze116/Clavis/actions/runs/42602465954> |
-| Security evidence CI | <https://github.com/arinze116/Clavis/actions/runs/42602465956> |
-| Caption-led demo | <https://github.com/arinze116/Clavis/releases/download/v0.2.0-source-verified/clavis-demo-1080p.mp4> |
-| Release evidence and screenshots | <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified> |
-| Live root contract | <https://testnet.nearblocks.io/address/clavis.testnet> |
-| Live factory | <https://testnet.nearblocks.io/address/factory.clavis.testnet> |
+| Root | `clavis.testnet`, v0.2.0, upgrade transaction [`7DAC…KqWA`](https://testnet.nearblocks.io/txns/7DACvFhKgtGrrGENKAoZk23uHjMmRtP6wXotRFHTKqWA) |
+| Factory | `factory.clavis.testnet`, v0.2.0, upgrade transaction [`9RjG…Kdce`](https://testnet.nearblocks.io/txns/9RjGMTzWMCbPzndsSZQVw935UQRe8qGZYATCzEH9Kdce) |
+| Factory child | `clavis-v02-e2e-20261110.clavis.testnet`, created in [`Dnch…q1qr`](https://testnet.nearblocks.io/txns/DnchBkKvWex7VWwmz5qE2aXDdDoYSzcq9BaoXC9kq1qr), no access keys |
+| Worker 1 film settlement | Payment 20, [`B1Lt…3zDLD`](https://testnet.nearblocks.io/txns/B1Lthb1fvZahjQht9Bu168U8LeG4Cktp3B9ougy3zDLD), 0.001 NEAR |
+| Worker 2 film settlement | Payment 21, [`GGou…VfTL`](https://testnet.nearblocks.io/txns/GGouc9FHTXpoKFVaiGFuBHGo7xK6ige5j7TgtJwfVfTL), 0.001 NEAR |
+| Failed transfer rollback | Payment 11, [`8V6x…BedB`](https://testnet.nearblocks.io/txns/8V6x9ZtCnqyh8B43sn5ty5f4gdSwfV8GMA2JjZG7BedB) |
 
-## Accurate product description
+## Demonstration asset
 
-Clavis source v0.2 is a privacy-minimized testnet payroll application in which a restricted scheduler requests due native NEAR payments and the Rust payroll contract itself:
+The accepted end-to-end Testnet tutorial is stored locally at `artifacts/video-production/clavis-desktop-tutorial-20261111/clavis-desktop-tutorial-178s.mp4`.
 
-- enforces owner-defined policy;
-- verifies the recipient-account commitment;
-- transfers native NEAR from its treasury;
-- records approval only after transfer success;
-- rolls back spend and schedule state when transfer fails.
-
-There is no agent-held Full Access settlement signer. Cross-chain and split execution are disabled until custody can remain contract-controlled end to end. The legacy root contract still has separate Full Access deployment authority; that key is outside contract enforcement and must remain segregated from the agent host.
-
-Private recipient changes are signed, durably staged, and promoted only after exact final-chain reconciliation. Wallet cancellation or service failure leaves the prior active plan unchanged.
-
-## Browser behavior
-
-- The dashboard detects contract versions and warns on legacy authorization-only deployments.
-- Setup blocks a legacy factory rather than creating another v0.1 child.
-- Mobile navigation lives in one persistent `AppShell` while dashboard content loads.
-- The worker portal labels the employer-wide decision history and does not claim entries are worker-specific.
-- Explorer links map emitted `payment_id` values to exact final transaction hashes; block/order guessing was removed.
-
-## Cross-chain answer
-
-**Is cross-chain payment live?**
-
-No. The code does not run a dry-run relay. It rejects cross-chain execution visibly in both preflight and contract policy because the release cannot keep custody contract-controlled end to end. A cross-chain request does not consume daily capacity or advance the recipient schedule.
-
-## Privacy answer
-
-The audit entry omits amount and recipient identity, but standard NEAR function arguments and configured recipient policy remain public. There is no `CONFIDENTIAL_EXECUTOR_URL` adapter in this repository.
-
-## Current local evidence
-
-| Check | Result |
+| Property | Verified value |
 | --- | --- |
-| Payroll contract | 31 passed |
-| Agent Vitest | 66 passed |
-| API, audit-link, and RPC-boundary tests | 30 passed |
-| TypeScript typecheck | Passed |
-| Factory tests and release WASM builds | 3 passed; payroll and factory WASM built |
-| Production build | Passed |
-| Playwright proof paths | 5 passed, including six delayed-load mobile-menu trials |
-| Responsive visual QA | Inspected at 320, 375, 390, 768, 1024, and 1440 px with no horizontal overflow, duplicate main landmarks, console errors, or sub-44px visible controls |
-| Production dependency audit | 0 moderate/high/critical; 17 low transitive `elliptic` advisories in the NEAR wallet stack |
-| Production frontend | Published at <https://clavisapp.vercel.app>; both same-origin RPC deployments return live final-block data |
-| Production rehearsals | Two uninterrupted runs across `/`, `/setup`, `/dashboard`, `/audit`, `/worker`, and `/security`; no application errors or horizontal overflow |
-| Production screenshots | 390, 768, and 1440 px inspected; one `main`, one `h1`, zero horizontal overflow, and no visible layout defects |
-| Demo render | H.264 High, 1920×1080, 30 fps, 95.9 s, 2,877 decoded frames, zero detected black segments; caption-led with no audio stream |
-| Live exact-link enrichment | Production verification found no v0.2 `payment_decision` event mapping for the legacy audit, so the UI correctly fell back to block links. Deterministic event-mapping tests passed; a live exact transaction link requires the signer-gated v0.2 settlement transaction. |
-| Live contract hashes | Root `6KVr9Wh2JPibe796e7xEMCRQCqKzRAY5N6JPyPg5S3NV`; factory `DgajXyTxZbvwDznWM8udMDU5L3kDoAgqUHFDSzWKodsW` |
-| Deployment scripts | `bash -n` syntax checks and NEAR CLI RS v0.31.1 source comparison passed; not executed because the CLI and required Full Access signers are absent |
+| Duration | 178.000000 seconds |
+| Frames | 5,340 at 30 fps |
+| Video | H.264 High, 1920×1080 |
+| Audio | AAC-LC stereo, 48 kHz |
+| Size | 13,394,060 bytes |
+| SHA-256 | `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24` |
+
+The film shows the real v0.2 application workflow: owner wallet connection, business initialization, AI policy extraction, two workers, genuine Meteor approval, signed private plans, two final native settlements, and a connected Worker 1 receipt check. It is historical v0.2 deployment evidence and must not be presented as proof of the v0.3 upgrade.
+
+## Public links
+
+- Application: <https://clavisapp.vercel.app>
+- Repository: <https://github.com/arinze116/Clavis>
+- Root contract: <https://testnet.nearblocks.io/address/clavis.testnet>
+- Factory: <https://testnet.nearblocks.io/address/factory.clavis.testnet>
+- Historical source release: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
+
+## Release condition
+
+The production release is complete only when the v0.3 source is merged, CI passes, the exact merged commit is deployed, root and factory report v0.3.0, the agent is healthy on the same commit, the public frontend serves that commit, and the post-deployment verification report records the evidence.

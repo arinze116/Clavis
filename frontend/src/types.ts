@@ -105,6 +105,8 @@ export interface RecipientDraft {
   preferredChain: Chain;
   preferredToken: Token;
   schedule: PaymentSchedule;
+  milestoneReady?: boolean;
+  milestoneId?: string;
 }
 
 export interface RecipientUpdateDraft {

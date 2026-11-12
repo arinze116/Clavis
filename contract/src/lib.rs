@@ -40,6 +40,7 @@ pub(crate) enum StorageKey {
     AnomalyLog,
     RecipientLastRequest,
     AnomalyLastLogged,
+    CompletedPaymentReferences,
 }
 
 #[near_bindgen]
@@ -61,6 +62,7 @@ pub struct Clavis {
     pub(crate) anomaly_last_logged: LookupMap<String, u64>,
     pub(crate) paused: bool,
     pub(crate) pending_native_payment: Option<PendingNativePayment>,
+    pub(crate) completed_payment_references: LookupMap<String, bool>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -80,6 +82,35 @@ struct LegacyClavisV1 {
     recipient_last_request: LookupMap<String, u64>,
     anomaly_last_logged: LookupMap<String, u64>,
     paused: bool,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+struct LegacyPendingNativePaymentV2 {
+    recipient_hash: String,
+    recipient_account_id: AccountId,
+    amount: u128,
+    reserved_at: u64,
+    previous_last_paid: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+struct LegacyClavisV2 {
+    owner: AccountId,
+    agent: AccountId,
+    daily_limit: u128,
+    per_payment_limit: u128,
+    daily_spent: u128,
+    last_reset_timestamp: u64,
+    recipients: UnorderedMap<String, RecipientConfig>,
+    recipient_count: u64,
+    audit_log: Vector<AuditEntry>,
+    log_counter: u64,
+    anomaly_log: Vector<AnomalyEntry>,
+    anomaly_counter: u64,
+    recipient_last_request: LookupMap<String, u64>,
+    anomaly_last_logged: LookupMap<String, u64>,
+    paused: bool,
+    pending_native_payment: Option<LegacyPendingNativePaymentV2>,
 }
 
 #[near_bindgen]
@@ -119,12 +150,53 @@ impl Clavis {
             anomaly_last_logged: LookupMap::new(StorageKey::AnomalyLastLogged),
             paused: false,
             pending_native_payment: None,
+            completed_payment_references: LookupMap::new(StorageKey::CompletedPaymentReferences),
         }
     }
 
     #[init(ignore_state)]
     pub fn migrate() -> Self {
-        let legacy: LegacyClavisV1 = env::state_read().expect("Legacy contract state is required");
+        let state = env::storage_read(b"STATE").expect("Legacy contract state is required");
+        if let Ok(legacy) = LegacyClavisV2::try_from_slice(&state) {
+            assert_eq!(
+                env::predecessor_account_id(),
+                legacy.owner,
+                "Owner authorization required"
+            );
+            return Self {
+                owner: legacy.owner,
+                agent: legacy.agent,
+                daily_limit: legacy.daily_limit,
+                per_payment_limit: legacy.per_payment_limit,
+                daily_spent: legacy.daily_spent,
+                last_reset_timestamp: legacy.last_reset_timestamp,
+                recipients: legacy.recipients,
+                recipient_count: legacy.recipient_count,
+                audit_log: legacy.audit_log,
+                log_counter: legacy.log_counter,
+                anomaly_log: legacy.anomaly_log,
+                anomaly_counter: legacy.anomaly_counter,
+                recipient_last_request: legacy.recipient_last_request,
+                anomaly_last_logged: legacy.anomaly_last_logged,
+                paused: legacy.paused,
+                pending_native_payment: legacy.pending_native_payment.map(|pending| {
+                    PendingNativePayment {
+                        recipient_hash: pending.recipient_hash,
+                        recipient_account_id: pending.recipient_account_id,
+                        amount: pending.amount,
+                        reserved_at: pending.reserved_at,
+                        previous_last_paid: pending.previous_last_paid,
+                        payment_reference: None,
+                    }
+                }),
+                completed_payment_references: LookupMap::new(
+                    StorageKey::CompletedPaymentReferences,
+                ),
+            };
+        }
+
+        let legacy =
+            LegacyClavisV1::try_from_slice(&state).expect("Unsupported legacy contract state");
         assert_eq!(
             env::predecessor_account_id(),
             legacy.owner,
@@ -147,6 +219,7 @@ impl Clavis {
             anomaly_last_logged: legacy.anomaly_last_logged,
             paused: legacy.paused,
             pending_native_payment: None,
+            completed_payment_references: LookupMap::new(StorageKey::CompletedPaymentReferences),
         }
     }
 

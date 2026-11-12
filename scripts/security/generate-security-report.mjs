@@ -51,10 +51,10 @@ const cases = [
   {
     id: "VERSION-001",
     category: "Access control",
-    threat: "The v0.2 scheduler submits to a legacy authorization-only payroll contract and advances policy without contract-controlled settlement.",
-    protection: "Scheduler admission rejects every contract version older than v0.2.0 before a payment request can be sent.",
+    threat: "The v0.3 scheduler submits to a contract without on-chain milestone idempotency.",
+    protection: "Scheduler admission rejects every contract version older than v0.3.0 before a payment request can be sent.",
     source: "agent/src/near.test.ts",
-    test: "rejects legacy authorization-only version",
+    test: "rejects scheduler-incompatible version",
   },
   {
     id: "POLICY-001",
@@ -177,6 +177,14 @@ const cases = [
     test: "triggers a milestone once per stable milestone ID",
   },
   {
+    id: "SCHEDULE-003",
+    category: "Schedule and replay",
+    threat: "The agent process exits after a milestone transfer finalizes but before local completion state is saved.",
+    protection: "The contract stores the completed recipient/reference pair and rejects a second transfer for the same milestone reference.",
+    source: "contract/src/tests.rs",
+    test: "milestone_reference_prevents_duplicate_settlement_after_agent_state_loss",
+  },
+  {
     id: "REPLAY-001",
     category: "Schedule and replay",
     threat: "A legacy filled cross-chain intent persisted from v0.1 is submitted a second time after restart or polling.",
@@ -191,6 +199,14 @@ const cases = [
     protection: "Processed events are deduplicated in persistent state.",
     source: "agent/src/notification-preferences.test.ts",
     test: "deduplicates processed transaction and authorization events",
+  },
+  {
+    id: "REPLAY-003",
+    category: "Schedule and replay",
+    threat: "A notification event is marked handled before any configured delivery channel succeeds.",
+    protection: "The event store persists completion only after successful delivery and retries events left incomplete across restarts.",
+    source: "agent/src/notification-event-store.test.ts",
+    test: "retries an event after a restart when delivery was never completed",
   },
   {
     id: "DATA-001",
@@ -247,8 +263,8 @@ const limitations = [
   "The product is testnet-only and must not custody mainnet funds.",
   "Standard NEAR function-call arguments and chain metadata remain public even when public audit entries omit salary and recipient fields.",
   "Cross-chain execution is disabled in this release because contract-controlled custody is not implemented end to end.",
-  "Source v0.2 implements contract-controlled native settlement; a deployment has that guarantee only when contract_version reports v0.2.0 or newer.",
-  "A Full Access key on a payroll contract account is outside contract enforcement. The legacy root deployment key must be segregated from the agent host; factory-created v0.2 children are created without access keys.",
+  "Source v0.3 implements contract-controlled native settlement and on-chain milestone-reference idempotency. Native settlement exists in v0.2, but the production scheduler requires contract_version v0.3.0 or newer.",
+  "A Full Access key on a payroll contract account is outside contract enforcement. The root deployment key is isolated from the agent process in a manually unlocked keychain, but VPS compromise remains a custody risk; factory-created children are created without access keys.",
   "Callback uncertainty remains locked for ten minutes. Owner recovery then requires a public transaction hash and explicit delivery attestation; the contract cannot cryptographically verify that off-chain receipt interpretation.",
   "The five browser-triggered contract probes are a demonstration layer. The CI suites and source-linked cases below are the primary reproducible evidence.",
 ];
@@ -338,6 +354,7 @@ function walk(directory, extension) {
 
 function countTests(vitestReport) {
   const rustFiles = walk(resolve(repositoryRoot, "contract", "src"), ".rs");
+  const signerFiles = walk(resolve(repositoryRoot, "tools", "clavis-near-signer", "src"), ".rs");
   const agentFiles = walk(resolve(repositoryRoot, "agent", "src"), ".ts").filter((path) =>
     path.endsWith(".test.ts"),
   );
@@ -355,6 +372,10 @@ function countTests(vitestReport) {
     const matches = readFileSync(path, "utf8").match(/#\[test\]/gu);
     return total + (matches?.length ?? 0);
   }, 0);
+  const signer = signerFiles.reduce((total, path) => {
+    const matches = readFileSync(path, "utf8").match(/#\[test\]/gu);
+    return total + (matches?.length ?? 0);
+  }, 0);
   const agentDefinitions = countTypeScriptTests(agentFiles);
   const api = countTypeScriptTests(apiFiles);
   const browser = countTypeScriptTests(browserFiles);
@@ -366,9 +387,18 @@ function countTests(vitestReport) {
       throw new Error("The Vitest report is missing a successful numTotalTests result");
     }
     agent = parsed.numTotalTests;
-    count_basis = "Rust, API, and browser source definitions plus successful Vitest JSON report";
+    count_basis =
+      "Contract, signer, API, and browser source definitions plus successful Vitest JSON report";
   }
-  return { rust, agent, api, browser, total: rust + agent + api + browser, count_basis };
+  return {
+    rust,
+    signer,
+    agent,
+    api,
+    browser,
+    total: rust + signer + agent + api + browser,
+    count_basis,
+  };
 }
 
 function markdown(report) {
@@ -396,7 +426,9 @@ function markdown(report) {
     `Generated from ${snapshotLabel} at ${report.verification.generated_at}.\n\n` +
     `**Verification:** ${status} | **Mapped threats:** ${report.summary.mapped_threats} | ` +
     `**Repository tests:** ${report.summary.repository_tests.total} ` +
-    `(${report.summary.repository_tests.rust} Rust, ${report.summary.repository_tests.agent} agent, ` +
+    `(${report.summary.repository_tests.rust} contract Rust, ` +
+    `${report.summary.repository_tests.signer} signer Rust, ` +
+    `${report.summary.repository_tests.agent} agent, ` +
     `${report.summary.repository_tests.api} API, ${report.summary.repository_tests.browser} browser)\n\n` +
     `${report.verification.run_url ? `[Open the CI run](${report.verification.run_url})\n\n` : ""}` +
     `| ID | Category | Threat | Deterministic protection | Reproducing test |\n` +
@@ -441,10 +473,37 @@ function readFrontendEvidence(filePath) {
 
 const options = parseArguments(process.argv.slice(2));
 const commit = options.commit || process.env.GITHUB_SHA || gitValue(["rev-parse", "HEAD"], "unknown");
-// Generated outputs and unrelated local files do not change the evidence
-// snapshot. Only tracked changes to mapped source files make it dirty.
 const evidenceSourcePaths = [...new Set(cases.map((item) => item.source))];
+const verificationSourcePaths = [...new Set([
+  ...evidenceSourcePaths,
+  "scripts/security/generate-security-report.mjs",
+  "scripts/verify.sh",
+  ...walk(resolve(repositoryRoot, "contract", "src"), ".rs").map((path) =>
+    relative(repositoryRoot, path),
+  ),
+  ...walk(resolve(repositoryRoot, "tools", "clavis-near-signer", "src"), ".rs").map((path) =>
+    relative(repositoryRoot, path),
+  ),
+  ...walk(resolve(repositoryRoot, "agent", "src"), ".ts")
+    .filter((path) => path.endsWith(".test.ts"))
+    .map((path) => relative(repositoryRoot, path)),
+  ...walk(resolve(repositoryRoot, "tests", "api"), ".ts")
+    .filter((path) => path.endsWith(".test.ts"))
+    .map((path) => relative(repositoryRoot, path)),
+  ...walk(resolve(repositoryRoot, "tests", "e2e"), ".ts")
+    .filter((path) => path.endsWith(".spec.ts"))
+    .map((path) => relative(repositoryRoot, path)),
+])];
 const treeState = gitValue([
+  "status",
+  "--porcelain",
+  "--untracked-files=no",
+  "--",
+  ...verificationSourcePaths,
+], "")
+  ? "modified"
+  : "clean";
+const mappedSourceState = gitValue([
   "status",
   "--porcelain",
   "--untracked-files=no",
@@ -465,7 +524,7 @@ const evidenceCases = cases.map((item) => {
     line,
     source_sha256: hash(source),
     source_url:
-      treeState === "clean"
+      mappedSourceState === "clean"
         ? `${repositoryUrl}/blob/${commit}/${item.source}#L${line}`
         : "",
   };

@@ -885,7 +885,7 @@ test("returns route measurements from live RPC evidence instead of model prose",
     result: { chain: string; reason: string; gas_comparison: string; observed_at: string };
   };
   assert.equal(payload.result.chain, "near");
-  assert.match(payload.result.reason, /only route supported by Clavis source v0\.2/i);
+  assert.match(payload.result.reason, /only route supported by Clavis source v0\.3/i);
   assert.match(payload.result.reason, /does not prove the deployed contract version, agent uptime, or completed delivery/i);
   assert.match(payload.result.gas_comparison, /NEAR testnet: .*gas-unit price 100000000/);
   assert.doesNotMatch(payload.result.gas_comparison, /Invented gas claim/);
