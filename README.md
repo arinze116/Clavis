@@ -266,6 +266,11 @@ Do not use these scripts for Mainnet. They verify network, account IDs, public k
 
 The film shows the current v0.3 application, factory, contract controls, AI workflow, worker portal, audit and privacy boundaries. Its genuine payment 20/21 approval and settlement recordings predate the v0.3 upgrade and remain historical Testnet evidence; it does not claim those transactions were newly executed under v0.3.
 
+## Contributors
+
+- **Arinze** — creator and maintainer.
+- **Codex (OpenAI)** — engineering and documentation contributor.
+
 ## Licence and acknowledgements
 
 Clavis is released under the [MIT Licence](LICENSE). It is built on NEAR Testnet with NEAR SDK, NEAR Wallet Selector and NEAR AI Cloud.
