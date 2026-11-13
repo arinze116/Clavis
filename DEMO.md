@@ -2,21 +2,24 @@
 
 ## Accepted tutorial
 
-The current end-to-end tutorial is the local file `artifacts/video-production/clavis-desktop-tutorial-20261111/clavis-desktop-tutorial-178s.mp4`.
+The definitive end-to-end tutorial is published at:
+
+- [Direct 4K MP4](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4)
+- [GitHub Release](https://github.com/arinze116/Clavis/releases/tag/v0.3.0-demo)
 
 | Property | Verified value |
 | --- | --- |
-| Duration | 178.000000 seconds |
-| Frames | 5,340 |
-| Resolution and rate | 1920×1080, 30 fps |
+| Duration | 177.000000 seconds |
+| Frames | 5,310 |
+| Resolution and rate | 3840×2160, constant 30 fps |
 | Video | H.264 High |
 | Audio | AAC-LC stereo, 48 kHz |
-| File size | 13,394,060 bytes |
-| SHA-256 | `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24` |
+| File size | 525,364,542 bytes |
+| SHA-256 | `bea52c9c1ead01b1cad9f242dc23dbb921ff48280c84cd34896d8b43c8ddddc4` |
 
 The tutorial shows:
 
-- the actual full desktop and application;
+- the actual full desktop and current application;
 - Meteor connected as `clavis.testnet` on Testnet;
 - existing-business initialization;
 - two workers with one-time `Milestone` schedules;
@@ -25,9 +28,10 @@ The tutorial shows:
 - payments 20 and 21 settling 0.001 NEAR each;
 - Meteor connected as `arinze-worker1.testnet`;
 - Worker 1 payment evidence and the matching finalized receipt;
-- audit, factory, security, and privacy boundaries.
+- the current AI payroll-control report;
+- factory v0.3.0, restricted permissions, audit, security, and privacy boundaries.
 
-The film was captured against the v0.2 deployment. It is valid historical product evidence, but it does not demonstrate the v0.3 milestone-idempotency upgrade.
+The primary 4K interface captures show the current v0.3 product state. The genuine Meteor approval, private-plan signature and payments 20/21 settlement clips are preserved historical evidence recorded before the v0.3 upgrade. The film does not claim those two payments were newly executed under v0.3 or that recurring payroll has been implemented.
 
 ## Required claims
 
@@ -41,9 +45,9 @@ The film was captured against the v0.2 deployment. It is valid historical produc
 
 ## Historical assets
 
-The 180-second master at `artifacts/video-production/clavis-final-demo-20261111/clavis-final-demo-180s.mp4` is preserved unchanged as earlier evidence. The public release at <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified> predates the later live settlement workflow.
+The earlier 180-second and 178-second masters remain preserved locally with their original checksums. The public source release at <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified> predates the later v0.3 deployment and the definitive 4K film.
 
-## v0.3 recording boundary
+## v0.3 evidence boundary
 
 The production infrastructure may be described as v0.3 because these checks passed:
 
@@ -56,4 +60,4 @@ The production infrastructure may be described as v0.3 because these checks pass
 - the public frontend serves the merged commit;
 - no secret, private plan, or credential appears in footage.
 
-The accepted 178-second tutorial itself remains historical v0.2 footage. A future v0.3 recording must still show the new deployed state directly before making a v0.3 video claim.
+The definitive 4K film shows these current v0.3 states directly. Its settlement chapter deliberately reuses genuine historical payments 20 and 21 rather than creating unnecessary replacement transactions. Current v0.3 interface and architecture evidence must therefore remain distinct from the historical provenance of those payment receipts.
