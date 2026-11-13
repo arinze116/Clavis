@@ -29,7 +29,9 @@ Clavis gives a business owner a rule-bound payroll contract and an AI-assisted o
 
 Repository source, the public root, the public factory, and the backend agent are v0.3.0. Clavis is Testnet-only and privacy-minimized, not confidential or anonymous.
 
-The accepted 178-second product tutorial was captured against v0.2. It demonstrates real owner setup, AI policy extraction, genuine Meteor approval, two 0.001 NEAR settlements, and Worker 1 receipt verification. SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`.
+The definitive [177-second 4K product tutorial](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4) demonstrates real owner setup, AI policy extraction, genuine Meteor approval, two 0.001 NEAR settlements, connected Worker 1 receipt verification, and the current v0.3 factory/security surfaces. SHA-256: `bea52c9c1ead01b1cad9f242dc23dbb921ff48280c84cd34896d8b43c8ddddc4`.
+
+The current interface and architecture scenes show v0.3.0. The genuine approval and payment 20/21 clips predate the v0.3 upgrade and remain historical Testnet transaction evidence; they are not presented as fresh v0.3 settlements.
 
 Both demonstrated workers use explicit one-time `Milestone` schedules. The film does not claim recurring execution.
 

@@ -43,18 +43,21 @@ Repository source, the live root, the live factory, and the backend agent are v0
 
 ## Demonstration asset
 
-The accepted end-to-end Testnet tutorial is stored locally at `artifacts/video-production/clavis-desktop-tutorial-20261111/clavis-desktop-tutorial-178s.mp4`.
+The definitive end-to-end Testnet tutorial is publicly available as a GitHub Release asset:
+
+- [Direct 4K MP4](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4)
+- [Release page](https://github.com/arinze116/Clavis/releases/tag/v0.3.0-demo)
 
 | Property | Verified value |
 | --- | --- |
-| Duration | 178.000000 seconds |
-| Frames | 5,340 at 30 fps |
-| Video | H.264 High, 1920×1080 |
+| Duration | 177.000000 seconds |
+| Frames | 5,310 at constant 30 fps |
+| Video | H.264 High, 3840×2160 |
 | Audio | AAC-LC stereo, 48 kHz |
-| Size | 13,394,060 bytes |
-| SHA-256 | `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24` |
+| Size | 525,364,542 bytes |
+| SHA-256 | `bea52c9c1ead01b1cad9f242dc23dbb921ff48280c84cd34896d8b43c8ddddc4` |
 
-The film shows the real v0.2 application workflow: owner wallet connection, business initialization, AI policy extraction, two workers, genuine Meteor approval, signed private plans, two final native settlements, and a connected Worker 1 receipt check. It is historical v0.2 deployment evidence and must not be presented as proof of the v0.3 upgrade.
+The film shows the current v0.3 application and architecture alongside the complete owner, worker and AI workflow. The genuine Meteor approval, signed private plans, and final payments 20 and 21 are preserved historical Testnet evidence recorded before the v0.3 upgrade. They must not be described as fresh v0.3 settlement transactions. Both demonstrated schedules remain one-time `Milestone` plans.
 
 ## Public links
 
@@ -63,6 +66,7 @@ The film shows the real v0.2 application workflow: owner wallet connection, busi
 - Root contract: <https://testnet.nearblocks.io/address/clavis.testnet>
 - Factory: <https://testnet.nearblocks.io/address/factory.clavis.testnet>
 - Historical source release: <https://github.com/arinze116/Clavis/releases/tag/v0.2.0-source-verified>
+- Definitive 4K demo: <https://github.com/arinze116/Clavis/releases/tag/v0.3.0-demo>
 
 ## Release verification
 

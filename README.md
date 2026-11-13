@@ -2,6 +2,8 @@
 
 Clavis is a Testnet payroll control plane for remote teams. A business owner defines workers, limits, schedules, and routes; a restricted scheduler may request due payments; the Rust contract makes the final policy decision and transfers native NEAR from its own treasury.
 
+[Watch or download the definitive 4K product demo](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4) — 2:57, 3840×2160, NEAR Testnet.
+
 ## Release status
 
 Source and deployment status are intentionally separate.
@@ -142,16 +144,19 @@ The scripts verify network, account IDs, exact public keys, versions, state pres
 
 ## Demonstration evidence
 
-The current end-to-end Testnet tutorial is stored locally at `artifacts/video-production/clavis-desktop-tutorial-20261111/clavis-desktop-tutorial-178s.mp4`.
+The definitive end-to-end Testnet demonstration is published as a GitHub Release asset:
 
-- Duration: 178.000000 seconds
-- Frames: 5,340 at 30 fps
-- Video: H.264 High, 1920×1080
+- [Watch or download `clavis-final-4k-demo-177s.mp4`](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4)
+- [Release notes and provenance](https://github.com/arinze116/Clavis/releases/tag/v0.3.0-demo)
+
+- Duration: 177.000000 seconds
+- Frames: 5,310 at constant 30 fps
+- Video: H.264 High, 3840×2160
 - Audio: AAC-LC stereo, 48 kHz
-- Size: 13,394,060 bytes
-- SHA-256: `0b7b572ee064303e96c379caea44760ab1a84266ad3016f54e09f9024a71db24`
+- Size: 525,364,542 bytes
+- SHA-256: `bea52c9c1ead01b1cad9f242dc23dbb921ff48280c84cd34896d8b43c8ddddc4`
 
-It was captured against the v0.2 Testnet deployment and remains historical product evidence, not evidence of the later v0.3 upgrade.
+The film shows the current v0.3 application, factory, contract controls, AI workflow, worker portal, audit and privacy boundaries. Its genuine payment 20/21 approval and settlement recordings predate the v0.3 upgrade and remain historical Testnet evidence; the film does not claim those transactions were newly executed under v0.3. Both demonstrated payroll schedules are one-time `Milestone` plans, not recurring payroll.
 
 ## Documentation
 
@@ -166,6 +171,7 @@ It was captured against the v0.2 Testnet deployment and remains historical produ
 - [Contract settlement ADR](docs/adr/0001-contract-controlled-settlement.md)
 - [Milestone idempotency ADR](docs/adr/0005-on-chain-milestone-idempotency.md)
 - [v0.3 production release evidence](docs/reports/clavis-v03-production-release-20261112.md)
+- [4K demo release evidence](docs/reports/clavis-final-4k-demo-release-20261113.md)
 
 ## License
 
