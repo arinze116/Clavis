@@ -15,7 +15,7 @@ No private key, seed phrase, recovery phrase, wallet password, authentication to
 - **Requested:** Persistently install Meteor Wallet, import the existing owner and worker identities, verify the backend agent independently, execute real NEAR Testnet transactions, and prove the Clavis payroll workflow.
 - **Implemented:** An isolated persistent Chromium profile; official Meteor Wallet installation; a safe launcher; backend-key cryptographic verification; restrictive credential permissions; real backend Testnet signing; on-chain transaction, policy, audit, balance, and explorer verification.
 - **Tested:** Host and process state, browser persistence, extension state, NEAR RPC connectivity, all three accounts, agent signing, deployed contract state, policy denial, audit correlation, repository tests/builds, responsive UI, secret leakage, PM2 preservation, debugging ports, shell syntax, and Git whitespace.
-- **Passed:** Meteor installation and browser-restart persistence; Testnet selection; backend identity and scoped permission checks; real agent transaction; fail-closed policy behavior; audit correlation; 132 repository tests; typechecks; builds; responsive checks; exact-secret scan; no unrelated service restart.
+- **Passed:** Meteor installation and browser-restart persistence; Testnet selection; backend identity and scoped permission checks; real agent transaction; fail-closed policy behaviour; audit correlation; 132 repository tests; typechecks; builds; responsive checks; exact-secret scan; no unrelated service restart.
 - **Failed:** No executed automated test failed. Full acceptance failed because the required existing owner and worker private keys were not present and the live v0.1 contract cannot settle payroll.
 - **Incomplete:** Owner and worker imports, wallet password creation, account switching, owner-to-worker transfer, worker signing, owner mutation, live payroll settlement, duplicate-settlement proof, and end-to-end payment receipt.
 - **Not verified:** Wrong-network UI with a populated wallet, user-rejected wallet prompts, VPS-restart persistence, and live v0.2 settlement/rollback.
@@ -93,7 +93,7 @@ Evidence screenshots, all mode `0600`, are under `artifacts/ui/`, including:
 - **Verified:** Rust NEAR payroll and factory contracts.
 - **Verified:** Live agent configuration sets `NEAR_NETWORK=testnet`, `VITE_NEAR_NETWORK=testnet`, root `clavis.testnet`, factory `factory.clavis.testnet`, and RPC `https://rpc.testnet.fastnear.com`.
 - **Verified:** Independent account and transaction checks used `https://rpc.testnet.near.org`.
-- **Verified:** The wallet selector is initialized with the configured Testnet network and exposes Meteor, MyNearWallet, and Sender adapters.
+- **Verified:** The wallet selector is initialised with the configured Testnet network and exposes Meteor, MyNearWallet, and Sender adapters.
 - **Unverified:** A populated-wallet Mainnet mismatch UI could not be exercised because the existing owner and worker keys were unavailable. No Mainnet signing or submission occurred.
 
 ## B. Account verification
@@ -177,7 +177,7 @@ This is evidence of correct backend signing and policy denial. It is not evidenc
 | Owner-to-worker transfer, preferably 0.01 NEAR | Blocked | Existing `clavis.testnet` private key could not be located or cryptographically verified |
 | Harmless worker-signed operation | Blocked | Existing worker private key was unavailable; current worker UI also has no worker-signed mutation |
 | Owner policy/registration mutation | Blocked | Existing owner private key was unavailable |
-| Agent-to-worker payroll settlement | Unsupported live | Deployed v0.1 `request_payment` records authorization decisions but does not perform contract-controlled native settlement |
+| Agent-to-worker payroll settlement | Unsupported live | Deployed v0.1 `request_payment` records authorisation decisions but does not perform contract-controlled native settlement |
 
 ## D. Clavis workflow
 
@@ -369,7 +369,7 @@ Accessed 2026-11-09:
 - **Verified:** `https://chromewebstore.google.com/detail/meteor-wallet/pcndjhkinnkaohffealmlmhaepkpmgkb` — title, extension ID, version 0.8.12, update date, and publisher `Meteor Wallet`.
 - **Verified:** `https://clients2.google.com/service/update2/crx` — installed manifest update service.
 - **Strongly supported:** `https://github.com/Meteor-Wallet/meteor-public` and `https://github.com/near/wallet-selector/tree/main/packages/meteor-wallet` — official integration/Testnet guidance.
-- **Verified:** `https://docs.near.org/` and official Testnet RPC behavior.
+- **Verified:** `https://docs.near.org/` and official Testnet RPC behaviour.
 - **Verified:** Explorer transaction pages listed in section C returned HTTP 200 from the VPS.
 - **Unverified:** Meteor's marketing website content because `https://meteorwallet.app/` returned Cloudflare HTTP 403 from this IP.
 

@@ -14,7 +14,7 @@ Network: NEAR Testnet only
 
 Verified: the recovered `factory.clavis.testnet` signer matches the sole on-chain FullAccess authority with fingerprint `11ced76408bc820a`. The factory was upgraded to the reviewed v0.2.0 WASM, its legacy registry was preserved, and its access keys remain unchanged.
 
-Verified: the factory created the dedicated acceptance child `clavis-v02-e2e-20261110.clavis.testnet`. The child runs the reviewed root v0.2.0 code, has the expected owner and agent, emitted the expected registration event, completed a native NEAR settlement, and passed the required authorization and failure paths.
+Verified: the factory created the dedicated acceptance child `clavis-v02-e2e-20261110.clavis.testnet`. The child runs the reviewed root v0.2.0 code, has the expected owner and agent, emitted the expected registration event, completed a native NEAR settlement, and passed the required authorisation and failure paths.
 
 Verified: the root, factory, production backend agent, and local production frontend all use the intended Testnet addresses and v0.2 interfaces. The complete repository gate passed with 170 tests and browser paths. Nothing was pushed, published, or deployed to Mainnet.
 
@@ -204,7 +204,7 @@ Relevant local commits after rebasing onto `origin/main`:
 | `8e11681` | Safe Testnet payroll acceptance resume |
 | `5ccff4d` | Live v0.2 evidence and explorer reliability |
 | `a8b88fd` | Final v0.2 release-candidate implementation |
-| `df7b70c` | Historical full-execution report finalization |
+| `df7b70c` | Historical full-execution report finalisation |
 | `09ba1d5` | Factory signer recovery and verification |
 | `16291eb` | Factory v0.2 upgrade/child acceptance workflow and evidence checks |
 | `499a668` | Final acceptance report, active documentation alignment, and regenerated security evidence |

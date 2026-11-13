@@ -34,5 +34,5 @@ The current 4K application and architecture captures show v0.3.0. The genuine ap
 - Native NEAR is the only executable settlement path.
 - Both demonstrated schedules are one-time `Milestone`, not recurring payroll.
 - AI prepares and explains; the owner authorises and the contract enforces.
-- Standard NEAR transaction inputs and receipts remain public. Clavis is privacy-minimized, not confidential or anonymous.
+- Standard NEAR transaction inputs and receipts remain public. Clavis is privacy-minimised, not confidential or anonymous.
 - No independent third-party contract audit is claimed.

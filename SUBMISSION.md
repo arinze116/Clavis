@@ -2,7 +2,7 @@
 
 ## Current product truth
 
-Clavis is a privacy-minimized payroll control plane on NEAR Testnet. Owners configure policy and privately authorize payroll plans. A restricted scheduler requests due native payments, while the payroll contract verifies policy and transfers its own NEAR.
+Clavis is a privacy-minimised payroll control plane on NEAR Testnet. Owners configure policy and privately authorise payroll plans. A restricted scheduler requests due native payments, while the payroll contract verifies policy and transfers its own NEAR.
 
 Repository source, the live root, the live factory, and the backend agent are v0.3.0. Native settlement, on-chain milestone-reference idempotency, restart reconciliation, and retryable notification delivery are deployed on NEAR Testnet.
 
@@ -22,9 +22,10 @@ Repository source, the live root, the live factory, and the backend agent are v0
 ## Disabled, limited, or not claimed
 
 - Mainnet is not supported or deployed.
-- Cross-chain and split settlement fail closed.
+- Cross-chain execution is rejected by the contract, and the production scheduler rejects cross-chain and split plans before submission.
+- The contract does not independently enforce split percentages during a direct native request; a configured agent key could bypass scheduler preflight and request the full amount through a native leg.
 - The worker audit list is employer-wide; it is not worker-specific payment history.
-- Privacy minimization is not transaction confidentiality.
+- Privacy minimisation is not transaction confidentiality.
 - The demonstrated workers remain on one-time `Milestone` schedules; recurring execution is not claimed for that state.
 - Emergency withdrawal and recipient removal exist but were not executed for the accepted film because they are destructive operations.
 - Repository tests are not an independent security audit.

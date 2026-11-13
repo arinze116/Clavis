@@ -1,6 +1,6 @@
 # Clavis privacy boundary
 
-Clavis provides privacy minimization, not confidential blockchain execution.
+Clavis provides privacy minimisation, not confidential blockchain execution.
 
 ## Public on-chain data
 
@@ -33,7 +33,7 @@ Policy extraction receives owner-provided payroll text. Evidence tasks are enric
 
 ## Worker limitation
 
-The contract audit event intentionally omits recipient identity. The worker portal can prove that a connected wallet is registered, but the employer-wide audit list cannot independently prove which worker received each entry. Exact payment attribution requires the finalized transaction evidence.
+The contract audit event intentionally omits recipient identity. The worker portal can prove that a connected wallet is registered, but the employer-wide audit list cannot independently prove which worker received each entry. Exact payment attribution requires the finalised transaction evidence.
 
 ## Not implemented
 

@@ -10,7 +10,7 @@ Keygate combines a `C`-shaped key bow with a restricted key stem. The single aci
 
 | Direction | Evidence | Reason not selected |
 | --- | --- | --- |
-| Keygate | Strong product/name connection; clean silhouette at 16 px; recognizable in light and dark headers | May also read as a plug or geometric `G`; independent recognition testing remains open |
+| Keygate | Strong product/name connection; clean silhouette at 16 px; recognisable in light and dark headers | May also read as a plug or geometric `G`; independent recognition testing remains open |
 | Policy gate | Most literal representation of one approved action passing through a hard policy boundary | Reads more like interface controls than a proprietary brand symbol |
 | Verified C | Clearest immediate success/verification cue | Check-in-circle structures are common and therefore less ownable |
 
@@ -31,7 +31,7 @@ Keygate combines a `C`-shaped key bow with a restricted key stem. The single aci
 
 - Preserve the symbol proportions and 64×64 viewBox.
 - Use the primary dark tile in product UI, favicons, avatars, and social surfaces.
-- Use the transparent monochrome symbols for one-color printing or engraving.
+- Use the transparent monochrome symbols for one-colour printing or engraving.
 - Keep clear space around the symbol equal to at least one key-stem height.
 - Do not add orbit rings, gradients, glow, drop shadows, or extra key details.
 - Do not typeset the wordmark with an arbitrary serif. Use the bundled `ClavisWordmark` subset or the self-contained SVG wordmarks.

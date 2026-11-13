@@ -61,7 +61,7 @@ Authority evidence: Final Testnet RPC identifies `factory.clavis.testnet` as the
 
 ### `factory.clavis.testnet`
 
-- Identity evidence: Final Testnet RPC reports exactly one FullAccess key on factory.clavis.testnet; source and deployed behavior expose no contract method that can delegate code-upgrade authority
+- Identity evidence: Final Testnet RPC reports exactly one FullAccess key on factory.clavis.testnet; source and deployed behaviour expose no contract method that can delegate code-upgrade authority
 - Result: Awaiting hidden private-key input
 
 
@@ -71,6 +71,6 @@ Authority evidence: Final Testnet RPC identifies `factory.clavis.testnet` as the
 - **Design:** Out of scope; no interface was changed.
 - **Branding:** Out of scope; no brand asset was changed.
 - **Video:** Out of scope; no video artefact was changed.
-- **Research:** Live final RPC, deployed code behavior, source access control, deployment configuration, installed CLI help, and Secret Service state were cross-checked.
+- **Research:** Live final RPC, deployed code behaviour, source access control, deployment configuration, installed CLI help, and Secret Service state were cross-checked.
 - **Productivity:** The workflow handles only the missing factory dependency and stops before deployment.
 - **Memory:** Existing Clavis signer/deployment memory was retrieved; no secret material is recorded.

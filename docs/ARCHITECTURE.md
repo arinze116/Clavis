@@ -18,7 +18,7 @@ The v0.3 scheduler refuses payroll contracts older than v0.3.0. This prevents it
 
 ### Payroll contract
 
-The Rust contract owns policy and native settlement state. It checks authorization, pause state, recipient commitment, route, cap, daily limit, schedule, operating hours, pending settlement, and treasury reserve. It transfers native NEAR and commits or rolls back state in the callback.
+The Rust contract owns policy and native settlement state. It checks authorisation, pause state, recipient commitment, route, cap, daily limit, schedule, operating hours, pending settlement, and treasury reserve. It transfers native NEAR and commits or rolls back state in the callback.
 
 For a v0.3 milestone, `request_payment` requires a stable reference. A successful callback stores the recipient/reference pair. Future requests for the same pair are rejected.
 
@@ -39,7 +39,7 @@ sequenceDiagram
 
     Owner->>UI: Connect and review policy
     UI->>Contract: Signed policy transaction
-    Owner->>UI: Sign private-plan authorization
+    Owner->>UI: Sign private-plan authorisation
     UI->>API: Stage private payroll data
     API->>Contract: Read final policy
     API-->>UI: Commit only after exact match
@@ -56,7 +56,7 @@ sequenceDiagram
 - **Payroll contract:** final policy authority and native settlement custodian.
 - **Root/factory Full Access keys:** privileged deployment authorities outside contract enforcement.
 - **Agent host:** can read private plans and notification contacts; compromise does not broaden a correctly restricted agent key.
-- **RPC/indexers:** provide public evidence but can be unavailable or malicious; state-changing authorization remains wallet/contract controlled.
+- **RPC/indexers:** provide public evidence but can be unavailable or malicious; state-changing authorisation remains wallet/contract controlled.
 - **AI provider:** receives bounded task inputs and returns proposals. It has no signer and cannot create on-chain evidence.
 
 ## Private-plan reconciliation
@@ -70,6 +70,12 @@ Recipient plan changes use a persisted two-phase workflow:
 5. Pending operations survive restart and expire after 24 hours.
 
 A cancelled wallet transaction therefore leaves the previous active private plan unchanged.
+
+## Settlement route boundary
+
+The production scheduler accepts only one 100% native NEAR route. It rejects cross-chain and split plans before calling the contract. The contract independently rejects any non-NEAR execution request.
+
+The contract does not independently enforce the scheduler's split restriction. Recipient policy may contain a split of up to three supported routes, and any route in that split is treated as registered. If a split contains a native NEAR leg, a direct `request_payment` call from the configured agent can transfer the full requested amount rather than the configured native percentage. No current contract test proves mixed-split fail-closed behaviour. This is an unresolved implementation discrepancy, not a supported settlement mode.
 
 ## Notification delivery
 

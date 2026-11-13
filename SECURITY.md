@@ -9,7 +9,7 @@ Clavis is unaudited NEAR testnet software and must not custody mainnet funds.
 - Source v0.3 native funds move from the payroll contract; there is no agent-held Full Access settlement signer.
 - The contract validates recipient commitment, route, status, caps, daily spend, schedule, pause state, and operating hours.
 - Approval is recorded only after native transfer success; failure rolls reserved state back.
-- Cross-chain and split execution fail closed.
+- Cross-chain execution is rejected by the contract. The production scheduler rejects both cross-chain and split plans before submission.
 - Public audit events omit amount and recipient identity, while standard transaction inputs remain public.
 - Private recipient changes stay staged until exact final-chain reconciliation.
 - Successful v0.3 milestone references are stored on-chain and cannot be settled twice for the same recipient.
@@ -27,6 +27,7 @@ Versioned threats, mapped tests, current source hashes, limitations, and reprodu
 - No independent third-party audit.
 - Testnet only.
 - Cross-chain execution disabled.
+- Split settlement is not implemented by the scheduler. The contract accepts split route policy but does not enforce split percentages during a direct native request, so a configured agent key could request the full amount through a native split leg.
 - Unsalted account hashes are commitments, not anonymity.
 - Configured recipient policy and standard NEAR transaction inputs are public.
 - Host compromise can expose private plan data even though a restricted scheduler key cannot redirect native settlement around the contract.

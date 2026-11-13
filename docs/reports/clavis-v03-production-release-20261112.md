@@ -127,7 +127,8 @@ The dependency audit reports 17 low-severity transitive `elliptic` advisories in
 ## Persistent limitations
 
 - Testnet only; no Mainnet deployment.
-- Native NEAR is the only executable settlement route; cross-chain and split execution fail closed.
+- Native NEAR is the only implemented settlement transfer. Cross-chain execution is rejected by the contract, and the production scheduler rejects cross-chain and split plans before submission.
+- A later documentation audit found that the contract accepts split policy and does not enforce split percentages for a direct native request. This contract-level gap was not covered by the release tests recorded above.
 - Stale callback recovery relies on owner interpretation of a final receipt.
 - Notification delivery is at least once and can duplicate after a narrow crash window.
 - Legacy v0.1 factory children do not have an in-place owner upgrade path.

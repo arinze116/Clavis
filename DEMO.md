@@ -21,13 +21,13 @@ The tutorial shows:
 
 - the actual full desktop and current application;
 - Meteor connected as `clavis.testnet` on Testnet;
-- existing-business initialization;
+- existing-business initialisation;
 - two workers with one-time `Milestone` schedules;
 - live AI policy extraction and explicit owner confirmation;
 - genuine Meteor owner approval and private-plan signatures;
 - payments 20 and 21 settling 0.001 NEAR each;
 - Meteor connected as `arinze-worker1.testnet`;
-- Worker 1 payment evidence and the matching finalized receipt;
+- Worker 1 payment evidence and the matching finalised receipt;
 - the current AI payroll-control report;
 - factory v0.3.0, restricted permissions, audit, security, and privacy boundaries.
 
@@ -38,8 +38,9 @@ The primary 4K interface captures show the current v0.3 product state. The genui
 - AI proposes and explains; it does not sign or transfer funds.
 - Native NEAR is paid by the payroll contract after policy checks.
 - Both demonstrated workers remain on explicit one-time `Milestone` schedules.
-- Cross-chain and split settlement are disabled.
-- Audit minimization is not transaction confidentiality.
+- Cross-chain settlement is rejected by the contract; the production scheduler also rejects split plans before submission.
+- The contract does not independently enforce split percentages for a direct native request, so split policy must not be described as a contract-enforced settlement guarantee.
+- Audit minimisation is not transaction confidentiality.
 - Worker decision history is employer-wide because audit entries omit recipient identity.
 - The demonstration runs on NEAR Testnet.
 

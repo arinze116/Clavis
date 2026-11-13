@@ -17,7 +17,7 @@ Every publication must retain these facts:
 - the backend key is Function Call restricted to `request_payment`;
 - `factory.clavis.testnet` remains legacy and setup blocks new child deployment;
 - worker audit history is employer-wide;
-- audit minimization is not transaction confidentiality;
+- audit minimisation is not transaction confidentiality;
 - cross-chain and split settlement are disabled;
 - explorer enrichment is evidence-backed but remains dependent on RPC/indexer availability;
 - repository tests are not an independent security audit.
@@ -60,7 +60,7 @@ The contact sheet, exact first/last frames, and individual claim frames are unde
 
 Suggested release description:
 
-> Clavis v0.2 on NEAR Testnet demonstrates contract-controlled native payroll settlement, a request-only backend key, callback-based commit/rollback, durable recipient reconciliation, employer-wide minimized audit evidence, and 159 local checks. The root is live and two workers were settled. The separate factory remains legacy because its exact existing Full Access signer is unavailable, so new child deployment stays blocked.
+> Clavis v0.2 on NEAR Testnet demonstrates contract-controlled native payroll settlement, a request-only backend key, callback-based commit/rollback, durable recipient reconciliation, employer-wide minimised audit evidence, and 159 local checks. The root is live and two workers were settled. The separate factory remains legacy because its exact existing Full Access signer is unavailable, so new child deployment stays blocked.
 
 ## Testnet evidence
 

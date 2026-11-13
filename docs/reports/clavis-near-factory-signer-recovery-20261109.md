@@ -81,7 +81,7 @@ Generated factory connection evidence: `docs/reports/clavis-near-factory-signer-
 - **Design:** Out of scope; no user interface was changed or assessed.
 - **Branding:** Out of scope; no brand asset was changed or assessed.
 - **Video:** Out of scope; no video asset was changed or assessed.
-- **Research:** Installed source/help, Secret Service behavior, four live account states, multiple Testnet RPC providers, prior provenance evidence, and post-run metadata were cross-checked.
+- **Research:** Installed source/help, Secret Service behaviour, four live account states, multiple Testnet RPC providers, prior provenance evidence, and post-run metadata were cross-checked.
 - **Productivity:** Recovery remained limited to the exact missing signer, preserved the file on every failed gate, and stopped immediately after verified cleanup.
 - **Memory:** Relevant organisation memory was retrieved; the final durable status is recorded without any secret material.
 
@@ -145,7 +145,7 @@ near account create-account fund-myself factory.clavis.testnet 8 NEAR \
   send
 ```
 
-**Verified release context:** `near-cli-rs` v0.30.1 was the newest version published through the official npm registry before the account-creation transaction on 2026-11-03. Its tagged source implements the exact command and storage behavior above. This establishes the applicable contemporary behavior, not the exact installed version.
+**Verified release context:** `near-cli-rs` v0.30.1 was the newest version published through the official npm registry before the account-creation transaction on 2026-11-03. Its tagged source implements the exact command and storage behaviour above. This establishes the applicable contemporary behaviour, not the exact installed version.
 
 **Unknown:** The exact historical binary version. No original binary, install record, command log, or original NEAR CLI configuration survived locally. A version older than v0.30.1 cannot be excluded.
 
