@@ -31,7 +31,6 @@ const navigationGroups = [
 const resourceLinks = [
   { href: "https://github.com/arinze116/Clavis", label: "Source code" },
   { href: "https://testnet.nearblocks.io/address/clavis.testnet", label: "Contract on testnet" },
-  { href: "https://x.com/useClavis_", label: "Follow on X" },
   { href: "https://nearhackathon.com", label: "NEAR Hackathon" },
 ];
 
