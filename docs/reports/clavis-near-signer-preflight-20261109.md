@@ -43,7 +43,7 @@ Worker 2 identity evidence: Live `/opt/clavis/agent/.env` sets `WORKER_TWO_ID=ar
 - Installed `near --version` and command help for keychain lookup and NEP-413 signing.
 - Official NEAR CLI v0.31.1 release: https://github.com/near/near-cli-rs/releases/tag/v0.31.1
 - Official tagged source for Secret Service naming and credential shape: https://github.com/near/near-cli-rs/tree/v0.31.1
-- Installed GNOME Keyring daemon version and live Secret Service behavior.
+- Installed GNOME Keyring daemon version and live Secret Service behaviour.
 
 ## Completion report
 

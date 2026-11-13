@@ -80,7 +80,7 @@ The business console presents approved recipients, anomaly detection, the native
 
 ![Clavis payroll decision history and native NEAR settlement boundary](docs/screenshots/05-payments/10-onchain-transaction.png)
 
-Native NEAR settlement is implemented on Testnet. Cross-chain requests fail closed because contract-controlled custody is not implemented end to end.
+Native NEAR settlement is implemented on Testnet. Cross-chain requests are rejected by the contract because contract-controlled custody is not implemented end to end.
 
 ### 7. Verify payroll as a worker
 
@@ -185,7 +185,8 @@ docs/       Architecture, privacy, threat model, ADRs, reports and screenshots
 
 Current boundaries:
 
-- Native NEAR is the only executable settlement route; cross-chain and split settlement fail closed.
+- Native NEAR is the only implemented settlement transfer. The production scheduler rejects cross-chain and split plans before submission, and the contract rejects non-NEAR execution.
+- The contract still accepts split route policy and does not enforce split percentages during a direct native request. A configured agent key could therefore bypass scheduler preflight and request the full amount through a native leg. This is an unresolved contract-level limitation.
 - Confidential transactions are not implemented.
 - The demonstrated workers use one-time `Milestone` schedules; recurring execution is not claimed for that demo state.
 - Worker audit history is employer-wide because audit events omit recipient identity.

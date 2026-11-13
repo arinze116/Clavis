@@ -55,11 +55,11 @@ Open these pages from the verified deployed origin:
 2. Public dashboard showing the live v0.2.0 root and contract-controlled treasury.
 3. Setup showing the separate legacy factory boundary.
 4. Security evidence showing the 34 contract, 9 signer, 66 agent, 44 API, and 6 browser checks.
-5. Public audit showing minimized fields and rejection evidence.
+5. Public audit showing minimised fields and rejection evidence.
 6. Audit disclosure explaining employer-wide, non-confidential history.
 7. Security evidence and a branded end card that names the factory-only signer blocker.
 
-Do not manufacture wallet state through `localStorage`. Use the actual public read-only flow and owner-authorized testnet wallet when a signed action is part of the verified rehearsal.
+Do not manufacture wallet state through `localStorage`. Use the actual public read-only flow and owner-authorised Testnet wallet when a signed action is part of the verified rehearsal.
 
 ## 5. Recording cue sheet
 
@@ -70,7 +70,7 @@ Do not manufacture wallet state through `localStorage`. Use the actual public re
 | Constrain | Show the settlement boundary. | “The live scheduler is limited to `request_payment`; native funds remain in the contract.” |
 | Enforce | Show Security evidence. | “Callback success commits approval; failure rolls policy and schedule state back.” |
 | Reconcile | Hold the audit/source evidence. | “Signed private-plan changes become active only after final-chain reconciliation.” |
-| Disclose | Show audit privacy and rejection evidence. | “History is employer-wide, minimized rather than confidential, and explorer links never guess.” |
+| Disclose | Show audit privacy and rejection evidence. | “History is employer-wide, minimised rather than confidential, and explorer links never guess.” |
 | Close | Return to Security evidence and the end card. | “159 checks verify this release; root settlement is live, while the exact factory signer still gates new child deployment.” |
 
 ## 6. Validate the finished render

@@ -30,7 +30,7 @@ This file records current release work. Dated evidence reports remain historical
 
 ## Residual limitations
 
-- Cross-chain and split settlement remain disabled.
+- Cross-chain settlement remains disabled. The production scheduler also disables split plans, but the contract does not independently enforce split percentages during a direct native request.
 - Stale callback recovery relies on an owner-reviewed final receipt and explicit attestation.
 - Notification delivery is at least once and can duplicate after a narrow crash window.
 - Factory-created legacy v0.1 children have no repository-supported in-place owner upgrade path.

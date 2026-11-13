@@ -135,7 +135,6 @@ test("footer preserves grouped navigation, resources, and legal destinations", a
   const resourceLinks = [
     ["Source code", "https://github.com/arinze116/Clavis"],
     ["Contract on testnet", "https://testnet.nearblocks.io/address/clavis.testnet"],
-    ["Follow on X", "https://x.com/useClavis_"],
     ["NEAR Hackathon", "https://nearhackathon.com"],
   ] as const;
 

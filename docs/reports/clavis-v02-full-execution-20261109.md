@@ -258,7 +258,7 @@ The completion sprint started at local commit `ca237ba` on branch `fix/testnet-r
 
 New implementation and release-candidate commit: `d59ab717a8e9f88f1d03454144d92cc844c97d39` (`d59ab71`).
 
-Execution-report finalization commit: `72240e42db6f158a49c6f4380a587d94fbe678e8` (`72240e4`).
+Execution-report finalisation commit: `72240e42db6f158a49c6f4380a587d94fbe678e8` (`72240e4`).
 
 Commit-record metadata update: `cbd27100a13ea0e5568b944e4481238a099ee7ef` (`cbd2710`).
 
@@ -269,7 +269,7 @@ The previously untracked signer connection and preflight reports were inspected 
 - Root v0.2.0 deployment and migration.
 - Restricted v0.2.0 agent health and on-chain key policy.
 - Both designated worker settlements and exact balance changes.
-- Failed-transfer rollback, unauthorized, invalid-recipient, duplicate, insufficient-treasury, and forbidden-method behavior.
+- Failed-transfer rollback, unauthorised, invalid-recipient, duplicate, insufficient-treasury, and forbidden-method behaviour.
 - Event-derived explorer links and archival/polling reliability fixes.
 - Public factory blocker disclosure before wallet connection.
 - Responsive and accessibility QA.

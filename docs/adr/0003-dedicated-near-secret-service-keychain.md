@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-09
 
-Implementation status: the owner, both worker signers, and the sole authorised `factory.clavis.testnet` signer are verified in this keychain. The owner signer performed the authorized root migration. The recovered factory signer then performed the authorized state-compatible factory v0.2 code deployment on 2026-11-10. Owner and worker signers performed the dedicated child acceptance transactions. No key or permission was added, deleted, replaced, or broadened.
+Implementation status: the owner, both worker signers, and the sole authorised `factory.clavis.testnet` signer are verified in this keychain. The owner signer performed the authorised root migration. The recovered factory signer then performed the authorised state-compatible factory v0.2 code deployment on 2026-11-10. Owner and worker signers performed the dedicated child acceptance transactions. No key or permission was added, deleted, replaced, or broadened.
 
 ## Context
 
@@ -25,5 +25,5 @@ The separate factory launcher processes only `factory.clavis.testnet`, compares 
 
 - Private keys are encrypted in the dedicated keyring and never passed in arguments, environment variables, source files, Git output, or reports. The explicitly supplied one-time recovery file remains plaintext only until successful fresh-session verification, then is overwritten and unlinked by the recovery wrapper.
 - NEAR CLI can resolve each signer by Testnet account identity inside an explicitly unlocked session.
-- Deployment and owner/worker acceptance commands use the same isolated-keyring wrapper pattern and still require separate owner authorization.
+- Deployment and owner/worker acceptance commands use the same isolated-keyring wrapper pattern and still require separate owner authorisation.
 - Losing the dedicated keyring password makes the stored signers unavailable; it does not alter any on-chain access key.

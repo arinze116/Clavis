@@ -26,9 +26,9 @@ Clavis is Testnet software. The deployed v0.3 payroll contract is the final poli
 - Approval is written only after transfer success.
 - Transfer failure restores reserved daily spend and schedule state.
 - One native settlement may be pending per contract.
-- Recipient mutation and emergency withdrawal are blocked while settlement is pending.
+- Mutation or removal of the recipient involved in the pending settlement is blocked. Other recipient and owner-policy changes are not globally blocked. Emergency withdrawal is blocked while any native settlement is pending.
 - A milestone requires a validated reference; a successfully settled recipient/reference pair cannot settle again.
-- Cross-chain and split execution fail closed before policy state advances.
+- Cross-chain execution is rejected before policy state advances. The production scheduler rejects split plans before submission.
 - Private-plan changes remain staged until final public state matches.
 - Notification events remain retryable until at least one channel succeeds.
 - Arithmetic overflow and partial security-audit writes fail closed.
@@ -46,6 +46,7 @@ Clavis is Testnet software. The deployed v0.3 payroll contract is the final poli
 - At-least-once notification semantics can duplicate an alert after a narrow crash window.
 - A factory deployment interrupted after funds move can leave a pending record that cannot be safely auto-refunded without trustworthy receipt interpretation.
 - Employer audit events omit recipient identity, so worker-specific history cannot be reconstructed from those events alone.
+- The contract accepts split route policy and treats every configured leg as registered. A direct call from the configured agent can request the full amount through a native leg because contract settlement does not apply split percentages. Scheduler preflight prevents this in the normal production path, but the contract does not guarantee split fail-closed behaviour.
 
 ## Reproducible evidence
 

@@ -9,9 +9,9 @@ Target duration: 60–90 seconds of content plus the opening and end-card holds.
 | 1. Promise | Production landing hero and illustrative policy card | Public app and product boundary | The web app is live; the card is explicitly illustrative |
 | 2. Deploy truth | Production dashboard and setup boundary | Deployed state before marketing copy | `clavis.testnet` is v0.2.0; the legacy factory remains visibly blocked |
 | 3. Constrain | Dashboard settlement boundary | Restricted live-v0.2 scheduler | Function Call key limited to `request_payment`; no external settlement signer |
-| 4. Enforce | Security evidence page | Callback and fail-closed behavior | 34 contract, 9 signer, 66 agent, 44 API, and 6 browser checks |
+| 4. Enforce | Security evidence page | Callback and fail-closed behaviour | 34 contract, 9 signer, 66 agent, 44 API, and 6 browser checks |
 | 5. Reconcile | Public audit loading and proof view | Durable private-plan reconciliation | Wallet cancellation or restart leaves the prior active plan unchanged |
-| 6. Disclose | Audit privacy card, totals, and rejected decisions | Employer-wide minimized evidence | Normal chain data stays public; fallback links do not invent a transaction hash |
+| 6. Disclose | Audit privacy card, totals, and rejected decisions | Employer-wide minimised evidence | Normal chain data stays public; fallback links do not invent a transaction hash |
 | 7. Close | Security evidence and branded end card | Verified live root and explicit remaining boundary | 159 checks passed; root settlement is live; the separate factory signer gates new children |
 
 Production direction:

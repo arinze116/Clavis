@@ -4,7 +4,7 @@ Status: working design evidence, not a legal-clearance claim.
 
 ## Product truth
 
-Clavis is a rule-bound payroll control plane on NEAR testnet. Owners set policy; a restricted scheduler may request settlement; the contract makes the final decision, moves native NEAR, and records minimized audit evidence.
+Clavis is a rule-bound payroll control plane on NEAR Testnet. Owners set policy; a restricted scheduler may request settlement; the contract makes the final decision, moves native NEAR, and records minimised audit evidence.
 
 ## Audience and surfaces
 
@@ -16,7 +16,7 @@ Clavis is a rule-bound payroll control plane on NEAR testnet. Owners set policy;
 ## Identity requirements
 
 - Communicate bounded authority, dependable settlement, and visible rules.
-- Remain recognizable at 16 px without relying on fine internal cuts.
+- Remain recognisable at 16 px without relying on fine internal cuts.
 - Avoid generic AI sparkles, orbit motifs, crypto nodes, shields, and decorative complexity.
 - Preserve the established ink (`#11130f`), acid (`#c8ff62`), and warm-white (`#f8f8f5`) palette unless testing disproves it.
 - Work as a symbol alone and beside the existing Clavis wordmark.

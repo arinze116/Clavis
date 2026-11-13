@@ -21,13 +21,14 @@ Clavis gives a business owner a rule-bound payroll contract and an AI-assisted o
 - The Rust contract checks policy and transfers its own NEAR.
 - Approval is recorded only after transfer success; failure restores reserved state.
 - v0.3 stores completed milestone references on-chain to prevent replay after agent state loss.
-- Cross-chain and split settlement fail closed.
+- The contract rejects cross-chain execution, while the production scheduler rejects cross-chain and split plans before submission.
+- Split percentages are not independently enforced by the contract during a direct native request; this remains a contract-level limitation.
 - Factory-created child accounts have no access keys.
 - Root and factory deployment keys remain explicit privileged boundaries outside contract enforcement.
 
 ## Current status
 
-Repository source, the public root, the public factory, and the backend agent are v0.3.0. Clavis is Testnet-only and privacy-minimized, not confidential or anonymous.
+Repository source, the public root, the public factory, and the backend agent are v0.3.0. Clavis is Testnet-only and privacy-minimised, not confidential or anonymous.
 
 The definitive [177-second 4K product tutorial](https://github.com/arinze116/Clavis/releases/download/v0.3.0-demo/clavis-final-4k-demo-177s.mp4) demonstrates real owner setup, AI policy extraction, genuine Meteor approval, two 0.001 NEAR settlements, connected Worker 1 receipt verification, and the current v0.3 factory/security surfaces. SHA-256: `bea52c9c1ead01b1cad9f242dc23dbb921ff48280c84cd34896d8b43c8ddddc4`.
 
@@ -41,7 +42,7 @@ Both demonstrated workers use explicit one-time `Milestone` schedules. The film 
 - Confidential or anonymous transactions.
 - Cross-chain or split settlement.
 - Worker-initiated route changes without owner approval.
-- Worker-specific reconstruction from minimized employer audit events.
+- Worker-specific reconstruction from minimised employer audit events.
 
 ## Builder
 
